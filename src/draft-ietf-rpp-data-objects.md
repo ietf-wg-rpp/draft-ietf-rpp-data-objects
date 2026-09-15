@@ -185,6 +185,13 @@ The definition of each data element within an object consists of the following a
 * Direct Access: An optional flag indicating whether the associated object or objects are additionally exposed as an addressable sub-resource of the containing object. When set to `true`, the associated object or objects are exposed as a sub-resource that can be addressed independently of the containing object, in addition to their inline representation within it. When absent or set to `false`, the element is accessed only inline. The default value is `false`.
 
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
+* Location: Specifies, in a transport-agnostic manner, where a data element stands in relation to the main payload of a request or response. This attribute classifies the element's role rather than any concrete transport binding; a representation or transport-binding specification (e.g. for HTTP) MUST define how each Location value maps onto its concrete constructs. It MUST be one of the following:
+  * `content`: The data element is part of the main payload conveying the object's data. This typically maps to the HTTP request or response body.
+  * `metadata`: The data element conveys transport- or operation-level information kept separate from the main payload. This typically maps to an HTTP header.
+  * `identifier`: The data element addresses the target of the operation. This typically maps to a segment of the HTTP request path.
+  * `selector`: The data element narrows, filters, or otherwise controls how an operation is carried out, supplied alongside the primary input. This typically maps to an HTTP query parameter.
+
+If no Location is specified for a data element, it is assumed to have a Location of `content`.
 
 ## Reserved Property Names
 
@@ -1503,9 +1510,8 @@ The following transient data elements are defined for this operation:
   * Data Type: String
   * Description: Controls which host information is returned with
 the object.
-  * Constraints: The value MUST be one of "all", "del"
-(delegated), "sub" (subordinate), or "none". The default value
-is "all".
+  * Constraints: The value MUST be one of "all", "del" (delegated), "sub" (subordinate), or "none". The default value is "all".
+  * Location: selector
 
 ### Update Operation
 
@@ -2927,6 +2933,10 @@ A> TODO: write security considerations, if any
 
 {toc="exclude"}
 {numbered="false"}
+## draft-ietf-rpp-data-objects -01 - -02
+
+* Added "Location" attribute to specify the location of data elements in a transport-agnostic manner.  (Issue #114 )
+
 ## draft-ietf-rpp-data-objects -00 - -01
 
 * Added Organisation, Organisation Role and User Objects, based on RFC8543 (Issue #25)
