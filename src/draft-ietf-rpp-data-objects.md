@@ -1010,10 +1010,25 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Data Type: String
     * Description: machine-readable enum label of a message status
     * Constraints:
-      * The following additional status labels are defined for use with the Redemption Grace Period (RGP) feature. When the RGP feature is supported, these labels MAY be specified:
+      * These labels MAY be specified:
         * `queued`: The message has been added to the queue and has not yet been delivered.
         * `delivered`: The message has been delivered to the intended recipient and is awaiting acknowledgment.
         * `removed`: The message has been marked for removal or has already been removed from the system.
+
+## Message Type Object
+
+* Name: Message Type Object
+* Identifier: msgType
+* Description: Represents one of the type values associated with a message object
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a message type
+    * Constraints:
+      * Only labels for message types that have been registered in the IANA registry for message types MAY be used
 
 # Process Objects {#process-objects}
 
@@ -2105,6 +2120,14 @@ The following data elements are defined for the Message Data Object.
   * Description: A server-unique identifier for the message object.
   * Constraints: (None)
 
+* Message Type
+  * Identifier: type
+  * Cardinality: 1
+  * Mutability: create-only
+  * Data Type: Message Type Object
+  * Description: The type of the message object.
+  * Constraints: (None)
+
 * Creation Date
   * Identifier: creationDate
   * Cardinality: 1
@@ -3007,9 +3030,10 @@ Reference: [This-ID]
 Data Elements
 | Identifier   | Name            | Card. | Mutability  | Data Type                | Description                                                                         |
 | ------------ | --------------- | ----- | ----------- | ------------------------ | ------------------------------------------------------------------------------------ |
-| id           | Message ID      | 1     | create-only | Identifier               | A server-unique identifier for the message object.                                   |
+| id           | Message ID      | 1     | read-only   | Identifier               | A server-unique identifier for the message object.                                   |
+| type         | Type            | 1     | create-only | Message Type Object      | The type of the message, corresponding to a label registered in the IANA registry for message types. |
 | creationDate | Creation Date   | 1     | read-only   | Timestamp                | The date and time when the message object was created and inserted into the queue.   |
-| status       | Status          | 1     | read-write  | Status Object            | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
+| status       | Status          | 1     | read-only   | Message Status Object    | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
 | owner        | Organisation ID | 1     | create-only | Organisation Data Object | The owning organisation for the message object.                                      |
 | text         | Text            | 0-1   | create-only | String                   | The textual content of the message.                                                  |
 
