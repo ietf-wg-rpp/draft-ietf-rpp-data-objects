@@ -204,7 +204,7 @@ Wherever "Object Authorisation" is mentioned, it means that an operation MAY acc
 
 ### Uniform interface
 
-For the typical set of Create, Read, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
+For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
 
 #### Create
 
@@ -223,6 +223,11 @@ If the querying client is the sponsoring client, all available information MUST 
 If the querying client is not the sponsoring client but the client provides valid Object Authorisation information, all available information SHOULD be returned, however some optional elements MAY be reserved to the sponsoring client only. 
 
 If the querying client is not the sponsoring client and the client does not provide valid Object Authorisation information, server policy determines which OPTIONAL elements are returned, if any, or whether the entire request is rejected.
+
+#### Query
+
+* Input: (None)
+* Output: Zero or more Objects (read-write and read-only properties)
 
 #### Update
 
@@ -991,6 +996,39 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Direct Access: true
     * Description: The create processes initiated on the owning Data Object.
     * Constraints: (None)
+
+## Message Status Object
+
+* Name: Message Status Object
+* Identifier: msgStatus
+* Description: Represents one of the status values associated with a message object
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a message status
+    * Constraints:
+      * These labels MAY be specified:
+        * `queued`: The message has been added to the queue and has not yet been delivered.
+        * `delivered`: The message has been delivered to the intended recipient and is awaiting acknowledgment.
+        * `removed`: The message has been marked for removal or has already been removed from the system.
+
+## Message Type Object
+
+* Name: Message Type Object
+* Identifier: msgType
+* Description: Represents one of the type values associated with a message object
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a message type
+    * Constraints:
+      * Only labels for message types that have been registered in the IANA registry for message types MAY be used
 
 # Process Objects {#process-objects}
 
@@ -2061,6 +2099,137 @@ An organisation object MUST NOT be deleted if it is associated with other known 
 
 The error response SHOULD indicate the related associated objects.
 
+# Message Data Object
+
+## Object Description
+
+* Name: Message Data Object
+* Identifier: message
+* Unique Identifier: id
+* Description: A Message Data Object represents a message which is inserted in the message queue of an organisation and retrieved by clients associated with that organisation.
+
+## Data Elements
+
+The following data elements are defined for the Message Data Object.
+
+* Message ID
+  * Identifier: id
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Identifier
+  * Description: A server-unique identifier for the message object.
+  * Constraints: (None)
+
+* Message Type
+  * Identifier: type
+  * Cardinality: 1
+  * Mutability: create-only
+  * Data Type: Message Type Object
+  * Description: The type of the message object.
+  * Constraints: (None)
+
+* Creation Date
+  * Identifier: creationDate
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Timestamp
+  * Description: The date and time when the message object was created and inserted into the queue.
+  * Constraints: The value is set by the server.
+
+* Status
+  * Identifier: status
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Message Status Object
+  * Description: The current lifecycle status of the message object.
+  * Constraints:
+    * Possible values: `queued`, `delivered` and `removed`
+
+* Organisation ID
+  * Identifier: owner
+  * Cardinality: 1
+  * Mutability: create-only
+  * Data Type: Organisation Data Object
+  * Description: The owning organisation for the message object.
+  * Constraints: (none)
+
+* Text
+  * Identifier: text
+  * Cardinality: 0-1
+  * Mutability: create-only
+  * Data Type: String
+  * Description: The textual content of the message.
+  * Constraints:
+    * The text may be absent, in which case the message contains no textual content and the content MUST be provided by other data elements provided by an extension.
+
+A> TODO: additional elements for the Message Data Object?
+
+## Operations
+
+### Create Operation
+
+* Identifier: create
+
+The Create operation allows a server to insert a new message into the queue for a registrar. The operation accepts as input all create-only and read-write data elements defined for the Message Data Object.
+
+* Authorisation:
+  * Only the server is authorised to create new message objects.
+
+### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the data elements of a Message Data Object.
+
+* Authorisation:
+  * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
+
+Organisation ID (`owner`) MUST NOT be provided in the response, since a client can only ever retrieve messages linked to its own organisation.
+
+### Query Operation
+
+* Identifier: query
+
+The Query operation allows a client to retrieve a collection of Message Data Object instances based on specified criteria.
+
+* Authorisation:
+  * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
+
+Organisation ID (`owner`) MUST NOT be provided in the response, since a client can only ever retrieve messages linked to its own organisation.
+
+In addition, the following transient data elements are defined for this operation:
+
+* Message Count
+  * Identifier: count
+  * Cardinality: 0-1
+  * Mutability: create-only
+  * Data Type: Integer
+  * Location: selector
+  * Description: The number of messages to retrieve when querying message objects.
+  * Constraints:
+    * The count value MUST be a non-negative integer.
+
+* Message Type
+  * Identifier: type
+  * Cardinality: 0-1
+  * Mutability: create-only
+  * Data Type: String
+  * Location: selector
+  * Description: The type of the message to use as a filter when retrieving message objects.
+  * Constraints:
+    * The type value MUST be a valid RPP message type.
+
+A> TODO: must all valid message types be included in the IANA registry for message types? or can server also use local private types? that are declared in the discover doc?
+
+### Delete Operation
+
+* Identifier: delete
+
+The Delete operation allows a client to remove an existing Message Data Object. The operation targets a specific data object identified by its Message ID.
+
+* Authorisation:
+  * Generally clients are authorised to delete message objects linked to the organisation the client belongs to.
+
 # User Object
 
 ## Object Description
@@ -2848,6 +3017,64 @@ Description: Removes an existing Organisation Data Object.
 
 Parameters: (None)
 
+Object: message
+
+Object Name: Message Data Object
+
+Object Type: Resource
+
+Description: Represents a message placed into an organisation's queue by the server and retrieved by the client.
+
+Reference: [This-ID]
+
+Data Elements
+| Identifier   | Name            | Card. | Mutability  | Data Type                | Description                                                                         |
+| ------------ | --------------- | ----- | ----------- | ------------------------ | ------------------------------------------------------------------------------------ |
+| id           | Message ID      | 1     | read-only   | Identifier               | A server-unique identifier for the message object.                                   |
+| type         | Type            | 1     | create-only | Message Type Object      | The type of the message, corresponding to a label registered in the IANA registry for message types. |
+| creationDate | Creation Date   | 1     | read-only   | Timestamp                | The date and time when the message object was created and inserted into the queue.   |
+| status       | Status          | 1     | read-only   | Message Status Object    | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
+| owner        | Organisation ID | 1     | create-only | Organisation Data Object | The owning organisation for the message object.                                      |
+| text         | Text            | 0-1   | create-only | String                   | The textual content of the message.                                                  |
+
+Operations
+
+Operation: Create
+
+Operation Identifier: create
+
+Description: Inserts a new message into the queue for an organisation.
+
+Parameters: (None)
+
+Operation: Read
+
+Operation Identifier: read
+
+Description: Retrieves the data elements of one or more Message Data Objects.
+
+Parameters: (None)
+
+Operation: Query
+
+Operation Identifier: query
+
+Description: Retrieves zero or more Message Data Objects, optionally filtered by the specified parameters.
+
+Parameters:
+| Identifier | Name          | Card. | Data Type | Description                                                                 |
+| ---------- | ------------- | ----- | --------- | ---------------------------------------------------------------------------- |
+| count      | Message Count | 0-1   | Integer   | The number of messages to retrieve when querying message objects.            |
+| type       | Message Type  | 0-1   | String    | The type of the message to use as a filter when retrieving message objects.  |
+
+Operation: Delete
+
+Operation Identifier: delete
+
+Description: Removes a specific Message Data Object.
+
+Parameters: (None)
+
 Object: user
 
 Object Name: User Data Object
@@ -2924,6 +3151,12 @@ A> TODO: write security considerations, if any
 {removeInRFC="true"}
 {toc="exclude"}
 # Changes History
+
+{toc="exclude"}
+{numbered="false"}
+## draft-ietf-rpp-data-objects -01 - -02
+
+* Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
 
 {toc="exclude"}
 {numbered="false"}
