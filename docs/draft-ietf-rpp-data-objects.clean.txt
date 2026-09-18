@@ -146,15 +146,11 @@ Table of Contents
        8.3.2.  Read Operation
        8.3.3.  Update Operation
        8.3.4.  Delete Operation
-       8.3.5.  Renew Operations
-         8.3.5.1.  Renew Create Operation
-       8.3.6.  Transfer Operations
-         8.3.6.1.  Transfer Create Operation
-       8.3.7.  Restore Operations
-     8.4.  Domain Create Process Object
-       8.4.1.  Operations
-         8.4.1.1.  Create
-         8.4.1.2.  Read
+     8.4.  Processes
+       8.4.1.  Domain Create Process Object
+         8.4.1.1.  Operations
+       8.4.2.  Domain Transfer Process Object
+         8.4.2.1.  Operations
    9.  Contact Data Object
      9.1.  Object Description
      9.2.  Data Elements
@@ -163,7 +159,7 @@ Table of Contents
        9.3.2.  Read Operation
        9.3.3.  Update Operation
        9.3.4.  Delete Operation
-       9.3.5.  Transfer Operations
+     9.4.  Processes
    10. Host Data Object
      10.1.  Object Description
      10.2.  Data Elements
@@ -172,7 +168,7 @@ Table of Contents
        10.3.2.  Read Operation
        10.3.3.  Update Operation
        10.3.4.  Delete Operation
-       10.3.5.  Restore Operations
+     10.4.  Processes
    11. Organisation Data Object
      11.1.  Object Description
      11.2.  Data Elements
@@ -2066,7 +2062,7 @@ Table of Contents
    Beyond the Process ID, the generic Create Process Object defines no
    additional data elements.  Individual object definitions extend it
    with object-specific creation inputs (such as the Domain Create
-   Process Object Section 8.4, which adds the registration period).
+   Process Object Section 8.4.1, which adds the registration period).
 
 7.4.1.  Operations
 
@@ -2289,7 +2285,7 @@ Table of Contents
          rate limiting, billing related constraints or compliance locks.
 
    The Create operation implicitly initiates the Domain Create Process
-   Object Section 8.4, which carries the creation-specific inputs that
+   Object Section 8.4.1, which carries the creation-specific inputs that
    are consumed during creation and not persisted as part of the domain
    object's state.
 
@@ -2369,81 +2365,22 @@ Table of Contents
    The error response SHOULD indicate the related subordinate host
    objects.
 
-8.3.5.  Renew Operations
+8.4.  Processes
 
-   The Domain Name Data Object supports the renew operations defined in
-   Section 2.6.6.  The renewal of a domain name changes the expiry date
-   of the domain object.
+   The Domain Name Data Object supports the following Process Objects
+   Section 7, either unmodified or extended by an object-specific
+   definition.
 
-8.3.5.1.  Renew Create Operation
+   -  Renew Process
+   -  Restore Process
+      -  Constraints: OPTIONAL; available only when the RGP feature is
+         supported.
 
-   -  Identifier: renewCreate
-
-   The Renew operation allows a client to extend the validity period of
-   an existing Domain Name resource.  The operation targets a specific
-   data object identified by its name.
-
-   -  Authorisation:
-      -  Only sponsoring client is authorised to perform this operation
-
-8.3.6.  Transfer Operations
-
-   The Domain Name Data Object supports the common transfer operations
-   defined in Section 2.6.4.  The transfer of a domain name changes the
-   sponsoring client of the domain object.
-
-   Transfer of a domain object MUST implicitly transfer all host objects
-   that are subordinate to the domain object.  For example, if domain
-   object "example.com" is transferred and host object "ns1.example.com"
-   exists, the host object MUST be transferred as part of the
-   "example.com" transfer process.
-
-   In addition to the common Transfer Process Object elements, the
-   following object-specific data elements are included:
-
-   -  Expiry Date
-      -  Identifier: expiryDate
-      -  Cardinality: 0-1
-      -  Mutability: read-only
-      -  Data Type: Timestamp
-      -  Description: The end of the domain object's registration period
-         if the transfer caused or causes a change in the validity
-         period.
-
-   Subordinate host objects MUST be transferred implicitly when the
-   domain object is transferred.
-
-8.3.6.1.  Transfer Create Operation
-
-   -  Identifier: transferCreate
-
-   In addition, the following transient data element is defined for this
-   operation:
-
-   -  Transfer Period
-      -  Identifier: transferPeriod
-      -  Cardinality: 0-1
-      -  Mutability: create-only
-      -  Data Type: Period Object
-      -  Description: The number of units to be added to the
-         registration period of the domain object upon successful
-         completion of the transfer.  The number of units available MAY
-         be subject to limits imposed by the server.
-      -  Constraints: (None)
-
-8.3.7.  Restore Operations
-
-   The Domain Name Data Object supports the restore operations defined
-   in Section 2.6.5.  These operations are OPTIONAL and are only
-   available when the RGP feature is supported.
-
-   No domain-specific transient data elements extend the common restore
-   operations beyond those defined in Section 2.6.5.
-
-8.4.  Domain Create Process Object
+8.4.1.  Domain Create Process Object
 
    -  Name: Domain Create Process Object
    -  Identifier: domainCreateProcess
+   -  Extends: Create Process Object
    -  Unique Identifier: processId
    -  Description: The domain-specific Create Process Object
       Section 7.4.  It is implicitly initiated by the Domain Name Data
@@ -2471,9 +2408,9 @@ Table of Contents
             initial expiryDate of the object.
          -  Constraints: (None)
 
-8.4.1.  Operations
+8.4.1.1.  Operations
 
-8.4.1.1.  Create
+8.4.1.1.1.  Create
 
    -  Identifier: create
 
@@ -2492,7 +2429,7 @@ Table of Contents
       -  Inherited from the Domain Name Data Object create operation
          that initiates this process.
 
-8.4.1.2.  Read
+8.4.1.1.2.  Read
 
    -  Identifier: read
 
@@ -2507,6 +2444,75 @@ Table of Contents
 
       -  Only the sponsoring client is authorised to perform this
          operation.
+
+8.4.2.  Domain Transfer Process Object
+
+   -  Name: Domain Transfer Process Object
+   -  Identifier: domainTransferProcess
+   -  Extends: Transfer Process Object
+   -  Unique Identifier: processId
+   -  Description: The domain-specific Transfer Process Object
+      Section 2.6.4.  It carries the domain-specific transfer inputs and
+      outputs — the requested transfer period and the resulting expiry
+      date — that extend the common transfer process.
+   -  Data Elements:
+      -  Process ID
+         -  Identifier: processId
+         -  Cardinality: 0-1
+         -  Mutability: read-only
+         -  Data Type: String
+         -  Description: A server-assigned identifier of the process
+            instance, unique within the scope of the Owner Data Object.
+         -  Constraints: The value is set by the server and cannot be
+            specified by the client.
+      -  Expiry Date
+         -  Identifier: expiryDate
+         -  Cardinality: 0-1
+         -  Mutability: read-only
+         -  Data Type: Timestamp
+         -  Description: The end of the domain object's registration
+            period if the transfer caused or causes a change in the
+            validity period.
+         -  Constraints: (None)
+
+   Transfer of a Domain Name Data Object MUST implicitly transfer all
+   Host Data Objects that are subordinate to the domain object.  For
+   example, if domain object "example.com" is transferred and host
+   object "ns1.example.com" exists, the host object MUST be transferred
+   as part of the "example.com" transfer process.
+
+8.4.2.1.  Operations
+
+8.4.2.1.1.  Create
+
+   -  Identifier: transferCreate
+
+   The Create operation initiates a transfer of the Domain Name Data
+   Object by creating a Domain Transfer Process Object, extending the
+   common Transfer Create Operation Section 7.1.1.1.
+
+   -  Input:
+
+      -  Owner Data Object reference
+      -  Domain Transfer Process Object (create-only and read-write
+         elements)
+
+   -  Output: Domain Transfer Process Object
+
+   -  Authorisation: as defined in Section 7.1.1.1.
+
+   The following transient data element is defined for this operation:
+
+   -  Transfer Period
+      -  Identifier: transferPeriod
+      -  Cardinality: 0-1
+      -  Mutability: create-only
+      -  Data Type: Period Object
+      -  Description: The number of units to be added to the
+         registration period of the domain object upon successful
+         completion of the transfer.  The number of units available MAY
+         be subject to limits imposed by the server.
+      -  Constraints: (None)
 
 9.  Contact Data Object
 
@@ -2696,14 +2702,13 @@ Table of Contents
 
    The error response SHOULD indicate the existing object associations.
 
-9.3.5.  Transfer Operations
+9.4.  Processes
 
-   The Contact Data Object supports the common transfer operations
-   defined in Section 2.6.4.  The transfer of a contact changes the
-   sponsoring client of the contact object.
+   The Contact Data Object supports the following Process Objects
+   Section 7, either unmodified or extended by an object-specific
+   definition.
 
-   No object-specific transient data elements are defined for contact
-   transfer operations beyond the common transfer data elements.
+   -  Transfer Process
 
 10.  Host Data Object
 
@@ -2862,14 +2867,15 @@ Table of Contents
 
    The error response SHOULD indicate the related associated objects.
 
-10.3.5.  Restore Operations
+10.4.  Processes
 
-   The Host Data Object supports the restore operations defined in
-   Section 2.6.5.  These operations are OPTIONAL and are only available
-   when the RGP feature for Host Data Object is supported by the server.
+   The Host Data Object supports the following Process Objects
+   Section 7, either unmodified or extended by an object-specific
+   definition.
 
-   No host-specific transient data elements extend the common restore
-   operations beyond those defined in Section 2.6.5.
+   -  Restore Process
+      -  Constraints: OPTIONAL; available only when the RGP feature for
+         the Host Data Object is supported by the server.
 
 11.  Organisation Data Object
 
@@ -3806,24 +3812,44 @@ Table of Contents
 
    Data Elements
 
-   +==========+=======+=====+============+=========+===================+
-   |Element   |Element|Card.| Mutability |Data Type| Description       |
-   |Identifier|Name   |     |            |         |                   |
-   +==========+=======+=====+============+=========+===================+
-   |processId |Process|0-1  | read-only  |String   | A server-         |
-   |          |ID     |     |            |         | assigned          |
-   |          |       |     |            |         | identifier of     |
-   |          |       |     |            |         | the process       |
-   |          |       |     |            |         | instance, unique  |
-   |          |       |     |            |         | within the Owner  |
-   |          |       |     |            |         | Data Object.      |
-   +----------+-------+-----+------------+---------+-------------------+
-   |expiryDate|Expiry |0-1  | read-only  |Timestamp| The expiry date   |
-   |          |Date   |     |            |         | of the object     |
-   |          |       |     |            |         | after the         |
-   |          |       |     |            |         | renewal is        |
-   |          |       |     |            |         | completed.        |
-   +----------+-------+-----+------------+---------+-------------------+
+   +=============+=======+=====+===========+=========+=================+
+   |Element      |Element|Card.|Mutability |Data Type|Description      |
+   |Identifier   |Name   |     |           |         |                 |
+   +=============+=======+=====+===========+=========+=================+
+   |processId    |Process|0-1  |read-only  |String   |A server-        |
+   |             |ID     |     |           |         |assigned         |
+   |             |       |     |           |         |identifier of    |
+   |             |       |     |           |         |the process      |
+   |             |       |     |           |         |instance, unique |
+   |             |       |     |           |         |within the Owner |
+   |             |       |     |           |         |Data Object.     |
+   +-------------+-------+-----+-----------+---------+-----------------+
+   |expiryDate   |Expiry |0-1  |read-only  |Timestamp|The expiry date  |
+   |             |Date   |     |           |         |of the object    |
+   |             |       |     |           |         |after the        |
+   |             |       |     |           |         |renewal is       |
+   |             |       |     |           |         |completed.       |
+   +-------------+-------+-----+-----------+---------+-----------------+
+   |renewalPeriod|Renewal|0-1  |create-only|Period   |The duration to  |
+   |             |Period |     |           |Object   |be added to the  |
+   |             |       |     |           |         |object's         |
+   |             |       |     |           |         |registration     |
+   |             |       |     |           |         |period.  This    |
+   |             |       |     |           |         |value is used by |
+   |             |       |     |           |         |the server to    |
+   |             |       |     |           |         |calculate the    |
+   |             |       |     |           |         |new expiryDate.  |
+   |             |       |     |           |         |The default      |
+   |             |       |     |           |         |value MAY be     |
+   |             |       |     |           |         |defined by       |
+   |             |       |     |           |         |server policy.   |
+   |             |       |     |           |         |The number of    |
+   |             |       |     |           |         |units available  |
+   |             |       |     |           |         |MAY be subject   |
+   |             |       |     |           |         |to limits        |
+   |             |       |     |           |         |imposed by the   |
+   |             |       |     |           |         |server.          |
+   +-------------+-------+-----+-----------+---------+-----------------+
 
                                   Table 11
 
@@ -3947,6 +3973,72 @@ Table of Contents
 
    Parameters: (None)
 
+   Object: domainTransferProcess
+
+   Object Name: Domain Transfer Process Object
+
+   Object Type: Process
+
+   Description: The Transfer Process Object specific to the Domain Name
+   Data Object.  Carries the domain-specific transfer inputs and
+   outputs, namely the requested transfer period and the resulting
+   expiry date, that extend the common transfer process.
+
+   Reference: [This-ID]
+
+   Data Elements
+
+   +==========+=======+=====+============+=========+==================+
+   |Element   |Element|Card.| Mutability |Data Type| Description      |
+   |Identifier|Name   |     |            |         |                  |
+   +==========+=======+=====+============+=========+==================+
+   |processId |Process|0-1  | read-only  |String   | A server-        |
+   |          |ID     |     |            |         | assigned         |
+   |          |       |     |            |         | identifier of    |
+   |          |       |     |            |         | the process      |
+   |          |       |     |            |         | instance, unique |
+   |          |       |     |            |         | within the Owner |
+   |          |       |     |            |         | Data Object.     |
+   +----------+-------+-----+------------+---------+------------------+
+   |expiryDate|Expiry |0-1  | read-only  |Timestamp| The end of the   |
+   |          |Date   |     |            |         | domain object's  |
+   |          |       |     |            |         | registration     |
+   |          |       |     |            |         | period if the    |
+   |          |       |     |            |         | transfer caused  |
+   |          |       |     |            |         | or causes a      |
+   |          |       |     |            |         | change in the    |
+   |          |       |     |            |         | validity period. |
+   +----------+-------+-----+------------+---------+------------------+
+
+                                 Table 14
+
+   Operations
+
+   Operation: Create
+
+   Operation Identifier: transferCreate
+
+   Description: Initiates a transfer of a Domain Name Data Object by
+   creating a Domain Transfer Process Object.
+
+   Parameters
+
+   +================+==========+=======+========+======================+
+   | Identifier     | Name     | Card. | Data   | Description          |
+   |                |          |       | Type   |                      |
+   +================+==========+=======+========+======================+
+   | transferPeriod | Transfer | 0-1   | Period | The number of units  |
+   |                | Period   |       | Object | to be added to the   |
+   |                |          |       |        | registration period  |
+   |                |          |       |        | of the domain        |
+   |                |          |       |        | object upon          |
+   |                |          |       |        | successful           |
+   |                |          |       |        | completion of the    |
+   |                |          |       |        | transfer.            |
+   +----------------+----------+-------+--------+----------------------+
+
+                                  Table 15
+
    Object: disclose
 
    Object Name: Disclose
@@ -3965,7 +4057,7 @@ Table of Contents
     +============+=========+=======+============+======+=============+
     +------------+---------+-------+------------+------+-------------+
 
-                                 Table 14
+                                 Table 16
 
    Object: restoreProcess
 
@@ -4024,7 +4116,7 @@ Table of Contents
    |             |       |     |          |         |pendingRestore.  |
    +-------------+-------+-----+----------+---------+-----------------+
 
-                                 Table 15
+                                 Table 17
 
    Operations
 
@@ -4047,7 +4139,7 @@ Table of Contents
    |               |         |       |               | report.         |
    +---------------+---------+-------+---------------+-----------------+
 
-                                  Table 16
+                                  Table 18
 
    Operation: Restore Read
 
@@ -4078,7 +4170,7 @@ Table of Contents
     |               |         |       |               | submitted.   |
     +---------------+---------+-------+---------------+--------------+
 
-                                 Table 17
+                                 Table 19
 
    Object: restoreReport
 
@@ -4166,7 +4258,7 @@ Table of Contents
    |             |            |     |          |         |the client.  |
    +-------------+------------+-----+----------+---------+-------------+
 
-                                  Table 18
+                                  Table 20
 
    Object: domainName
 
@@ -4242,7 +4334,7 @@ Table of Contents
    |                |             |     |          |                   |object.      |
    +----------------+-------------+-----+----------+-------------------+-------------+
 
-                                  Table 19
+                                  Table 21
 
    Operations
 
@@ -4270,7 +4362,7 @@ Table of Contents
    |             | Filter |       |        | information is returned. |
    +-------------+--------+-------+--------+--------------------------+
 
-                                 Table 20
+                                 Table 22
 
    Operation: Update
 
@@ -4288,7 +4380,7 @@ Table of Contents
     |            |        |       |         | update by the server.  |
     +------------+--------+-------+---------+------------------------+
 
-                                 Table 21
+                                 Table 23
 
    Operation: Delete
 
@@ -4297,50 +4389,6 @@ Table of Contents
    Description: Removes an existing Domain Name resource.
 
    Parameters: (None)
-
-   Operation: Renew
-
-   Operation Identifier: renew
-
-   Description: Extends the validity period of a Domain Name resource.
-
-   Parameters
-
-   +===================+=========+=======+===========+================+
-   | Identifier        | Name    | Card. | Data Type | Description    |
-   +===================+=========+=======+===========+================+
-   | currentExpiryDate | Current | 1     | Timestamp | The expected   |
-   |                   | Expiry  |       |           | current expiry |
-   |                   | Date    |       |           | date, for      |
-   |                   |         |       |           | validation.    |
-   +-------------------+---------+-------+-----------+----------------+
-   | renewalPeriod     | Renewal | 0-1   | Period    | The duration   |
-   |                   | Period  |       | Object    | to add to the  |
-   |                   |         |       |           | registration   |
-   |                   |         |       |           | period.        |
-   +-------------------+---------+-------+-----------+----------------+
-
-                                 Table 22
-
-   Operation: Transfer Create Operation
-
-   Operation Identifier: transferCreate
-
-   Description:
-
-   Parameters
-
-   +================+==========+=======+========+=====================+
-   | Identifier     | Name     | Card. | Data   | Description         |
-   |                |          |       | Type   |                     |
-   +================+==========+=======+========+=====================+
-   | transferPeriod | Transfer | 0-1   | Period | The duration to add |
-   |                | Period   |       | Object | to the registration |
-   |                |          |       |        | period upon         |
-   |                |          |       |        | transfer.           |
-   +----------------+----------+-------+--------+---------------------+
-
-                                 Table 23
 
    Object: contact
 
@@ -4380,20 +4428,6 @@ Table of Contents
    |contactInfo |Contact      |1-2  |read-write|External:RPP-|JSContact    |
    |            |Information  |     |          |JSContact-   |Card         |
    |            |             |     |          |Profile:Card |information. |
-   +------------+-------------+-----+----------+-------------+-------------+
-   |voice       |Voice Phone  |0+   |read-write|Phone Number |Voice phone  |
-   |            |Number       |     |          |             |number       |
-   |            |             |     |          |             |associated   |
-   |            |             |     |          |             |with the     |
-   |            |             |     |          |             |contact      |
-   +------------+-------------+-----+----------+-------------+-------------+
-   |fax         |Fax Phone    |0+   |read-write|Phone Number |Fax number   |
-   |            |Number       |     |          |             |associated   |
-   |            |             |     |          |             |with the     |
-   |            |             |     |          |             |contact      |
-   +------------+-------------+-----+----------+-------------+-------------+
-   |email       |E-mail       |0+   |read-write|String.      |Email        |
-   |            |             |     |          |             |address.     |
    +------------+-------------+-----+----------+-------------+-------------+
    |authInfo    |Authorisation|0-1  |read-write|Authorisation|Authorisation|
    |            |Information  |     |          |Information  |information  |
@@ -4813,6 +4847,9 @@ draft-ietf-rpp-data-objects -00 - -01
       missing articles, cross-reference wording, and copy-paste object
       names
    -  Add External Data Types section and JSContact (Issue #83)
+   -  restructure object processes: per-object "Processes" sections,
+      process objects extending generic ones, add Domain Transfer
+      Process Object, with IANA updates #119
 
 draft-kowalik-rpp-data-objects-04 - draft-ietf-rpp-data-objects-00
 
