@@ -272,53 +272,6 @@ The Create operation MAY include the restore report inline to complete both step
 
 All restore operations act on or return the Restore Process Object and are executed in the context of the Owner Data Object the operation is created upon.
 
-#### Redemption Grace Period State Diagram
-
-The following state diagram describes the object lifecycle when the Redemption Grace Period (RGP) feature is supported. It adapts the diagram from [@!RFC3915, section 2] to the RPP data model, using RPP status labels and operations instead of EPP command names.
-
-In the diagram below, RPP status labels are shown in the `status` field of the object. Standard EPP-origin status labels (e.g., `ok`, `pendingDelete`) are used alongside the RGP-specific labels defined in this document. The `<create>` and `<report>` labels refer to the Create and Report operations on the Restore Process Object, replacing the EPP extended `<update>` command with `op=request` and `op=report` attributes.
-
-```ascii
-              |
-              v                     (2)
-+----------------------------+   <delete>   +-------------------------------+
-| status: ok              (1)|------------->| status: pendingDelete      (3)|
-|                            |              |         redemptionPeriod      |
-+----------------------------+              +-------------------------------+
-   ^   ^             restore, no report      | ^  |                |
-   |   |             and report required  (4)| |  |        No (9)  |
-   |   |                  <create>           | |  |       restore  |
-   |   |                  +------------------+ |  |       restore  |
-   |   |                  v                    |  |                v
-   |   |  +------------------+                 |  | +-----------------------+
-   |   |  | status:       (6)|                 |  | | status:           (10)|
-   |   |  |   pendingDelete  |-----------------+  | |   pendingDelete       |
-   |   |  |   pendingRestore |   report not (7)   | |   rgpPendingDelete    |
-   |   |  +------------------+   received         | +-----------------------+
-   |   |                (8) |                     |                |
-   |   |    report received |                     |     purge (11) |
-   |   |       <report>     |      restore (5)    |                v
-   |   +--------------------+      with report    | +-----------------------+
-   |                               or not req.    | |      Purged       (12)|
-   |                                  <create>    | +-----------------------+
-   +----------------------------------------------+
-```
-
-State descriptions:
-
-1. The object is in normal operation (`ok` or other status allowing a delete operation).
-2. A delete operation is received and processed.
-3. RGP begins. The object enters `pendingDelete` + `redemptionPeriod` state. The object remains here until a restore operation is requested or the redemption period elapses.
-4. A restore Create operation is submitted. The registry accepts the request. Go to step 8 if the redemption period elapses before a restore is received (4a).
-5. If the server does not require a restore report, the object returns to its pre-deletion status (1) immediately upon a successful Create operation. If the server requires a report but the client includes it inline in the Create operation, the server processes both atomically and the object transitions directly from `redemptionPeriod` to its pre-deletion status (1), bypassing the `pendingRestore` state.
-6. The object enters `pendingDelete` + `pendingRestore` state. The registry awaits a restore report from the sponsoring client.
-7. If no restore report is received within the registry-defined time, the object returns to `redemptionPeriod` state (step 3).
-8. If a restore report is received and accepted, the object returns to its pre-deletion status and all RGP status labels are removed.
-9. The redemption period elapses without a restore request being received.
-10. The object enters `pendingDelete` + `rgpPendingDelete` state and awaits final purge processing.
-11. The pending delete period elapses and the object is purged.
-12. The object is purged and available for re-registration.
-
 ### Renew Operations {#renew-ops}
 
 Renew operations manage the validity period of a provisioned object. They are specified once in this section as the renewal model is common across all renewable resource objects. Individual object definitions reference this section and specify any object-specific extensions to the common pattern.
@@ -591,7 +544,6 @@ Example Dictionary Composition:
 +--------------------------+
 ```
 
-
 # Component Objects
 
 This section defines the Component Objects used in this document.
@@ -673,11 +625,11 @@ This section defines the Component Objects used in this document.
     * Description: The date and time of the most recent successful object transfer.
     * Constraints: This element MUST NOT be provided if the object has never been transferred.
 
-## Status Object
+## Domain Name Status Object
 
-* Name: Status Object
-* Identifier: status
-* Description: Represents one of the status values associated with a provisioning object
+* Name: Domain Name Status Object
+* Identifier: domainStatus
+* Description: Represents one of the status values associated with a Domain Name Data Object
 * Data Elements:
   * Label
     * Identifier: label
@@ -685,24 +637,8 @@ This section defines the Component Objects used in this document.
     * Mutability: create-only
     * Data Type: String
     * Description: machine-readable enum label of a status
-    * Constraints:      
-      * Exact list of allowed status labels depends on the provisioning object type. This enumeration can be expanded by extensions.
-      * The status labels MUST use camel case notation and use only ASCII alphabetic characters.
-      * Statuses MAY be of three categories:
-        1. those explicitly set by a server. Those MUST have "server" prefix
-        2. those explicitly set by a client. Those MUST have "client" prefix
-        3. those indirectly controlled by provisioning object lifecycle or business logic. Those MUST NOT use either "client" or "server" prefix. They MAY use another prefix or no prefix at all
-      * The following additional status labels are defined for use with the Redemption Grace Period (RGP) feature. When the RGP feature is supported, these labels MAY be specified:
-        * `addPeriod`: The object is within the add grace period following initial registration. If the object is deleted during this period, the registry MAY provide a credit to the sponsoring client.
-        * `autoRenewPeriod`: The object is within the auto-renew grace period following automatic renewal by the registry. If the object is deleted during this period, the registry MAY provide a credit to the sponsoring client.
-        * `renewPeriod`: The object is within the renew grace period following an explicit renewal. If the object is deleted during this period, the registry MAY provide a credit to the sponsoring client.
-        * `transferPeriod`: The object is within the transfer grace period following a successful transfer. If the object is deleted by the new sponsoring client during this period, the registry MAY provide a credit.
-        * `redemptionPeriod`: A delete operation has been received and processed for the object, but the object has not yet been purged. A restore operation MAY be requested to abort the deletion. This status value MUST only appear alongside the standard `pendingDelete` status.
-        * `pendingRestore`: A restore request has been accepted and the registry is waiting for a restore report from the sponsoring client. This status value MUST only appear alongside the standard `pendingDelete` status.
-        * `rgpPendingDelete`: The redemption period has elapsed without a successful restore. The object has entered the purge processing state. This status value MUST only appear alongside the standard `pendingDelete` status. This label is used to distinguish the RGP-specific pending-delete sub-state from the broader EPP `pendingDelete` status.
-
-A> TODO: find a better home for this list (own section + IANA registry). Add standard domain statuses here as well (and solve the issue of statuses not applicable to other object types like client/serverHold).
-      
+    * Constraints:
+      * Only status values defined in [Domain Status Values](#domain-status-values) and [Redemption Grace Period Status Values](#rgp-status-values) are allowed.
   * Reason
     * Identifier: reason
     * Cardinality: 0-1
@@ -710,6 +646,190 @@ A> TODO: find a better home for this list (own section + IANA registry). Add sta
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
     * Constraints: None
+
+### Status Values {#domain-status-values}
+
+Status values that can be added or removed by a client are prefixed
+with "client".  Corresponding status values that can be added or
+removed by a server are prefixed with "server".  Status values that
+do not begin with either "client" or "server" are server-managed. Status values that begin with "rgp" are related to the Redemption Grace Period (RGP) and are also server-managed.
+
+| Status Value | Description |
+|--------------|-------------|
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
+| clientHold | DNS delegation information MUST NOT be published for the object. |
+| serverHold | DNS delegation information MUST NOT be published for the object. |
+| clientRenewProhibited | Requests to renew the object MUST be rejected. |
+| serverRenewProhibited | Requests to renew the object MUST be rejected. |
+| clientTransferProhibited | Requests to transfer the object MUST be rejected. |
+| serverTransferProhibited | Requests to transfer the object MUST be rejected. |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| inactive | Delegation information has not been associated with the object. This is the default status when a domain object is first created and there are no associated host objects for the DNS delegation. This status can also be set by the server when all host-object associations are removed. |
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingRenew | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+Table: Domain Name Status Values
+{#tbl-domain-status-values}
+
+### Allowed Transitions
+
+The following diagram describes the allowed status transitions for a domain object, excluding the "rgp" status values, which follow the separate Redemption Grace Period State Diagram below. The `clientHold`, `serverHold`, `clientDeleteProhibited`, `serverDeleteProhibited`, `clientRenewProhibited`, `serverRenewProhibited`, `clientTransferProhibited`, `serverTransferProhibited`, `clientUpdateProhibited`, and `serverUpdateProhibited` status values are additive flags that MAY be combined with the states shown below (subject to the Status Exclusions rules) and are not depicted as separate states; while present, the corresponding flag blocks the associated transition (delete, renew, transfer, or update, respectively) from being initiated.
+
+```ascii
+                                       |
+                                       v
+                      +-----------------------------------+
+                      |     status: pendingCreate       (1)|
+                      +-----------------------------------+
+                                       |
+                         create action completed (2)
+                                       v
+                      +-----------------------------------+
+         +----------->|     status: ok / inactive       (3)|<-----------+
+         |            +-----------------------------------+             |
+         |              |            |             |                    |
+         |     <update> | <renew>    | <transfer                        |
+         |         (4)  |    (5)     |  create> (6)                     |
+         |              v            v             v                    |
+         |  +-------------+  +-------------+  +--------------------+    |
+         |  |   status:   |  |   status:   |  |     status:        |    |
+         |  |pendingUpdate|  |pendingRenew |  |  pendingTransfer   |    |
+         |  |         (4) |  |         (5) |  |                 (6)|    |
+         |  +-------------+  +-------------+  +--------------------+    |
+         |         |                |                    |              |
+         |         +----------------+--------------------+              |
+         |                action completed (7)                          |
+         +--------------------------------------------------------------+
+
+                      +-----------------------------------+
+                      |     status: ok / inactive      (3)|
+                      +-----------------------------------+
+                                       |
+                                 <delete> (8)
+                                       v
+                      +-----------------------------------+
+                      |     status: pendingDelete      (8)|
+                      +-----------------------------------+
+                            |                         |
+              no RGP support (9)             RGP support (9)
+                            v                         v
+                 +------------------+   +-----------------------------------+
+                 | Deleted (purged) |   |  status: pendingDelete +           |
+                 |             (10) |   |  redemptionPeriod                  |
+                 +------------------+   |  (see Redemption Grace Period      |
+                                        |  State Diagram below)          (10)|
+                                        +-----------------------------------+
+```
+Figure: Domain Object State Diagram
+
+State descriptions:
+
+1. A create operation is received and processed. If the server defers completion, the object enters `pendingCreate` state.
+2. The create action completes. The object transitions to `ok` if one or more nameservers are associated with the domain, or to `inactive` if none are associated.
+3. The object is in normal operation, either as `ok` (nameservers associated) or `inactive` (no nameservers associated). The object toggles between these two sub-states as nameserver associations are added to or removed from the domain, independently of the transitions described below.
+4. An update operation is received. If the server defers completion, the object enters `pendingUpdate` state.
+5. A renew operation is received to extend the domain's registration period. If the server defers completion, the object enters `pendingRenew` state.
+6. A transfer Create operation is received, initiating a transfer request. The object enters `pendingTransfer` state while the request awaits approval, rejection, or automated server action.
+7. Once the pending update, renew, or transfer action completes, the corresponding pending status is removed and the object returns to its `ok` or `inactive` state, as determined by its current nameserver associations.
+8. A delete operation is received and processed. The object enters `pendingDelete` state.
+9. Whether RGP is supported for the domain determines the next transition upon completion of the pending delete action.
+10. If RGP is not supported, the object is purged once the delete action completes. If RGP is supported, the object instead continues into the `redemptionPeriod` state, following the [Redemption Grace Period State Diagram](#fig-rgp-state-diagram) below.
+
+### Pending Status Removal
+
+When the requested action has been completed, the pendingCreate,
+pendingDelete, pendingRenew, pendingTransfer, or pendingUpdate status
+value MUST be removed.  All clients involved in the transaction MUST
+be notified using a service message that the action has been
+completed and that the status of the object has changed.
+
+### Status Exclusions
+
+| Status Value | MUST NOT be combined with |
+|--------------|----------------------------|
+| ok | Any other status |
+| pendingDelete | clientDeleteProhibited, serverDeleteProhibited |
+| pendingRenew | clientRenewProhibited, serverRenewProhibited |
+| pendingTransfer | clientTransferProhibited, serverTransferProhibited |
+| pendingUpdate | clientUpdateProhibited, serverUpdateProhibited |
+| pendingCreate, pendingDelete, pendingRenew, pendingTransfer, pendingUpdate | Each other (mutually exclusive) |
+Table: Status Exclusions
+{#tbl-status-exclusions}
+
+Other status combinations not expressly prohibited MAY be used.
+
+### Redemption Grace Period {#rgp-status-values}
+
+Status values that begin with "rgp" are related to the Redemption Grace Period (RGP) and are server-managed.
+
+| Status Value | Description |
+|--------------|-------------|
+| rgpAddPeriod | This grace period is provided after the initial registration of a domain name. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the registration. |
+| rgpAutoRenewPeriod | This grace period is provided after a domain name registration period expires and is extended (renewed) automatically by the registry. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. |
+| rgpRenewPeriod | This grace period is provided after a domain name registration period is explicitly extended (renewed) by the registrar. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. |
+| rgpTransferPeriod | This grace period is provided after the successful transfer of domain name registration sponsorship from one registrar to another registrar. If the domain name is deleted by the new sponsoring registrar during this period, the registry provides a credit to the registrar for the cost of the transfer. |
+| rgpRedemptionPeriod | This status value is used to describe a domain for which a delete operation has been received, but the domain has not yet been purged because an opportunity exists to restore the domain and abort the deletion process. |
+| rgpPendingRestore | This status value is used to describe a domain that is in the process of being restored after being in the rgpRedemptionPeriod state. |
+| rgpPendingDelete | This status value is used to describe a domain that has entered the purge processing state after completing the rgpRedemptionPeriod state.  A domain in this status MUST also be in the pendingDelete status described above. |
+Table: Redemption Grace Period Status Values
+{#tbl-rgp-status-values}
+
+The following state diagram describes the object lifecycle when the Redemption Grace Period (RGP) feature is supported. It adapts the diagram from [@!RFC3915, section 2] to the RPP data model, using RPP status labels and operations instead of EPP command names.
+
+In the diagram below, RPP status labels are shown in the `status` field of the object. Standard EPP-origin status labels (e.g., `ok`, `pendingDelete`) are used alongside the RGP-specific labels defined in this document. The `<create>` and `<report>` labels refer to the Create and Report operations on the Restore Process Object, replacing the EPP extended `<update>` command with `op=request` and `op=report` attributes.
+
+```ascii
+              |
+              v                     (2)
++----------------------------+   <delete>   +-------------------------------+
+| status: ok              (1)|------------->| status: pendingDelete      (3)|
+|                            |              |         redemptionPeriod      |
++----------------------------+              +-------------------------------+
+   ^   ^             restore, no report      | ^  |                |
+   |   |             and report required  (4)| |  |        No (9)  |
+   |   |                  <create>           | |  |       restore  |
+   |   |                  +------------------+ |  |       restore  |
+   |   |                  v                    |  |                v
+   |   |  +------------------+                 |  | +-----------------------+
+   |   |  | status:       (6)|                 |  | | status:           (10)|
+   |   |  |   pendingDelete  |-----------------+  | |   pendingDelete       |
+   |   |  |   pendingRestore |   report not (7)   | |   rgpPendingDelete    |
+   |   |  +------------------+   received         | +-----------------------+
+   |   |                (8) |                     |                |
+   |   |    report received |                     |     purge (11) |
+   |   |       <report>     |      restore (5)    |                v
+   |   +--------------------+      with report    | +-----------------------+
+   |                               or not req.    | |      Purged       (12)|
+   |                                  <create>    | +-----------------------+
+   +----------------------------------------------+
+```
+Figure: Redemption Grace Period State Diagram
+{#fig-rgp-state-diagram}
+
+State descriptions:
+
+1. The object is in normal operation (`ok` or other status allowing a delete operation).
+2. A delete operation is received and processed.
+3. RGP begins. The object enters `pendingDelete` + `redemptionPeriod` state. The object remains here until a restore operation is requested or the redemption period elapses.
+4. A restore Create operation is submitted. The registry accepts the request. Go to step 8 if the redemption period elapses before a restore is received (4a).
+5. If the server does not require a restore report, the object returns to its pre-deletion status (1) immediately upon a successful Create operation. If the server requires a report but the client includes it inline in the Create operation, the server processes both atomically and the object transitions directly from `redemptionPeriod` to its pre-deletion status (1), bypassing the `pendingRestore` state.
+6. The object enters `pendingDelete` + `pendingRestore` state. The registry awaits a restore report from the sponsoring client.
+7. If no restore report is received within the registry-defined time, the object returns to `redemptionPeriod` state (step 3).
+8. If a restore report is received and accepted, the object returns to its pre-deletion status and all RGP status labels are removed.
+9. The redemption period elapses without a restore request being received.
+10. The object enters `pendingDelete` + `rgpPendingDelete` state and awaits final purge processing.
+11. The pending delete period elapses and the object is purged.
+12. The object is purged and available for re-registration.
+
+<!--
+Why did we have Due defined? i think we don't need these and can be removed?
+
+
   * Due
     * Identifier: due
     * Cardinality: 0-1
@@ -717,8 +837,142 @@ A> TODO: find a better home for this list (own section + IANA registry). Add sta
     * Data Type: Timestamp
     * Description: a timestamp, when this status is going to be removed automatically, or changed to other status. This field can be used to express lifecycle related information.
     * Constraints: servers MAY restrict possibility to set or update this value by the client.
+-->
 
 A> TBD: Idea - model status object as Labelled Composition using "Label"? Con: Generic Constraints for Label will be repeated.
+
+## Host Status Object
+
+* Name: Host Status Object
+* Identifier: hostStatus
+* Description: Represents one of the status values associated with a Host Data Object
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a status
+    * Constraints:
+      * Only status values defined in [Status Values](#host-status-values) are allowed.
+  * Reason
+    * Identifier: reason
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: a human-readable text that describes the rationale for the status applied to the object.
+    * Constraints: None
+
+### Status Values {#host-status-values}
+
+Status values that can be added or removed by a client are prefixed
+with "client".  Corresponding status values that can be added or
+removed by a server are prefixed with "server".  Status values that
+do not begin with either "client" or "server" are server-managed.
+
+| Status Value | Description |
+|--------------|-------------|
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| linked | The host object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. |
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingTransfer | A transform command has been processed for the object's superordinate domain object (i.e. a transfer of the domain object is pending), but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+Table: Host Status Values
+{#tbl-host-status-values}
+
+### Pending Status Removal
+
+When the requested action has been completed, the pendingCreate,
+pendingDelete, pendingTransfer, or pendingUpdate status value MUST be
+removed. All clients involved in the transaction MUST be notified
+using a service message that the action has been completed and that
+the status of the object has changed.
+
+### Status Exclusions
+
+| Status Value | MUST NOT be combined with |
+|--------------|----------------------------|
+| ok | Any status other than `linked` |
+| pendingDelete | clientDeleteProhibited, serverDeleteProhibited |
+| pendingUpdate | clientUpdateProhibited, serverUpdateProhibited |
+| pendingCreate, pendingDelete, pendingTransfer, pendingUpdate | Each other (mutually exclusive) |
+Table: Host Status Exclusions
+{#tbl-host-status-exclusions}
+
+Other status combinations not expressly prohibited MAY be used.
+
+## Contact Status Object
+
+* Name: Contact Status Object
+* Identifier: contactStatus
+* Description: Represents one of the status values associated with a Contact Data Object
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a status
+    * Constraints:
+      * Only status values defined in [Status Values](#contact-status-values) are allowed.
+  * Reason
+    * Identifier: reason
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: a human-readable text that describes the rationale for the status applied to the object.
+    * Constraints: None
+
+### Status Values {#contact-status-values}
+
+Status values that can be added or removed by a client are prefixed
+with "client".  Corresponding status values that can be added or
+removed by a server are prefixed with "server".  Status values that
+do not begin with either "client" or "server" are server-managed.
+
+| Status Value | Description |
+|--------------|-------------|
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
+| clientTransferProhibited | Requests to transfer the object MUST be rejected. |
+| serverTransferProhibited | Requests to transfer the object MUST be rejected. |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| linked | The contact object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. |
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+Table: Contact Status Values
+{#tbl-contact-status-values}
+
+### Pending Status Removal
+
+When the requested action has been completed, the pendingCreate,
+pendingDelete, pendingTransfer, or pendingUpdate status value MUST be
+removed. All clients involved in the transaction MUST be notified
+using a service message that the action has been completed and that
+the status of the object has changed.
+
+### Status Exclusions
+
+| Status Value | MUST NOT be combined with |
+|--------------|----------------------------|
+| ok | Any status other than `linked` |
+| pendingDelete | clientDeleteProhibited, serverDeleteProhibited |
+| pendingTransfer | clientTransferProhibited, serverTransferProhibited |
+| pendingUpdate | clientUpdateProhibited, serverUpdateProhibited |
+| pendingCreate, pendingDelete, pendingTransfer, pendingUpdate | Each other (mutually exclusive) |
+Table: Contact Status Exclusions
+{#tbl-contact-status-exclusions}
+
+Other status combinations not expressly prohibited MAY be used.
 
 ## DNS Resource Record Object
 
@@ -932,17 +1186,6 @@ A> TODO: Model Disclose in universal (extendible) way
 * Identifier: organisationRole
 * Description: Represents a role that an organisation has within the registry ecosystem, as defined in [@!RFC8543, section 3.2]. An organisation object MUST always have at least one associated role. A single organisation MAY have multiple roles with different role types.
 * Data Elements:
-  * Role Status
-    * Identifier: status
-    * Cardinality: 0+
-    * Mutability: read-write
-    * Data Type: String
-    * Description: The status of this particular role. A role SHOULD have at least one associated status value.
-    * Constraints:
-      * Allowed values: `ok`, `linked`, `clientLinkProhibited`, `serverLinkProhibited`.
-      * `ok` is the normal status value for a role with no active prohibitions.
-      * `linked` indicates the role has at least one active association with another object. This value is not explicitly set by the client.
-      * `clientLinkProhibited` and `serverLinkProhibited` indicate that requests to add new links to the role MUST be rejected.
   * Role Identifier
     * Identifier: roleId
     * Cardinality: 0-1
@@ -1378,12 +1621,12 @@ The following data elements are defined for the Domain Name Data Object.
 
 * Status
   * Identifier: status
-  * Cardinality: 0+
-  * Mutability: read-only
-  * Data Type:  Status Object
+  * Cardinality: 1+
+  * Mutability: read-write
+  * Data Type:  Domain Name Status Object
   * Description: The current status descriptors associated with the domain.
   * Constraints:
-    * Possible combinations of Status Object Labels are specified in [@!RFC5731, section 2.3].
+    * Possible combinations of Status Object Labels are specified in (#domain-name-status-object).
 
 A> TBC: IANA registry for statuses?
 
@@ -1671,14 +1914,12 @@ The following data elements are defined for the Contact Data Object.
 
 * Status
   * Identifier: status
-  * Cardinality: 0+
-  * Mutability: read-only
-  * Data Type: Status Object
+  * Cardinality: 1+
+  * Mutability: read-write
+  * Data Type: Contact Status Object
   * Description: Status descriptors associated with the contact.
   * Constraints:
-    * Possible combinations of Contact Status Labels are specified in [@!RFC5733, section 2.2]
-    * The value MUST be one of the status tokens defined in the IANA registry for contact statuses.
-    * The initial value list MAY be as defined in [@!RFC5733]. In this case the values MUST have the same semantics.
+    * Possible combinations of Contact Status Labels are specified in [Contact Status Values](#contact-status-values).
 
 * Contact Information
   * Identifier: contactInfo
@@ -1816,11 +2057,11 @@ The following data elements are defined for the Host Data Object.
 
 * Status
   * Identifier: status
-  * Cardinality: 0+
-  * Mutability: read-only
-  * Data Type:  Status Object
+  * Cardinality: 1+
+  * Mutability: read-write
+  * Data Type:  Host Status Object
   * Description: The current status descriptors associated with the host.
-  * Constraints: Possible combinations of Host Status Labels are specified in [@!RFC5732, section 2.3]
+  * Constraints: Possible combinations of Host Status Labels are specified in [Host Status Values](#host-status-values)
 
 * DNS Data
   * Identifier: dns
@@ -1929,18 +2170,6 @@ The following data elements are defined for the Organisation Data Object.
   * Data Type: Provisioning Metadata Object
   * Description: Standard metadata about the object's lifecycle and ownership.
   * Constraints: (None)
-
-* Status
-  * Identifier: status
-  * Cardinality: 1+
-  * Mutability: read-write
-  * Data Type: Status Object
-  * Description: The current operational status descriptors associated with the organisation. An organisation object MUST always have at least one associated status value.
-  * Constraints:
-    * Status values that can be added or removed by a client are prefixed with "client". Corresponding server-managed status values are prefixed with "server".
-    * Possible values: `ok`, `hold`, `terminated`, `linked`, `clientLinkProhibited`, `serverLinkProhibited`, `clientUpdateProhibited`, `serverUpdateProhibited`, `clientDeleteProhibited`, `serverDeleteProhibited`, `pendingCreate`, `pendingUpdate`, `pendingDelete`.
-    * `pendingCreate`, `ok`, `hold`, and `terminated` are mutually exclusive.
-    * `ok` MAY only be combined with `linked`.
 
 * Roles
   * Identifier: roles
@@ -2111,7 +2340,6 @@ The following data elements are defined for the User Data Object.
   * Data Type: Organisation Data Object Reference
   * Description: A reference to the owner organisation object.
   * Constraints: -
-
 * Processes
   * Identifier: processes
   * Cardinality: 0-1
@@ -2917,6 +3145,127 @@ Fields to be registered:
 - `permission`: The permission level associated with the user role, for example "read-only", "read-write", or "admin".
 - `description`: A human-readable description of the user role and its intended use.
 
+## RPP Domain Name Status Values Registry
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Domain Name Status Values Registry".
+
+```text
+Name of the registry: RPP Domain Name Status Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable status label, for example "clientDeleteProhibited".
+- `description`: A human-readable description of the status and the conditions under which it applies.
+- `reference`: A reference to the specification that defines the status value.
+
+### Initial Registrations
+
+The initial registrations for the RPP Domain Name Status Values registry are the status values defined in (#tbl-domain-status-values), reproduced below with their reference.
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| clientHold | DNS delegation information MUST NOT be published for the object. | [This-ID] |
+| serverHold | DNS delegation information MUST NOT be published for the object. | [This-ID] |
+| clientRenewProhibited | Requests to renew the object MUST be rejected. | [This-ID] |
+| serverRenewProhibited | Requests to renew the object MUST be rejected. | [This-ID] |
+| clientTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
+| serverTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| inactive | Delegation information has not been associated with the object. This is the default status when a domain object is first created and there are no associated host objects for the DNS delegation. This status can also be set by the server when all host-object associations are removed. | [This-ID] |
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingRenew | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| rgpAddPeriod | This grace period is provided after the initial registration of a domain name. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the registration. | [This-ID] |
+| rgpAutoRenewPeriod | This grace period is provided after a domain name registration period expires and is extended (renewed) automatically by the registry. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. | [This-ID] |
+| rgpRenewPeriod | This grace period is provided after a domain name registration period is explicitly extended (renewed) by the registrar. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. | [This-ID] |
+| rgpTransferPeriod | This grace period is provided after the successful transfer of domain name registration sponsorship from one registrar to another registrar. If the domain name is deleted by the new sponsoring registrar during this period, the registry provides a credit to the registrar for the cost of the transfer. | [This-ID] |
+| rgpRedemptionPeriod | This status value is used to describe a domain for which a delete operation has been received, but the domain has not yet been purged because an opportunity exists to restore the domain and abort the deletion process. | [This-ID] |
+| rgpPendingRestore | This status value is used to describe a domain that is in the process of being restored after being in the rgpRedemptionPeriod state. | [This-ID] |
+| rgpPendingDelete | This status value is used to describe a domain that has entered the purge processing state after completing the rgpRedemptionPeriod state.  A domain in this status MUST also be in the pendingDelete status described above. | [This-ID] |
+Table: Initial RPP Domain Name Status Values Registrations
+{#tbl-domain-status-registry}
+
+## RPP Host Status Values Registry
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Host Status Values Registry".
+
+```text
+Name of the registry: RPP Host Status Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable status label, for example "clientDeleteProhibited".
+- `description`: A human-readable description of the status and the conditions under which it applies.
+- `reference`: A reference to the specification that defines the status value.
+
+### Initial Registrations
+
+The initial registrations for the RPP Host Status Values registry are the status values defined in (#tbl-host-status-values), reproduced below with their reference.
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| linked | The host object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingTransfer | A transform command has been processed for the object's superordinate domain object (i.e. a transfer of the domain object is pending), but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+Table: Initial RPP Host Status Values Registrations
+{#tbl-host-status-registry}
+
+## RPP Contact Status Values Registry
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Contact Status Values Registry".
+
+```text
+Name of the registry: RPP Contact Status Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable status label, for example "clientDeleteProhibited".
+- `description`: A human-readable description of the status and the conditions under which it applies.
+- `reference`: A reference to the specification that defines the status value.
+
+### Initial Registrations
+
+The initial registrations for the RPP Contact Status Values registry are the status values defined in (#tbl-contact-status-values), reproduced below with their reference.
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| clientTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
+| serverTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| linked | The contact object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+Table: Initial RPP Contact Status Values Registrations
+{#tbl-contact-status-registry}
+
 # Security Considerations
 
 A> TODO: write security considerations, if any
@@ -2924,6 +3273,12 @@ A> TODO: write security considerations, if any
 {removeInRFC="true"}
 {toc="exclude"}
 # Changes History
+
+{toc="exclude"}
+{numbered="false"}
+## draft-ietf-rpp-data-objects -01 - -02
+
+* Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
 
 {toc="exclude"}
 {numbered="false"}
