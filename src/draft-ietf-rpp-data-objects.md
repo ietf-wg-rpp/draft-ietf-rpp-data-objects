@@ -1017,6 +1017,100 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Description: The create processes initiated on the owning Data Object.
     * Constraints: (None)
 
+## Domain Name Variant Object
+
+* Name: Domain Name Variant Object
+* Identifier: domainVariant
+* Description: A container for a variant for an Internationalized Domain Name (IDN), can represent both registered and potential variants according to the relevant LGR/IDN Table.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Fully Qualified Domain Name
+    * Direct Access: false
+    * Description: The (ACE) A-label form of the name of the variant.
+    * Constraints: If the name is represented as a valid ASCII name then the name does not have to be an ACE encoded ("xn--" prefix) string.
+  * Unicode Name
+    * Identifier: uName
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Direct Access: false
+    * Description: The Unicode representation of the "name" of the variant.
+    * Constraints: (None)
+  * Status
+    * Identifier: status
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Direct Access: false
+    * Description: The status of the variant.
+    * Constraints: MUST be one of the following values: "registered", "available".
+
+## Domain Name Variants Objects
+
+* Name: Domain Name Variants Object
+* Identifier: domainVariants
+* Description: A container for the variants for an Internationalized Domain Name (IDN), can represent both registered and potential variants according to the relevant LGR/IDN Table.
+* Data Elements:
+  * Server Transaction ID
+    * Identifier: svrTrId
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Identifier
+    * Description: A server-assigned unique identifier for the object.
+    * Constraints: In EPP Compatibility Profile this data element MUST be provided.
+  * Client Transaction ID
+    * Identifier: clTrId
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Client Identifier
+    * Description: The identifier of the client that is the originator of the transaction.
+    * Constraints: (None)
+  * Label Generation Ruleset (LGR)
+    * Identifier: lgr
+    * Cardinality: 1
+    * Data Type: String
+    * Description: The Label Generation Ruleset (LGR) used to compute the variants for the Internationalized Domain Name (IDN).
+    * Constraints: (None)
+  * Variants
+    * Identifier: variants
+    * Cardinality: 0+
+    * Mutability: read-only
+    * Data Type: Domain Name Variant Object
+    * Direct Access: false
+    * Description: The Internationalized Domain Name (IDN) variants of the Domain Name Variants Object.
+    * Constraints: (None)
+
+### Operations
+
+The Domain Name Variants Object only supports the Read operation.
+
+#### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the known Internationalized Domain Name (IDN) variants based on the provided input domain name.
+
+* Authorisation:
+  * Same authorisation rules as the Read Operation of the owning Domain Name Data Object.
+
+* Input: Object Identifier of the owning Domain Name Data Object
+* Output: Domain Variants Object
+
+The following transient data elements are defined for this operation:
+
+* Label Generation Ruleset (LGR)
+  * Identifier: lgr
+  * Cardinality: 0-1
+  * Data Type: String
+  * Description: Restricts the variants returned to those computed using a single named Label Generation Ruleset (LGR), also known as an IDN Table (deprecated).
+  * Constraints:
+    * If present, the value MUST be a valid LGR name registered in the IANA Label Generation Rulesets registry [IDN-Tables], and MUST be applicable to the owning domain name.
+    * If absent, the server MUST compute variants using the default LGR applicable to for the relevant owning TLD.
+    * If the value does not identify an LGR applicable to the owning domain name, the server MUST return an appropriate error.
+
 # Process Objects {#process-objects}
 
 This section defines the Process Objects used in this document.
@@ -1390,6 +1484,7 @@ The following data elements are defined for the Domain Name Data Object.
   * Description: The fully qualified name of the domain object.
   * Constraints:
     * A server MAY restrict allowable domain names to a particular top-level domain, second-level domain, or other domain for which the server is authoritative.
+    * If the domain name is an internationalized domain name (IDN), the value MUST be a valid ACE encoded string representing the Unicode Name (uName).
 
 * Unicode Name
   * Identifier: uName
@@ -1405,15 +1500,15 @@ The following data elements are defined for the Domain Name Data Object.
     * The Unicode (U-label) form of the domain name, when converted according to the procedures defined in Section 2.3.2.4 of [@!RFC5890], MUST be equal to the corresponding A-label representation.
     * Any code point valid under IDNA2003 but disallowed under IDNA2008 MUST NOT be allowed in the Unicode Name (uName).
 
-* Unicode Table
-  * Identifier: uTable
+* LGR
+  * Identifier: lgr
   * Cardinality: 0-1
   * Mutability: create-only
   * Data Type: String
-  * Description: The name of IDN table containing the valid code points used for the Unicode Name (uName).
+  * Description: The name of the Label Generation Ruleset (LGR) containing the valid code points used for the Unicode Name (uName).
   * Constraints:
     * MUST NOT be empty when the Unicode Name (uName) is provided.
-    * MUST be a valid IDN table name registered in the IANA IDN Tables registry [IDN-Tables].
+    * MUST be a valid LGR name registered in the IANA IDN Tables registry [IDN-Tables].
 
 * Provisioning Metadata
   * Identifier: provMetadata
@@ -1513,6 +1608,15 @@ A> TBC: IANA registry for contact role label?
   * Direct Access: true
   * Description: The Process Objects currently or recently initiated on the domain object.
   * Constraints: (None)
+
+* Variants
+  * Identifier: variants
+  * Cardinality: 0-1
+  * Mutability: read-only
+  * Data Type: Domain Name Variants Object
+  * Direct Access: true
+  * Description: The known Internationalized Domain Name (IDN) variants of the domain name, as determined by the Label Generation Ruleset (LGR).
+  * Constraints: The server MAY choose not to include this data element if IDN is not supported.
 
 ## Operations
 
