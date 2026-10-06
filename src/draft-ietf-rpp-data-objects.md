@@ -1059,6 +1059,8 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 ## Messages
 
+The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type extends the Base Message Object to include additional data elements relevant to that message type. Any of the types defined in this section may be used for the `data` data element defined for the Message Data Object.
+
 ### Base Message Object
 
 * Name: Base Message Object
@@ -1067,30 +1069,32 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 * Data Elements:
   * Object Type
     * Identifier: objectType
-    * Cardinality: 1
+    * Cardinality: 0-1
     * Mutability: read-only
     * Data Type: String
-    * Description: The type of the object affected by the requested action (e.g., "domain", "host", "contact").
-    * Constraints: (None)
+    * Description: The object identifier of the object affected by the requested action (e.g., "domainName", "host", "contact").
+    * Constraints:
+      * Must only be used when the `objectId` field is present.
   * Object Identifier
     * Identifier: objectId
-    * Cardinality: 1
+    * Cardinality: 0-1
     * Mutability: read-only
     * Data Type: String
-    * Description: The identifier of the object affected by the requested operation.
+    * Description: The unique identifier of the object affected by the requested operation.
     * Constraints:
-      * Must be a valid identifier for the object type specified in the `objectType` field.
-      * For both "domain", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
+      * Must be a valid unique identifier for the object type specified in the `objectType` field.
+      * For both "domainName", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
       * For "contact" the `objectId` must be a valid contact identifier.
+      * When the message is not related to a specific object, the `objectId` field may be empty.
 
 ### Review Response Object
 
-The Review Response Object defines the common structure and data elements that are shared across all offline-review completion messages. Offline-review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.
+The Review Response Object defines the data elements for returning the result of an offline-review. Offline-review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.
 
 * Name: Review Response Object
-* Identifier: reviewResponse
-* extends: Base Message Object
-* Description: Common data elements for offline-review completion messages.
+* Identifier: reviewResponseMessage
+* Extends: Base Message Object
+* Description: Notification of the result of an offline-review of a requested operation.
 * Data Elements:
   * Approval Result
     * Identifier: approved
@@ -1131,9 +1135,9 @@ The Review Response Object defines the common structure and data elements that a
 ### Transfer Request Message Object
 
 * Name: Transfer Request Message Object
-* Identifier: transferRequest
-* extends: Base Message Object
-* Description: Notifies the client expected to act on a pending transfer request.
+* Identifier: transferRequestMessage
+* Extends: Base Message Object
+* Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
 * Data Elements:
   * Transfer Status
     * Identifier: status
@@ -1157,13 +1161,20 @@ The Review Response Object defines the common structure and data elements that a
     * Description: The deadline for responding before the server takes an automated action.
     * Constraints:
       * The action date MUST be later than the request date and is subject to server policy.
+  * Transfer Process
+    * Identifier: transferProcess
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Aggregation[Transfer Process Object]
+    * Description: The transfer process the message pertains to.
+    * Constraints: (None)
 
 ### Transfer Outcome Message Object
 
 * Name: Transfer Outcome Message Object
-* Identifier: transferOutcome
-* extends: Base Message Object
-* Description: Notifies a client affected by the completion of a transfer request.
+* Identifier: transferOutcomeMessage
+* Extends: Base Message Object
+* Description: Notification for a client affected by the completion of a transfer request.
 * Data Elements:
   * Transfer Status
     * Identifier: trStatus
@@ -1198,8 +1209,8 @@ The Review Response Object defines the common structure and data elements that a
 
 * Name: Expiration Deletion Message Object
 * Identifier: expirationDeletionMessage
-* extends: Base Message Object
-* Description: Notifies the sponsoring client that an object was deleted following expiration.
+* Extends: Base Message Object
+* Description: Notification for the sponsoring client that an object was deleted following expiration.
 * Data Elements:
   * Deletion Date
     * Identifier: deletionDate
@@ -1213,8 +1224,8 @@ The Review Response Object defines the common structure and data elements that a
   
 * Name: Auto-Renewal Message Object
 * Identifier: autoRenewalMessage
-* extends: Base Message Object
-* Description: Notifies the sponsoring client that the server automatically renewed an object.
+* Extends: Base Message Object
+* Description: Notification for the sponsoring client that the server automatically renewed an object.
 * Data Elements:
   * Renewal Date
     * Identifier: renewalDate
@@ -1233,9 +1244,12 @@ The Review Response Object defines the common structure and data elements that a
 
 ### Service Notice Message Object
 
+The Service Notice Message Object is not linked to a specific object or process and can be used to convey general information to the client.
+
 * Name: Service Notice Message Object
 * Identifier: serviceNoticeMessage
-* Description: Generic message for information not covered by another registered message type.
+* Extends: Base Message Object
+* Description: Generic text based message containing information not covered by any other message type.
 * Data Elements:
   * Message
     * Identifier: message
@@ -1243,23 +1257,20 @@ The Review Response Object defines the common structure and data elements that a
     * Mutability: read-only
     * Data Type: String
     * Description: Human-readable service information for the receiving organisation.
-    * Constraints: (None)
+    * Constraints:
+      * The server MUST NOT misuse this field by using it for transmitting structured data or machine-readable information.
 
 **TODO** Complete the Service Notice Message Object definition, do we need it at all?
 
 ### Maintenance Message Object
 
+The Maintenance Message Object is used to notify the client about planned maintenance events. It is not linked to a specific object or process.
+
 * Name: Maintenance Message Object
 * Identifier: maintenanceMessage
-* Description: Information about planned maintenance events.
+* Extends: Base Message Object
+* Description: Notification about planned maintenance events.
 * Data Elements:
-  * Id
-    * Identifier: id
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: The identifier of the maintenance message.
-    * Constraints: (None)
 
 **TODO** Complete the Maintenance Message Object definition.
 see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
@@ -2354,14 +2365,6 @@ The following data elements are defined for the Message Data Object.
   * Description: A server-unique identifier for the message object.
   * Constraints: (None)
 
-* Message Type
-  * Identifier: type
-  * Cardinality: 1
-  * Mutability: create-only
-  * Data Type: String
-  * Description: The type of the message object.
-  * Constraints: The value MUST be registered in the [IANA Message Type Values Registry](#iana-message-type-values-registry). The `data` element MUST contain the message object associated with the registered type.
-
 * Creation Date
   * Identifier: creationDate
   * Cardinality: 1
@@ -2379,21 +2382,13 @@ The following data elements are defined for the Message Data Object.
   * Constraints:
     * Possible values: `queued`, `delivered` and `removed`
 
-* Organisation ID
-  * Identifier: owner
-  * Cardinality: 1
-  * Mutability: create-only
-  * Data Type: Organisation Data Object
-  * Description: The owning organisation for the message object.
-  * Constraints: (none)
-
 * Data
   * Identifier: data
   * Cardinality: 1
   * Mutability: create-only
-  * Data Type: Base Message Object, Service Notice Message Object, or Maintenance Message Object
+  * Data Type: Base Message Object
   * Description: The data related to a specific message type, such as a transfer request or a review response.
-  * Constraints: For `review-response`, `transfer-request`, `transfer-outcome`, `expiration-deletion`, `auto-renewal`, `service-notice`, and `maintenance`, the data MUST be a Review Response Object, Transfer Request Message Object, Transfer Outcome Message Object, Expiration Deletion Message Object, Auto-Renewal Message Object, Service Notice Message Object, or Maintenance Message Object respectively.
+  * Constraints: (None)
 
 ## Operations
 
@@ -2426,8 +2421,6 @@ The Query operation allows a client to retrieve a collection of Message Data Obj
 * Authorisation:
   * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
 
-Organisation ID (`owner`) MUST NOT be provided in the response, since a client can only ever retrieve messages linked to its own organisation.
-
 In addition, the following transient data elements are defined for this operation:
 
 * Message Count
@@ -2448,9 +2441,7 @@ In addition, the following transient data elements are defined for this operatio
   * Location: selector
   * Description: The type of the message to use as a filter when retrieving message objects.
   * Constraints:
-    * The type value MUST be a valid RPP message type.
-
-A> TODO: must all valid message types be included in the IANA registry for message types? or can server also use local private types? that are declared in the discover doc?
+    * The type value MUST be a valid identifier for an RPP message component (e.g. reviewResponse).
 
 ### Delete Operation
 
@@ -3374,36 +3365,6 @@ Fields to be registered:
 - `url`: The URL for the user role specification, for example "https://www.iana.org/assignments/rpp-user-roles/rpp-example-role-1.0".
 - `permission`: The permission level associated with the user role, for example "read-only", "read-write", or "admin".
 - `description`: A human-readable description of the user role and its intended use.
-
-## Message Type Values Registry {#iana-message-type-values-registry}
-
-This document establishes the "RESTful Provisioning Protocol (RPP) Message Type Values Registry". This registry serves as a catalogue of all message type values used within RPP.
-
-```text
-Name of the registry: RPP Message Type Values
-Registry group: RESTful Provisioning Protocol (RPP)
-Registration procedure: Expert Review
-```
-
-Fields to be registered:
-
-- `value`: The machine-readable value of the Message Data Object `type` data element.
-- `description`: A human-readable description of the message type.
-- `reference`: A reference to the specification defining the message type.
-
-### Initial Registrations
-
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| review-response | Reports the outcome of an offline review of a requested operation. | [This-ID] |
-| transfer-request | Notifies the client expected to act on a pending transfer request. | [This-ID] |
-| transfer-outcome | Reports the final outcome of a transfer request to affected clients. | [This-ID] |
-| expiration-deletion | Reports deletion of a domain following expiration. | [This-ID] |
-| auto-renewal | Reports automatic renewal of a domain. | [This-ID] |
-| service-notice | Conveys other server-policy service information. | [This-ID] |
-| maintenance | Information about planned maintenance events. | [This-ID] |
-Table: Initial RPP Message Type Values Registrations
-{#tbl-message-type-values-registry}
 
 # Security Considerations
 
