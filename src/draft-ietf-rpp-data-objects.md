@@ -646,6 +646,13 @@ This section defines the Component Objects used in this document.
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
     * Constraints: None
+  * Due
+    * Identifier: due
+    * Cardinality: 0-1
+    * Mutability: read-write
+    * Data Type: Timestamp
+    * Description: a timestamp, when this status is going to be removed automatically, or changed to other status. This field can be used to express lifecycle related information.
+    * Constraints: servers MAY restrict possibility to set or update this value by the client.
 
 ### Status Values {#domain-status-values}
 
@@ -779,6 +786,8 @@ Status values that begin with "rgp" are related to the Redemption Grace Period (
 Table: Redemption Grace Period Status Values
 {#tbl-rgp-status-values}
 
+#### Allowed Transitions
+
 The following state diagram describes the object lifecycle when the Redemption Grace Period (RGP) feature is supported. It adapts the diagram from [@!RFC3915, section 2] to the RPP data model, using RPP status labels and operations instead of EPP command names.
 
 In the diagram below, RPP status labels are shown in the `status` field of the object. Standard EPP-origin status labels (e.g., `ok`, `pendingDelete`) are used alongside the RGP-specific labels defined in this document. The `<create>` and `<report>` labels refer to the Create and Report operations on the Restore Process Object, replacing the EPP extended `<update>` command with `op=request` and `op=report` attributes.
@@ -826,19 +835,6 @@ State descriptions:
 11. The pending delete period elapses and the object is purged.
 12. The object is purged and available for re-registration.
 
-<!--
-Why did we have Due defined? i think we don't need these and can be removed?
-
-
-  * Due
-    * Identifier: due
-    * Cardinality: 0-1
-    * Mutability: read-write
-    * Data Type: Timestamp
-    * Description: a timestamp, when this status is going to be removed automatically, or changed to other status. This field can be used to express lifecycle related information.
-    * Constraints: servers MAY restrict possibility to set or update this value by the client.
--->
-
 A> TBD: Idea - model status object as Labelled Composition using "Label"? Con: Generic Constraints for Label will be repeated.
 
 ## Host Status Object
@@ -884,6 +880,10 @@ do not begin with either "client" or "server" are server-managed.
 | pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
 Table: Host Status Values
 {#tbl-host-status-values}
+
+### Allowed Transitions
+
+**TODO**
 
 ### Pending Status Removal
 
@@ -952,6 +952,10 @@ do not begin with either "client" or "server" are server-managed.
 Table: Contact Status Values
 {#tbl-contact-status-values}
 
+### Allowed Transitions
+
+**TODO**
+
 ### Pending Status Removal
 
 When the requested action has been completed, the pendingCreate,
@@ -971,6 +975,210 @@ the status of the object has changed.
 | pendingCreate, pendingDelete, pendingTransfer, pendingUpdate | Each other (mutually exclusive) |
 Table: Contact Status Exclusions
 {#tbl-contact-status-exclusions}
+
+Other status combinations not expressly prohibited MAY be used.
+
+## Organisation Role Status Object
+
+* Name: Organisation Role Status Object
+* Identifier: organisationRoleStatus
+* Description: Represents one of the status values associated with an Organisation Role Object. A role SHOULD have at least one associated status value.
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a status
+    * Constraints:
+      * Only status values defined in [Status Values](#organisation-role-status-values) are allowed.
+  * Reason
+    * Identifier: reason
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: a human-readable text that describes the rationale for the status applied to the role.
+    * Constraints: None
+
+### Status Values {#organisation-role-status-values}
+
+Status values that can be added or removed by a client are prefixed
+with "client".  Corresponding status values that can be added or
+removed by a server are prefixed with "server".  Status values that
+do not begin with either "client" or "server" are server-managed.
+
+| Status Value | Description |
+|--------------|-------------|
+| clientLinkProhibited | Requests to add new links to the role MUST be rejected. |
+| serverLinkProhibited | Requests to add new links to the role MUST be rejected. |
+| linked | The role has at least one active association with another object. This value is set and removed by the server and is not explicitly set by the client. |
+| ok | This is the normal status value for a role that has no active prohibitions. This value is set and removed by the server as other status values are added or removed. |
+Table: Organisation Role Status Values
+{#tbl-organisation-role-status-values}
+
+### Allowed Transitions
+
+The following diagram describes the allowed status transitions for an organisation role. The `ok` status is mutually exclusive with `clientLinkProhibited` and `serverLinkProhibited`, and the `linked` status MAY be combined with either `ok` or the link prohibition statuses (subject to the Status Exclusions rules). The `linked` status is set and removed by the server as associations with other objects are added or removed, independently of link prohibition changes, so the transitions in the top row apply equally to the bottom row. The `clientLinkProhibited` and `serverLinkProhibited` status values MAY be set at the same time.
+
+```ascii
+                 |
+                 |  role created (1)
+                 v
+    +------------------------+            +------------------------+
+    |                        |            | status:                |
+    |   status: ok           |---(2)----->| clientLinkProhibited   |
+    |                        |<----(3)----| and/or                 |
+    |                        |            | serverLinkProhibited   |
+    +------------------------+            +------------------------+
+            |         ^                         |           ^
+        (4) |         | (5)                 (4) |           | (5)
+            v         |                         v           |
+    +------------------------+            +------------------------+
+    |                        |            | status: linked,        |
+    | status: ok, linked     |---(2)----->| clientLinkProhibited   |
+    |                        |<----(3)----| and/or                 |
+    |                        |            | serverLinkProhibited   |
+    +------------------------+            +------------------------+
+```
+Figure: Organisation Role State Diagram
+{#fig-organisation-role-state-diagram}
+
+State descriptions:
+
+1. A role is added to an organisation. The role starts with the `ok` status.
+2. A `clientLinkProhibited` or `serverLinkProhibited` status is set, by the client or the server respectively, and the `ok` status is removed. Requests to add new links to the role MUST be rejected while a link prohibition is present.
+3. The last link prohibition status is removed and the server sets the `ok` status.
+4. The role gets its first active association with another object and the server sets the `linked` status.
+5. The last active association of the role is removed and the server removes the `linked` status.
+
+### Status Exclusions
+
+| Status Value | MUST NOT be combined with |
+|--------------|----------------------------|
+| ok | Any status other than `linked` |
+Table: Organisation Role Status Exclusions
+{#tbl-organisation-role-status-exclusions}
+
+Other status combinations not expressly prohibited MAY be used.
+
+## Organisation Status Object
+
+* Name: Organisation Status Object
+* Identifier: organisationStatus
+* Description: Represents one of the status values associated with an Organisation Data Object, as defined in [@!RFC8543, section 3.4]. An Organisation Data Object MUST always have at least one associated status value.
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a status
+    * Constraints:
+      * Only status values defined in [Status Values](#organisation-status-values) are allowed.
+  * Reason
+    * Identifier: reason
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: a human-readable text that describes the rationale for the status applied to the object.
+    * Constraints: None
+
+### Status Values {#organisation-status-values}
+
+Status values that can be added or removed by a client are prefixed with "client".  Corresponding status values that can be added or removed by a server are prefixed with "server".  The `hold` and `terminated` status values are server-managed when the organisation has no parent organisation and otherwise MAY be client-managed based on server policy.  Other status values that do not begin with either "client" or "server" are server-managed.
+
+| Status Value | Description |
+|--------------|-------------|
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| hold | Organisation transform commands and new links MUST be rejected. |
+| terminated | The organisation has been terminated and MUST NOT be linked. Organisation transform commands and new links MUST be rejected. |
+| linked | The organisation object has at least one active association with another object. This value is not explicitly set by the client. Servers SHOULD provide services to determine existing object associations. |
+| clientLinkProhibited | Requests to add new links to the organisation MUST be rejected. |
+| serverLinkProhibited | Requests to add new links to the organisation MUST be rejected. |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+Table: Organisation Status Values
+{#tbl-organisation-status-values}
+
+### Allowed Transitions
+
+The following diagram describes the allowed status transitions for an organisation object. The `linked`, `clientLinkProhibited`, `serverLinkProhibited`, `clientUpdateProhibited`, `serverUpdateProhibited`, `clientDeleteProhibited`, and `serverDeleteProhibited` status values are additive flags that MAY be combined with the states shown below (subject to the Status Exclusions rules) and are not depicted as separate states; while present, the corresponding flag blocks the associated transition (new link, update, or delete, respectively) from being initiated. The `linked` status is set and removed by the server as associations with other objects are added or removed, independently of the transitions described below.
+
+```ascii
+                            |
+                            v
+              +----------------------------+
+              | status: pendingCreate (1)  |
+              +----------------------------+
+                            |  create action completed (2)
+                            v
+  +--------------------------------------------------------+
+  | Operational state (3) - exactly one of:                |
+  |                                                        |
+  |   +------+  (4)             +------+                   |
+  |   |  ok  |----------------->| hold |                   |
+  |   |      |<-----------------|      |                   |
+  |   +------+            (5)   +------+                   |
+  |                                                        |
+  |      |                         |                       |
+  |      | (6)                     | (6)                   |
+  |      v                         v                       |
+  |   +--------------------------------+                   |
+  |   |           terminated           |                   |
+  |   +--------------------------------+                   |
+  |                                                        |
+  +--------------------------------------------------------+
+        |       ^                       |       ^
+   (7)  |       | (8)              (9)  |       | (10)
+        v       |                       v       |
+    +---------------+               +---------------+
+    | pendingUpdate |               | pendingDelete |
+    +---------------+               +---------------+
+                                            |
+                                            |  delete completed (11)
+                                            v
+                                      +-----------+
+                                      |  Purged   |
+                                      +-----------+
+```
+Figure: Organisation Object State Diagram
+{#fig-organisation-state-diagram}
+
+State descriptions:
+
+1. A create operation is received and processed. If the server defers completion, the object enters `pendingCreate` state. If the server completes the create immediately, the object enters the `ok` state directly.
+2. The create action completes and the `pendingCreate` status is removed. The object enters the operational state (3), normally `ok`.
+3. The object is in exactly one of the mutually exclusive operational states `ok`, `hold`, or `terminated`. The pending states (7) and (9) are entered from, and return to, this operational state.
+4. A `hold` status is set. Organisation transform operations and new links MUST be rejected while the object is in `hold`. The `hold` status is set by the server, or by the client if the organisation has a parent organisation and server policy allows it.
+5. The `hold` status is removed and the object returns to `ok`, by the same parties that are allowed to set it.
+6. A `terminated` status is set, from either `ok` or `hold`, by the same parties that are allowed to set `hold`. A terminated organisation MUST NOT be linked, and organisation transform operations and new links MUST be rejected. Whether and how an object can leave the `terminated` state is subject to server policy.
+7. An update operation is received. If the server defers completion, the object enters `pendingUpdate` state.
+8. The pending update completes, the `pendingUpdate` status is removed, and the object returns to its operational state.
+9. A delete operation is received. If the server defers completion, the object enters `pendingDelete` state.
+10. The pending delete is rejected by the server, the `pendingDelete` status is removed, and the object returns to its operational state.
+11. The pending delete completes and the object is purged.
+
+### Pending Status Removal
+
+When the requested action has been completed, the pendingCreate, pendingDelete, or pendingUpdate status value MUST be removed.  All clients involved in the transaction MUST be notified using a service message that the action has been completed and that the status of the object has changed.
+
+### Status Exclusions
+
+| Status Value | MUST NOT be combined with |
+|--------------|----------------------------|
+| pendingCreate, ok, hold, terminated | Each other (mutually exclusive); an organisation MUST have exactly one of these statuses |
+| ok | Any status other than `linked` |
+| pendingDelete | clientDeleteProhibited, serverDeleteProhibited |
+| pendingCreate, pendingDelete, pendingUpdate | Each other (mutually exclusive) |
+Table: Organisation Status Exclusions
+{#tbl-organisation-status-exclusions}
+
+The `linked` status MAY be combined with `clientLinkProhibited` or `serverLinkProhibited` if new links must be prohibited.
 
 Other status combinations not expressly prohibited MAY be used.
 
@@ -1184,7 +1392,7 @@ A> TODO: Model Disclose in universal (extendible) way
 
 * Name: Organisation Role Object
 * Identifier: organisationRole
-* Description: Represents a role that an organisation has within the registry ecosystem, as defined in [@!RFC8543, section 3.2]. An organisation object MUST always have at least one associated role. A single organisation MAY have multiple roles with different role types.
+* Description: Represents a role that an organisation has within the registry ecosystem. An organisation object MUST always have at least one associated role. A single organisation MAY have multiple roles with different role types.
 * Data Elements:
   * Role Identifier
     * Identifier: roleId
@@ -1193,6 +1401,14 @@ A> TODO: Model Disclose in universal (extendible) way
     * Data Type: String
     * Description: A third-party-assigned identifier for the role, such as an IANA ID for registrars.
     * Constraints: (None)
+  * Role Status
+    * Identifier: status
+    * Cardinality: 0+
+    * Mutability: read-write
+    * Data Type: Organisation Role Status Object
+    * Description: The status of this particular role. A role SHOULD have at least one associated status value.
+    * Constraints:
+      * Possible values and combinations are specified in [Organisation Role Status Values](#organisation-role-status-values).
 
 A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
@@ -1627,8 +1843,6 @@ The following data elements are defined for the Domain Name Data Object.
   * Description: The current status descriptors associated with the domain.
   * Constraints:
     * Possible combinations of Status Object Labels are specified in (#domain-name-status-object).
-
-A> TBC: IANA registry for statuses?
 
 * Registrant
   * Identifier: registrant
@@ -2170,6 +2384,16 @@ The following data elements are defined for the Organisation Data Object.
   * Data Type: Provisioning Metadata Object
   * Description: Standard metadata about the object's lifecycle and ownership.
   * Constraints: (None)
+
+* Status
+  * Identifier: status
+  * Cardinality: 1+
+  * Mutability: read-write
+  * Data Type: Organisation Status Object
+  * Description: The current operational status descriptors associated with the organisation. An organisation object MUST always have at least one associated status value.
+  * Constraints:
+    * Possible combinations of Organisation Status Labels are specified in [Organisation Status Values](#organisation-status-values).
+    * A client MUST NOT alter server status values set by the server itself.
 
 * Roles
   * Identifier: roles
@@ -3016,7 +3240,7 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                                                                                                      |
 | ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| status             | Role Status     | 0+    | read-write | String    | The status of this role. Allowed values: `ok`, `linked`, `clientLinkProhibited`, `serverLinkProhibited`.                                         |
+| status             | Role Status     | 0+    | read-write | Organisation Role Status Object | The status of this role.                                                                                                     |
 | roleId             | Role Identifier | 0-1   | read-write | String    | A third-party-assigned identifier for this role, such as an IANA registrar ID.                                                                   |
 
 Object: organisation
@@ -3034,7 +3258,7 @@ Data Elements
 | ------------ | ---------------------- | ----- | ----------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | id           | Organisation ID        | 1     | create-only | Identifier                                        | A server-unique identifier for the organisation object.                                                  |
 | provMetadata | Provisioning Metadata  | 1     | read-only   | Provisioning Metadata Object                      | Standard metadata about the object's lifecycle and ownership.                                            |
-| status       | Status                 | 1+    | read-only   | Status Object                                     | The current operational status descriptors for the organisation.                                         |
+| status       | Status                 | 1+    | read-write  | Organisation Status Object                        | The current operational status descriptors for the organisation.                                         |
 | roles        | Roles                  | 1+    | read-write  | DictionaryComposition [Organisation Role Object]  | One or more roles describing the organisation's relationship within the registry ecosystem.              |
 | parent     | Parent Organisation ID | 0-1   | read-write  | Identifier                                        | The identifier of the parent organisation in a hierarchical organisation structure.                      |
 | contactInfo   | Contact Information     | 0-1   | read-write  | External:RPP-JSContact-Profile:Card     | Contact information. |
@@ -3265,6 +3489,73 @@ The initial registrations for the RPP Contact Status Values registry are the sta
 | pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
 Table: Initial RPP Contact Status Values Registrations
 {#tbl-contact-status-registry}
+
+## RPP Organisation Role Status Values Registry
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Organisation Role Status Values Registry".
+
+```text
+Name of the registry: RPP Organisation Role Status Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable status label, for example "clientLinkProhibited".
+- `description`: A human-readable description of the status and the conditions under which it applies.
+- `reference`: A reference to the specification that defines the status value.
+
+### Initial Registrations
+
+The initial registrations for the RPP Organisation Role Status Values registry are the status values defined in (#tbl-organisation-role-status-values), reproduced below with their reference.
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| clientLinkProhibited | Requests to add new links to the role MUST be rejected. | [This-ID] |
+| serverLinkProhibited | Requests to add new links to the role MUST be rejected. | [This-ID] |
+| linked | The role has at least one active association with another object. This value is set and removed by the server and is not explicitly set by the client. | [This-ID] |
+| ok | This is the normal status value for a role that has no active prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+Table: Initial RPP Organisation Role Status Values Registrations
+{#tbl-organisation-role-status-registry}
+
+## RPP Organisation Status Values Registry
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Organisation Status Values Registry".
+
+```text
+Name of the registry: RPP Organisation Status Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable status label, for example "clientDeleteProhibited".
+- `description`: A human-readable description of the status and the conditions under which it applies.
+- `reference`: A reference to the specification that defines the status value.
+
+### Initial Registrations
+
+The initial registrations for the RPP Organisation Status Values registry are the status values defined in (#tbl-organisation-status-values), reproduced below with their reference.
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| hold | Organisation transform commands and new links MUST be rejected. | [This-ID] |
+| terminated | The organisation has been terminated and MUST NOT be linked. Organisation transform commands and new links MUST be rejected. | [This-ID] |
+| linked | The organisation object has at least one active association with another object. This value is not explicitly set by the client. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
+| clientLinkProhibited | Requests to add new links to the organisation MUST be rejected. | [This-ID] |
+| serverLinkProhibited | Requests to add new links to the organisation MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
+| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+Table: Initial RPP Organisation Status Values Registrations
+{#tbl-organisation-status-registry}
 
 # Security Considerations
 
