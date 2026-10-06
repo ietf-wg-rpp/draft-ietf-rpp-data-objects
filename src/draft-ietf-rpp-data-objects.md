@@ -1057,6 +1057,20 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Description: The create processes initiated on the owning Data Object.
     * Constraints: (None)
 
+## Base Process Object {#base-process}
+
+* Name: Base Process Object
+* Identifier: baseProcess
+* Description: Base structure for all Process Objects, containing the data elements common to every process. Each Process Object extends this object.
+* Data Elements:
+  * Process ID
+    * Identifier: processId
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
+    * Constraints: The value is set by the server and cannot be specified by the client.
+
 ## Messages
 
 The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type extends the Base Message Object to include additional data elements relevant to that message type. Any of the types defined in this section may be used for the `data` data element defined for the Message Data Object.
@@ -1086,6 +1100,13 @@ The Message Components define the structure and data elements for all message ob
       * For both "domainName", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
       * For "contact" the `objectId` must be a valid contact identifier.
       * When the message is not related to a specific object, the `objectId` field may be empty.
+  * Process
+    * Identifier: process
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Aggregation[Base Process Object]
+    * Description: The transfer process the message pertains to.
+    * Constraints: Not all messages may be related to a specific process, and in such cases, this field may be empty.
 
 ### Review Response Object
 
@@ -1161,13 +1182,6 @@ The Review Response Object defines the data elements for returning the result of
     * Description: The deadline for responding before the server takes an automated action.
     * Constraints:
       * The action date MUST be later than the request date and is subject to server policy.
-  * Process
-    * Identifier: process
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: Aggregation[Transfer Process Object]
-    * Description: The transfer process the message pertains to.
-    * Constraints: (None)
 
 ### Transfer Outcome Message Object
 
@@ -1203,13 +1217,6 @@ The Review Response Object defines the data elements for returning the result of
     * Mutability: read-only
     * Data Type: Timestamp
     * Description: The end of the object's validity period if the operation causes a change in the validity period.
-    * Constraints: (None)
-  * Process
-    * Identifier: process
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: Aggregation[Transfer Process Object]
-    * Description: The transfer process the message pertains to.
     * Constraints: (None)
 
 ### Expiration Deletion Message Object
@@ -1247,14 +1254,6 @@ The Review Response Object defines the data elements for returning the result of
     * Mutability: read-only
     * Data Type: Timestamp
     * Description: The new expiration date of the object.
-    * Constraints: (None)
-  * Process
-    * Identifier: process
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: Aggregation[Renew Process Object]
-    * Direct Access: true
-    * Description: The renew processes initiated on the owning Data Object.
     * Constraints: (None)
 
 ### Service Notice Message Object
@@ -1294,30 +1293,16 @@ see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
 
 This section defines the Process Objects used in this document.
 
-Each Process Object carries an OPTIONAL Process ID data element, defined as follows:
-
-* Process ID
-  * Identifier: processId
-  * Cardinality: 0-1
-  * Mutability: read-only
-  * Data Type: String
-  * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-  * Constraints: The value is set by the server and cannot be specified by the client.
+Each Process Object extends the Base Process Object (#base-process) and therefore carries its OPTIONAL Process ID data element.
 
 ## Transfer Process Object
 
 * Name: Transfer Process Object
 * Identifier: transferProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents a transfer request for a provisioned object. Creating this object initiates a transfer. The object supports approve and reject as additional operations, and delete as the cancel operation. Reading the object returns the current transfer status.
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Transfer Direction
     * Identifier: transferDir
     * Cardinality: 0-1
@@ -1455,15 +1440,9 @@ The following transient data elements are defined for this operation:
 * Name: Restore Process Object
 * Identifier: restoreProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents the current state of a restore request for an object that has entered the Redemption Grace Period (RGP).
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Restore Status
     * Identifier: restoreStatus
     * Cardinality: 1
@@ -1561,15 +1540,9 @@ The following transient data elements are defined for this operation:
 * Name: Renew Process Object
 * Identifier: renewProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents a renew request for a provisioned object. Creating this object initiates a renewal process that extends the registration period of the object. Reading this object returns the new expiry date if the renewal has been completed.
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Expiry Date
     * Identifier: expiryDate
     * Cardinality: 0-1
@@ -1604,17 +1577,11 @@ The renew operation extends the validity period of an existing object by creatin
 * Name: Create Process Object
 * Identifier: createProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents the process initiated when a resource creation operation is performed. It carries creation-specific inputs that are consumed during the creation operation and are not stored as persistent attributes of the created resource object.
-* Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
+* Data Elements: (None)
 
-Beyond the Process ID, the generic Create Process Object defines no additional data elements. Individual object definitions extend it with object-specific creation inputs (such as the Domain Create Process Object (#domain-create-process), which adds the registration period).
+Beyond the data elements of the Base Process Object, the generic Create Process Object defines no additional data elements. Individual object definitions extend it with object-specific creation inputs (such as the Domain Create Process Object (#domain-create-process), which adds the registration period).
 
 ### Operations
 
@@ -1893,15 +1860,9 @@ No domain-specific transient data elements extend the common restore operations 
 * Name: Domain Create Process Object
 * Identifier: domainCreateProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: The domain-specific Create Process Object (#create-process). It is implicitly initiated by the Domain Name Data Object create operation and carries the domain creation-specific inputs, namely the requested initial registration period, that are consumed during creation and not persisted as part of the domain object's state.
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Period
     * Identifier: period
     * Cardinality: 0-1
@@ -2587,7 +2548,7 @@ Private (non-standardised) extensions are not required to register in this regis
 
 The registry is organised as a collection of Object definitions. Each Object definition MUST include:
 
-* A header containing the Object Identifier, Object Name, Object Type (Resource, Process or Component), a brief description, and a reference to its defining specification.
+* A header containing the Object Identifier, Object Name, Object Type (Resource, Process or Component), the identifier of the object it extends (if any), a brief description, and a reference to its defining specification.
 
 * A "Data Elements" table listing all persisted data elements associated with the object. Each entry MUST specify the element's Identifier, Name, Cardinality, Mutability, Data Type, description, and a reference to the specification that defines it.
 
@@ -2742,11 +2703,45 @@ Data Elements
 | restoreProcess     | Restore Processes | 0+    | read-only  | Aggregation [Restore Process Object]  | The restore processes initiated on the owning Data Object.  |
 | createProcess      | Create Processes  | 0+    | read-only  | Aggregation [Create Process Object]   | The create processes initiated on the owning Data Object.   |
 
+Object: baseProcess
+
+Object Name: Base Process Object
+
+Object Type: Component
+
+Description: Base structure for all Process Objects, containing the data elements common to every process.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                                |
+| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------ |
+| processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
+
+Object: baseMessage
+
+Object Name: Base Message Object
+
+Object Type: Component
+
+Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name      | Card. | Mutability | Data Type                       | Description                                                                          |
+| ------------------ | ----------------- | ----- | ---------- | ------------------------------- | ------------------------------------------------------------------------------------ |
+| objectType         | Object Type       | 0-1   | read-only  | String                          | The object identifier of the object affected by the requested action.                |
+| objectId           | Object Identifier | 0-1   | read-only  | String                          | The unique identifier of the object affected by the requested operation.             |
+| process            | Process           | 0-1   | read-only  | Aggregation [Base Process Object] | The process the message pertains to. Empty if the message is not related to a process. |
+
 Object: transferProcess
 
 Object Name: Transfer Process Object
 
 Object Type: Process
+
+Extends: baseProcess
 
 Description: Represents a transfer request for a provisioned object. Creating this object initiates the transfer. Approve and Reject are additional operations; Delete corresponds to cancel.
 
@@ -2755,7 +2750,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name         | Card. | Mutability  | Data Type         | Description                                                                                     |
 | ------------------ | -------------------- | ----- | ----------- | ----------------- | ----------------------------------------------------------------------------------------------- |
-| processId          | Process ID           | 0-1   | read-only   | String            | A server-assigned identifier of the process instance, unique within the Owner Data Object.      |
 | transferDir        | Transfer Direction   | 0-1   | create-only | String            | The direction of the transfer ("pull" or "push"). If omitted, server policy determines default. |
 | gainingClientId    | Gaining Client ID    | 0-1   | create-only | Client Identifier | The designated gaining client. REQUIRED for push transfers; MUST NOT be provided for pull.      |
 | trStatus           | Transfer Status      | 1     | read-only   | String            | The state of the transfer request.                                                              |
@@ -2816,6 +2810,8 @@ Object Name: Renew Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: Represents a renewal request for a provisioned object. Creating this object initiates the renewal.
 
 Reference: [This-ID]
@@ -2823,7 +2819,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name         | Card. | Mutability  | Data Type         | Description                                                                                     |
 | ------------------ | -------------------- | ----- | ----------- | ----------------- | ----------------------------------------------------------------------------------------------- |
-| processId          | Process ID           | 0-1   | read-only   | String            | A server-assigned identifier of the process instance, unique within the Owner Data Object.      |
 | expiryDate        | Expiry Date          | 0-1   | read-only | Timestamp            | The expiry date of the object after the renewal is completed. |
 
 Operations
@@ -2842,14 +2837,13 @@ Object Name: Create Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: Represents the process initiated when a resource creation operation is performed. Carries creation-specific inputs that are consumed during creation and not stored as persistent attributes of the created resource object.
 
 Reference: [This-ID]
 
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                       |
-| ------------------ | ------------ | ----- | ---------- | --------- | --------------------------------------------------------------------------------- |
-| processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
+Data Elements: (None)
 
 Operations
 
@@ -2875,6 +2869,8 @@ Object Name: Domain Create Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: The Create Process Object specific to the Domain Name Data Object. Implicitly initiated by the domain create operation; carries the requested initial registration period consumed during creation and not persisted as part of the domain object's state.
 
 Reference: [This-ID]
@@ -2882,7 +2878,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name | Card. | Mutability  | Data Type     | Description                                      |
 | ------------------ | ------------ | ----- | ----------- | ------------- | ------------------------------------------------ |
-| processId          | Process ID   | 0-1   | read-only   | String        | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
 | period             | Period       | 0-1   | create-only | Period Object | The initial registration period for the domain name. |
 
 Operations
@@ -2924,6 +2919,8 @@ Object Name: Restore Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: Represents the current state of a restore request for an object that has entered the Redemption Grace Period (RGP). Returned as output of all restore operations. This object is OPTIONAL and is only used when the RGP feature is supported.
 
 Reference: [This-ID]
@@ -2931,7 +2928,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                                                                                             |
 | ------------------ | --------------- | ----- | ---------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| processId          | Process ID      | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object.                                              |
 | restoreStatus      | Restore Status  | 1     | read-only  | String    | The current state of the restore process.                                                                                               |
 | requestDate        | Request Date    | 0-1   | read-only  | Timestamp | The date and time when the restore request was submitted. Absent if no request has been submitted.                                      |
 | reportDate         | Report Date     | 0-1   | read-only  | Timestamp | The date and time when the most recent restore report was accepted. Absent if no report has been accepted.                              |
