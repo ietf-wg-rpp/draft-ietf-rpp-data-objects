@@ -1161,8 +1161,8 @@ The Review Response Object defines the data elements for returning the result of
     * Description: The deadline for responding before the server takes an automated action.
     * Constraints:
       * The action date MUST be later than the request date and is subject to server policy.
-  * Transfer Process
-    * Identifier: transferProcess
+  * Process
+    * Identifier: process
     * Cardinality: 1
     * Mutability: read-only
     * Data Type: Aggregation[Transfer Process Object]
@@ -1204,6 +1204,13 @@ The Review Response Object defines the data elements for returning the result of
     * Data Type: Timestamp
     * Description: The end of the object's validity period if the operation causes a change in the validity period.
     * Constraints: (None)
+  * Process
+    * Identifier: process
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Aggregation[Transfer Process Object]
+    * Description: The transfer process the message pertains to.
+    * Constraints: (None)
 
 ### Expiration Deletion Message Object
 
@@ -1240,6 +1247,14 @@ The Review Response Object defines the data elements for returning the result of
     * Mutability: read-only
     * Data Type: Timestamp
     * Description: The new expiration date of the object.
+    * Constraints: (None)
+  * Process
+    * Identifier: process
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Aggregation[Renew Process Object]
+    * Direct Access: true
+    * Description: The renew processes initiated on the owning Data Object.
     * Constraints: (None)
 
 ### Service Notice Message Object
