@@ -883,7 +883,62 @@ Table: Host Status Values
 
 ### Allowed Transitions
 
-**TODO**
+The following diagram describes the allowed status transitions for a host object, based on the status values defined in [@!RFC5732, section 2.3]. The `clientDeleteProhibited`, `serverDeleteProhibited`, `clientUpdateProhibited`, and `serverUpdateProhibited` status values are additive flags that MAY be combined with the states shown below (subject to the Status Exclusions rules) and are not depicted as separate states; while present, the corresponding flag blocks the associated transition (delete or update, respectively) from being initiated. The `linked` status is set and removed by the server as associations with other objects are added or removed, independently of the transitions described below.
+
+```ascii
+                                |
+                                v
+              +-----------------------------------+
+              | status: pendingCreate         (1) |
+              +-----------------------------------+
+                                |  create action completed (2)
+                                v
+              +-----------------------------------+
+   +--------->| status: ok                    (3) |<---------+
+   |          +-----------------------------------+          |
+   |                |                       |                |
+   |   <update> (4) | <domain transfer> (5) |                |
+   |                v                       v                |
+   |       +--------------------+   +--------------------+   |
+   |       | status:            |   | status:            |   |
+   |       | pendingUpdate  (4) |   | pendingTransfer(5) |   |
+   |       +--------------------+   +--------------------+   |
+   |                 |                        |              |
+   |                 +------------------------+              |
+   |                  action completed (6)                   |
+   +---------------------------------------------------------+
+
+              +-----------------------------------+
+              | status: ok                    (3) |
+              +-----------------------------------+
+                                |
+                                |  <delete> (7)
+                                v
+              +-----------------------------------+
+              | status: pendingDelete         (7) |
+              +-----------------------------------+
+                                |
+                                |  delete action completed (8)
+                                v
+                       +------------------+
+                       | Deleted (purged) |
+                       |              (9) |
+                       +------------------+
+```
+Figure: Host Object State Diagram
+{#fig-host-state-diagram}
+
+State descriptions:
+
+1. A create operation is received and processed. If the server defers completion, the object enters `pendingCreate` state.
+2. The create action completes and the `pendingCreate` status is removed. The object enters the `ok` state.
+3. The object is in normal operation with the `ok` status. The `linked` status MAY accompany `ok` while the host has an active association with another object, such as a domain object.
+4. An update operation is received. If the server defers completion, the object enters `pendingUpdate` state.
+5. A transfer of the superordinate domain object is initiated. The server sets the `pendingTransfer` status on the subordinate host object while the domain transfer request is pending. This status is not set by a client.
+6. Once the pending update or transfer action completes, the corresponding pending status is removed and the object returns to its `ok` state.
+7. A delete operation is received and processed. The object enters `pendingDelete` state.
+8. The pending delete action completes.
+9. The object is purged.
 
 ### Pending Status Removal
 
@@ -954,7 +1009,62 @@ Table: Contact Status Values
 
 ### Allowed Transitions
 
-**TODO**
+The following diagram describes the allowed status transitions for a contact object, based on the status values defined in [@!RFC5733, section 2.2]. The `clientDeleteProhibited`, `serverDeleteProhibited`, `clientTransferProhibited`, `serverTransferProhibited`, `clientUpdateProhibited`, and `serverUpdateProhibited` status values are additive flags that MAY be combined with the states shown below (subject to the Status Exclusions rules) and are not depicted as separate states; while present, the corresponding flag blocks the associated transition (delete, transfer, or update, respectively) from being initiated. The `linked` status is set and removed by the server as associations with other objects are added or removed, independently of the transitions described below.
+
+```ascii
+                                |
+                                v
+              +-----------------------------------+
+              | status: pendingCreate         (1) |
+              +-----------------------------------+
+                                |  create action completed (2)
+                                v
+              +-----------------------------------+
+   +--------->| status: ok                    (3) |<---------+
+   |          +-----------------------------------+          |
+   |                |                       |                |
+   |   <update> (4) | <transfer create> (5) |                |
+   |                v                       v                |
+   |       +--------------------+   +--------------------+   |
+   |       | status:            |   | status:            |   |
+   |       | pendingUpdate  (4) |   | pendingTransfer(5) |   |
+   |       +--------------------+   +--------------------+   |
+   |                 |                        |              |
+   |                 +------------------------+              |
+   |                  action completed (6)                   |
+   +---------------------------------------------------------+
+
+              +-----------------------------------+
+              | status: ok                    (3) |
+              +-----------------------------------+
+                                |
+                                |  <delete> (7)
+                                v
+              +-----------------------------------+
+              | status: pendingDelete         (7) |
+              +-----------------------------------+
+                                |
+                                |  delete action completed (8)
+                                v
+                       +------------------+
+                       | Deleted (purged) |
+                       |              (9) |
+                       +------------------+
+```
+Figure: Contact Object State Diagram
+{#fig-contact-state-diagram}
+
+State descriptions:
+
+1. A create operation is received and processed. If the server defers completion, the object enters `pendingCreate` state.
+2. The create action completes and the `pendingCreate` status is removed. The object enters the `ok` state.
+3. The object is in normal operation with the `ok` status. The `linked` status MAY accompany `ok` while the contact has an active association with another object, such as a domain object.
+4. An update operation is received. If the server defers completion, the object enters `pendingUpdate` state.
+5. A transfer Create operation is received for the contact, initiating a transfer request. The object enters `pendingTransfer` state while the request awaits approval, rejection, cancellation, or automated server action.
+6. Once the pending update or transfer action completes, the corresponding pending status is removed and the object returns to its `ok` state. A transfer that is approved changes the sponsoring client of the contact.
+7. A delete operation is received and processed. The object enters `pendingDelete` state.
+8. The pending delete action completes.
+9. The object is purged.
 
 ### Pending Status Removal
 
