@@ -198,6 +198,24 @@ The definition of each data element within an object consists of the following a
 
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
 
+## Inheritance {#inheritance}
+
+A Data Object, Component Object or Process Object (the "derived object") MAY inherit the data elements and operations of another object (the "base object"). Inheritance is denoted in the preamble of the derived object's definition using the `Extends` keyword, whose value is the name of the base object, for example:
+
+```
+* Name: Domain Create Process Object
+* Identifier: domainCreateProcess
+* Extends: Create Process Object
+```
+
+The following rules apply:
+
+* Single inheritance: an object MUST extend at most one base object.
+* Transitivity: the base object MAY itself extend another object. Inheritance is transitive, so a derived object inherits the data elements and operations of every ancestor in its chain. An object MUST NOT directly or indirectly extend itself.
+* Inherited content: a derived object has all data elements of its base object, including their cardinality, mutability, data type and constraints, and supports all operations of its base object. Inherited data elements and operations are not repeated in the derived object's definition.
+* Additions: a derived object MAY define additional data elements and operations. It MUST NOT define a data element whose identifier is already defined by any of its ancestors. A derived object MAY modify the inherited operation input and output data as needed.
+* Polymorphism: where a data element or operation refers to a base object, any object that directly or indirectly extends the base object MAY be used in its place.
+
 ## Reserved Property Names
 
 Data object definitions MUST NOT define properties whose names begin with the `@` character. Names beginning with `@` are reserved for use by representation specifications. This prohibition applies to all data object types: resource objects, component objects, and process objects.
@@ -2414,7 +2432,6 @@ The Domain Name Data Object supports the following Process Objects (#process-obj
 * Identifier: domainCreateProcess
 * Extends: Create Process Object
 * Unique Identifier: processId
-* Extends: Base Process Object
 * Description: The domain-specific Create Process Object (#create-process). It is implicitly initiated by the Domain Name Data Object create operation and carries the domain creation-specific inputs, namely the requested initial registration period, that are consumed during creation and not persisted as part of the domain object's state.
 * Data Elements:
   * Period
@@ -4181,6 +4198,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
