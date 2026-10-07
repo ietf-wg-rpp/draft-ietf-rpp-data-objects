@@ -2387,17 +2387,6 @@ The Update operation allows a client to modify the read-write data elements of a
 * Authorisation:
   * Only sponsoring client is authorised to perform this operation
 
-The following transient data elements are defined for this operation:
-
-* Urgent
-  * Identifier: urgent
-  * Cardinality: 0-1
-  * Data Type: Boolean
-  * Description: Requests that the server operator process and implement the update with high priority. "High priority" is relative to standard server operator policies determined using an out-of-band mechanism. In EPP Compatibility Profile this corresponds to the "urgent" attribute of the `<secDNS:update>` element defined in [@RFC5910]. The default value is `false`.
-  * Constraints:
-    * A server that does not support this parameter MUST return an error if it is set to `true`.
-    * A server that supports this parameter but cannot fulfil a specific urgent request MUST return an error.
-
 ### Delete Operation
 
 * Identifier: delete
@@ -4178,6 +4167,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
