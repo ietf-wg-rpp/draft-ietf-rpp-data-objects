@@ -432,8 +432,7 @@ Notation: Aggregation[Type]
 
 A relation between two independent objects.
 
-If the cardinality of the target object is more than 1, this represents an ordered array.
-It MUST be assured that the same unchanged data is always inserted in the same order in order to allow stable reference by position to data elements. In case of data insertions, deletions, or updates the remainder of the data SHALL preserve its order.
+If the cardinality of the target object is more than 1, this represents an unordered array.
 
 Example aggregation having cardinality 1:
 
@@ -474,8 +473,7 @@ Notation: Composition[Type] or Type
 
 A relation between an independent parent object and 1 or more dependent child object(s).
 
-If the cardinality of the target object is more than 1, this represents an ordered array.
-It MUST be assured that the same unchanged data is always inserted in the same order in order to allow stable reference by position to data elements. In case of data insertions, deletions, or updates the remainder of the data SHALL preserve its order.
+If the cardinality of the target object is more than 1, this represents an unordered array.
 
 Example composition having cardinality 1:
 
@@ -3294,7 +3292,7 @@ Object Name: Processes Object
 
 Object Type: Component
 
-Description: A container grouping the Process Objects currently or recently initiated on a Data Object, structured as a dictionary keyed by process type where each element holds an ordered array of Process Objects of that type. The set of process-type data elements is extensible; extensions MAY register additional process-type elements.
+Description: A container grouping the Process Objects currently or recently initiated on a Data Object, structured as a dictionary keyed by process type where each element holds an unordered array of Process Objects of that type. The set of process-type data elements is extensible; extensions MAY register additional process-type elements.
 
 Reference: [This-ID]
 
@@ -4180,6 +4178,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
 * Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
