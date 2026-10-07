@@ -76,7 +76,10 @@ Data Object
 : A top-level provisioned resource object that has an independent lifecycle and identity in the registry. Data Objects carry data elements describing the resource and define the set of operations that can be performed on them.
 
 Component Object
-: A reusable data structure that carries data only, with no operations of its own. Component Objects are embedded within Data Objects or other objects to avoid repetition of common data patterns.
+: A reusable data structure that is used by other objects to avoid repetition of common data patterns. A Component Object is either composed into another object (see Composed Components) or referenced as the data type of a data element of another object.
+
+Composed Components
+: An object definition attribute listing the Component Objects and Process Objects whose data elements and operations are reused by the object. Composition is a reuse mechanism of the data model only.
 
 Process Object
 : An object that represents a long-running or multi-step operation initiated on a Data Object. Process Objects carry operation-related state and data, and may define their own operations to interact with the process. They have no independent existence - their lifecycle is bound to the owning Data Object.
@@ -151,6 +154,39 @@ A String that represents a Fully Qualified Domain Name (FQDN) that conforms to t
 
 Each data object is composed of logical data elements. A data element is a logical unit of information identified by a stable name, independent of its representation in any given media type. The definition for each element specifies its logical name, purpose, cardinality, data type, and constraints.
 The data type of a data element may also be a reference to another data object, using the target object's stable name.
+
+## Composed Components {#composed-components}
+
+A concrete object MAY reuse the data elements and operations of one or more Component Objects or Process Objects. The components reused by an object are declared in its `Composed Components` attribute, for example `* Composed Components: Process Properties`.
+
+Composition is a reuse mechanism of the data model, it is not inheritance: a concrete object does not extend another object, and objects are never derived from other concrete objects. Each data element of a composed Component Object is a data element of the composing object, with the same identifier, data type, cardinality, mutability and constraints, unless the composing object explicitly states otherwise. Composition is transitive: an object also reuses the data elements and operations of the components composed by its composed components.
+
+If a Process Object defines operations, these are also operations of the composing object, with the same identifier, authorisation, inputs and outputs. The composing object MAY refine such an operation by defining an operation with the same identifier itself, for example by adding transient data elements to its input or output, or by restricting its authorisation. A refinement adds to or narrows the composed definition; aspects that the refinement does not mention remain as defined by the composed component. The composing object MAY also state that it does not support such an operation. A composing object MUST define an operation with that identifier itself if two of its composed components define operations with the same identifier. 
+
+Composition MUST NOT be visible in the data representation. The data elements of the composed Component Objects are represented at the same level as the data elements defined by the composing object itself; representations MUST NOT introduce a separate nested member for a composed Component Object. The identifiers of the data elements obtained through composition share the namespace of the composing object's own data elements and MUST NOT conflict with them or with each other.
+
+### Composed Components versus Component-Typed Data Elements {#composed-vs-typed}
+
+An object can use a Component Object in two different ways, which have different effects:
+
+1. Composing it, by listing it in the `Composed Components` attribute. The object then *is described by* the component: the component's data elements and operations become part of the object itself.
+2. Referencing it as the data type of a data element, using the Composition association (#composition) or another association (#associations). The object then *has a* data element, with a name chosen by the object, whose value is an instance of the component.
+
+The two are not interchangeable:
+
+| Aspect | Composed Components | Data element with a Component Object as data type |
+| ------ | ------------------- | ------------------------------------------------- |
+| Declared in | The `Composed Components` attribute of the object | The data element table of the object |
+| Element identifiers | Those of the component, unchanged; they cannot be renamed | Chosen by the object; the identifier of the data element names the member that holds the component |
+| Representation | Flat: the component's data elements appear at the same level as the object's own data elements | Nested: the component's data elements appear inside the member named by the data element |
+| Cardinality, mutability | Those of the component's own data elements; no cardinality is defined for the component as a whole | Defined on the data element, for the component as a whole, including values greater than `1` |
+| Operations | The component's operations (if any) become operations of the object, and MAY be refined | None: the object does not obtain operations of the component |
+| Number of instances | Once per object; two components that define the same data element identifier or operation identifier conflict, see above | Any number, each under a different data element identifier |
+| Typical use | Common data elements that are part of the identity of every object of a family, such as Process Properties or Message Properties | A structured value that belongs to the object but has its own inner structure, such as a list of contacts or a set of statuses |
+Table: Comparison of Composed Components and Data Elements with Component Objects as Data Types
+{#tbl-composed-vs-data-element}
+
+Because a composed component is flattened into the composing object, it MUST NOT be used where the structure needs a name of its own, where more than one instance is needed, or where the component's data elements are to be kept apart from the object's own data elements. In those cases a data element with the Component Object as data type MUST be used.
 
 ## Extensibility
 
@@ -361,9 +397,11 @@ Internationalized Domain Names (IDN) are domain names that include one or more n
 
 Messages are used to communicate events, requests, and responses between clients and the server. They provide a mechanism for notifying clients about changes in the state of objects, the outcome of operations, and other relevant information.
 
-For a message reporting completion of an offline review, the server MUST send a `review-response` message to each client involved in the transaction when the requested action has been completed and the pending status has been removed.
+For a message reporting completion of an offline review, the server MUST send a `reviewResponseMessage` message to all clients involved in the transaction when the requested action has been completed.
 
-The server can send `transfer-outcome`, `expiration-deletion`, and `auto-renewal` messages to clients affected by those events. The `service-notice` conveys operational information to all clients. Extensions should use the `Base Message Object` as the foundation for defining new message types for notifications of changes to Data Objects.
+When the requested transaction has been completed, and the  pendingCreate, pendingDelete, pendingTransfer, or pendingUpdate status has been removed. All clients involved in the transaction MUST be notified with a service message that the action has been completed and that the status of the object has changed.
+
+Extensions SHOULD compose the Message Properties Component Object when defining new message types for notifications of changes to Data Objects.
 
 # External Data Types
 
@@ -1640,11 +1678,11 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Description: The create processes initiated on the owning Data Object.
     * Constraints: (None)
 
-## Base Process Object {#base-process}
+## Process Properties {#process-properties}
 
-* Name: Base Process Object
-* Identifier: baseProcess
-* Description: Base structure for all Process Objects, containing the data elements common to every process. Each Process Object extends this object.
+* Name: Process Properties
+* Identifier: processProperties
+* Description: The data elements common to every Process Object.
 * Data Elements:
   * Process ID
     * Identifier: processId
@@ -1654,15 +1692,16 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
     * Constraints: The value is set by the server and cannot be specified by the client.
 
-## Messages
+## Messages {#message-components}
 
-The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type extends the Base Message Object to include additional data elements relevant to that message type. Any of the types defined in this section may be used for the `data` data element defined for the Message Data Object.
+The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type composes the Message Properties Component Object and defines the additional data elements relevant to that message type. message objects do not extend one another. The concrete message objects defined in this section are the types that may be used for the `data` data element defined for the Message Data Object.
 
-### Base Message Object
+### Message Properties {#message-properties}
 
-* Name: Base Message Object
-* Identifier: baseMessage
-* Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
+* Name: Message Properties
+* Identifier: messageProperties
+* Composed Components: Process Properties
+* Description: The data elements common to every message object
 * Data Elements:
   * Object Type
     * Identifier: objectType
@@ -1683,13 +1722,6 @@ The Message Components define the structure and data elements for all message ob
       * For both "domainName", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
       * For "contact" the `objectId` must be a valid contact identifier.
       * When the message is not related to a specific object, the `objectId` field may be empty.
-  * Process
-    * Identifier: process
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: Aggregation[Base Process Object]
-    * Description: The transfer process the message pertains to.
-    * Constraints: Not all messages may be related to a specific process, and in such cases, this field may be empty.
 
 ### Review Response Object
 
@@ -1697,7 +1729,7 @@ The Review Response Object defines the data elements for returning the result of
 
 * Name: Review Response Object
 * Identifier: reviewResponseMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Notification of the result of an offline-review of a requested operation.
 * Data Elements:
   * Approval Result
@@ -1740,7 +1772,7 @@ The Review Response Object defines the data elements for returning the result of
 
 * Name: Transfer Request Message Object
 * Identifier: transferRequestMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
 * Data Elements:
   * Transfer Status
@@ -1770,7 +1802,7 @@ The Review Response Object defines the data elements for returning the result of
 
 * Name: Transfer Outcome Message Object
 * Identifier: transferOutcomeMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Notification for a client affected by the completion of a transfer request.
 * Data Elements:
   * Transfer Status
@@ -1806,7 +1838,7 @@ The Review Response Object defines the data elements for returning the result of
 
 * Name: Expiration Deletion Message Object
 * Identifier: expirationDeletionMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Notification for the sponsoring client that an object was deleted following expiration.
 * Data Elements:
   * Deletion Date
@@ -1821,7 +1853,7 @@ The Review Response Object defines the data elements for returning the result of
   
 * Name: Auto-Renewal Message Object
 * Identifier: autoRenewalMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Notification for the sponsoring client that the server automatically renewed an object.
 * Data Elements:
   * Renewal Date
@@ -1845,7 +1877,7 @@ The Service Notice Message Object is not linked to a specific object or process 
 
 * Name: Service Notice Message Object
 * Identifier: serviceNoticeMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Generic text based message containing information not covered by any other message type.
 * Data Elements:
   * Message
@@ -1865,7 +1897,7 @@ The Maintenance Message Object is used to notify the client about planned mainte
 
 * Name: Maintenance Message Object
 * Identifier: maintenanceMessage
-* Extends: Base Message Object
+* Composed Components: Message Properties
 * Description: Notification about planned maintenance events.
 * Data Elements:
 
@@ -1876,14 +1908,14 @@ see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
 
 This section defines the Process Objects used in this document.
 
-Each Process Object extends the Base Process Object (#base-process) and therefore carries its OPTIONAL Process ID data element.
+Each Process Object composes the Process Properties Component Object (#process-properties) and therefore carries its OPTIONAL Process ID data element.
 
 ## Transfer Process Object
 
 * Name: Transfer Process Object
 * Identifier: transferProcess
 * Unique Identifier: processId
-* Extends: Base Process Object
+* Composed Components: Process Properties
 * Description: Represents a transfer request for a provisioned object. Creating this object initiates a transfer. The object supports approve and reject as additional operations, and delete as the cancel operation. Reading the object returns the current transfer status.
 * Data Elements:
   * Transfer Direction
@@ -2023,7 +2055,7 @@ The following transient data elements are defined for this operation:
 * Name: Restore Process Object
 * Identifier: restoreProcess
 * Unique Identifier: processId
-* Extends: Base Process Object
+* Composed Components: Process Properties
 * Description: Represents the current state of a restore request for an object that has entered the Redemption Grace Period (RGP).
 * Data Elements:
   * Restore Status
@@ -2123,7 +2155,7 @@ The following transient data elements are defined for this operation:
 * Name: Renew Process Object
 * Identifier: renewProcess
 * Unique Identifier: processId
-* Extends: Base Process Object
+* Composed Components: Process Properties
 * Description: Represents a renew request for a provisioned object. Creating this object initiates a renewal process that extends the registration period of the object. Reading this object returns the new expiry date if the renewal has been completed.
 * Data Elements:
   * Expiry Date
@@ -2160,11 +2192,11 @@ The renew operation extends the validity period of an existing object by creatin
 * Name: Create Process Object
 * Identifier: createProcess
 * Unique Identifier: processId
-* Extends: Base Process Object
+* Composed Components: Process Properties
 * Description: Represents the process initiated when a resource creation operation is performed. It carries creation-specific inputs that are consumed during the creation operation and are not stored as persistent attributes of the created resource object.
 * Data Elements: (None)
 
-Beyond the data elements of the Base Process Object, the generic Create Process Object defines no additional data elements. Individual object definitions extend it with object-specific creation inputs (such as the Domain Create Process Object (#domain-create-process), which adds the registration period).
+Beyond the data elements of Process Properties, the generic Create Process Object defines no additional data elements, but it defines the operations below. Object-specific create processes (such as the Domain Create Process Object (#domain-create-process), which adds the registration period) are concrete Process Objects that list the Create Process Object in their `Composed Components` attribute. By doing so they carry its operations, and any data elements that may be defined for the Create Process Object in the future, as described in (#composed-components).
 
 ### Operations
 
@@ -2402,7 +2434,7 @@ The error response SHOULD indicate the related subordinate host objects.
 
 ## Processes
 
-The Domain Name Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Domain Name Data Object supports the following Process Objects (#process-objects), either in their generic form or replaced by an object-specific definition.
 
 * Renew Process
 * Restore Process
@@ -2412,10 +2444,9 @@ The Domain Name Data Object supports the following Process Objects (#process-obj
 
 * Name: Domain Create Process Object
 * Identifier: domainCreateProcess
-* Extends: Create Process Object
 * Unique Identifier: processId
-* Extends: Base Process Object
-* Description: The domain-specific Create Process Object (#create-process). It is implicitly initiated by the Domain Name Data Object create operation and carries the domain creation-specific inputs, namely the requested initial registration period, that are consumed during creation and not persisted as part of the domain object's state.
+* Composed Components: Create Process Object
+* Description: The domain-specific create process (#create-process). It is implicitly initiated by the Domain Name Data Object create operation and carries the domain creation-specific inputs, namely the requested initial registration period, that are consumed during creation and not persisted as part of the domain object's state.
 * Data Elements:
   * Period
     * Identifier: period
@@ -2431,7 +2462,7 @@ The Domain Name Data Object supports the following Process Objects (#process-obj
 
 * Identifier: create
 
-The Create operation is invoked implicitly as a side effect of the Domain Name Data Object create operation and is never invoked directly. It carries the registration period consumed during domain creation.
+The Create operation is invoked implicitly as a side effect of the Domain Name Data Object create operation and is never invoked directly. It refines the Create operation of the Create Process Object (#create-process-create) and carries the registration period consumed during domain creation.
 
 * Input: Domain Create Process Object (create-only and read-write elements)
 * Output: Domain Create Process Object
@@ -2443,7 +2474,7 @@ The Create operation is invoked implicitly as a side effect of the Domain Name D
 
 * Identifier: read
 
-The Read operation retrieves the result or status of the domain creation, if the server exposes the process resource.
+The Read operation retrieves the result or status of the domain creation, if the server exposes the process resource. It refines the Read operation of the Create Process Object (#create-process-read).
 
 * Input: Object Identifier
 * Output: Domain Create Process Object
@@ -2455,17 +2486,10 @@ The Read operation retrieves the result or status of the domain creation, if the
 
 * Name: Domain Transfer Process Object
 * Identifier: domainTransferProcess
-* Extends: Transfer Process Object
 * Unique Identifier: processId
-* Description: The domain-specific Transfer Process Object (#transfer-operations). It carries the domain-specific transfer inputs and outputs — the requested transfer period and the resulting expiry date — that extend the common transfer process.
+* Composed Components: Transfer Process Object
+* Description: The domain-specific Transfer Process Object(#transfer-operations).
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Expiry Date
     * Identifier: expiryDate
     * Cardinality: 0-1
@@ -2482,7 +2506,7 @@ Transfer of a Domain Name Data Object MUST implicitly transfer all Host Data Obj
 
 * Identifier: transferCreate
 
-The Create operation initiates a transfer of the Domain Name Data Object by creating a Domain Transfer Process Object, extending the common Transfer Create Operation (#transfer-create).
+The Create operation initiates a transfer of the Domain Name Data Object by creating a Domain Transfer Process Object. It follows the Create operation of the Transfer Process Object (#transfer-create) and adds the transient data element below.
 
 * Input:
   * Owner Data Object reference
@@ -2642,7 +2666,7 @@ The error response SHOULD indicate the existing object associations.
 
 ## Processes
 
-The Contact Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Contact Data Object supports the following Process Objects (#process-objects), either in their generic form or replaced by an object-specific definition.
 
 * Transfer Process
 
@@ -2756,7 +2780,7 @@ The error response SHOULD indicate the related associated objects.
 
 ## Processes
 
-The Host Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Host Data Object supports the following Process Objects (#process-objects), either in their generic form or replaced by an object-specific definition.
 
 * Restore Process
   * Constraints: OPTIONAL; available only when the RGP feature for the Host Data Object is supported by the server.
@@ -2963,9 +2987,10 @@ The following data elements are defined for the Message Data Object.
   * Identifier: data
   * Cardinality: 1
   * Mutability: create-only
-  * Data Type: Base Message Object
+  * Data Type: Object
   * Description: The data related to a specific message type, such as a transfer request or a review response.
-  * Constraints: (None)
+  * Constraints:
+    * The value MUST be exactly one of the concrete message objects defined in (#message-components), or a message object defined by an extension. The type of the message is identified by the message object itself.
 
 ## Operations
 
@@ -3148,11 +3173,11 @@ Private (non-standardised) extensions are not required to register in this regis
 
 The registry is organised as a collection of Object definitions. Each Object definition MUST include:
 
-* A header containing the Object Identifier, Object Name, Object Type (Resource, Process or Component), the identifier of the object it extends (if any), a brief description, and a reference to its defining specification.
+* A header containing the Object Identifier, Object Name, Object Type (Resource, Process or Component), the identifiers of the Component Objects it composes (if any), a brief description, and a reference to its defining specification.
 
 * A "Data Elements" table listing all persisted data elements associated with the object. Each entry MUST specify the element's Identifier, Name, Cardinality, Mutability, Data Type, description, and a reference to the specification that defines it.
 
-* An "Operations" section (applicable only for Object Types Resource or Process). For each operation, the
+* An "Operations" section (applicable only for Object Types Resource or Process that define operations). The section lists the operations defined or refined by the object itself; operations obtained unchanged through its composed components are registered with those components. For each operation, the
 registry MUST provide:
   * The Operation's Name, a description, and a reference to the specification that defines it.
   * A "Parameters" table listing all data elements that are provided as input to the operation but are not persisted as part of the object's state. Each entry MUST specify the parameter's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
@@ -3303,13 +3328,13 @@ Data Elements
 | restoreProcess     | Restore Processes | 0+    | read-only  | Aggregation [Restore Process Object]  | The restore processes initiated on the owning Data Object.  |
 | createProcess      | Create Processes  | 0+    | read-only  | Aggregation [Create Process Object]   | The create processes initiated on the owning Data Object.   |
 
-Object: baseProcess
+Object: processProperties
 
-Object Name: Base Process Object
+Object Name: Process Properties
 
 Object Type: Component
 
-Description: Base structure for all Process Objects, containing the data elements common to every process.
+Description: The data elements common to every Process Object.
 
 Reference: [This-ID]
 
@@ -3318,22 +3343,23 @@ Data Elements
 | ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------ |
 | processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
 
-Object: baseMessage
+Object: messageProperties
 
-Object Name: Base Message Object
+Object Name: Message Properties
 
 Object Type: Component
 
-Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
+Composed Components: processProperties
+
+Description: The data elements common to every message object, such as the object type and object identifier, and the Process ID of the process the message pertains to.
 
 Reference: [This-ID]
 
 Data Elements
-| Element Identifier | Element Name      | Card. | Mutability | Data Type                       | Description                                                                          |
-| ------------------ | ----------------- | ----- | ---------- | ------------------------------- | ------------------------------------------------------------------------------------ |
-| objectType         | Object Type       | 0-1   | read-only  | String                          | The object identifier of the object affected by the requested action.                |
-| objectId           | Object Identifier | 0-1   | read-only  | String                          | The unique identifier of the object affected by the requested operation.             |
-| process            | Process           | 0-1   | read-only  | Aggregation [Base Process Object] | The process the message pertains to. Empty if the message is not related to a process. |
+| Element Identifier | Element Name      | Card. | Mutability | Data Type         | Description                                                                            |
+| ------------------ | ----------------- | ----- | ---------- | ----------------- | -------------------------------------------------------------------------------------- |
+| objectType         | Object Type       | 0-1   | read-only  | String            | The object identifier of the object affected by the requested action.                  |
+| objectId           | Object Identifier | 0-1   | read-only  | String            | The unique identifier of the object affected by the requested operation.               |
 
 Object: transferProcess
 
@@ -3341,7 +3367,7 @@ Object Name: Transfer Process Object
 
 Object Type: Process
 
-Extends: baseProcess
+Composed Components: processProperties
 
 Description: Represents a transfer request for a provisioned object. Creating this object initiates the transfer. Approve and Reject are additional operations; Delete corresponds to cancel.
 
@@ -3410,7 +3436,7 @@ Object Name: Renew Process Object
 
 Object Type: Process
 
-Extends: baseProcess
+Composed Components: processProperties
 
 Description: Represents a renewal request for a provisioned object. Creating this object initiates the renewal.
 
@@ -3438,7 +3464,7 @@ Object Name: Create Process Object
 
 Object Type: Process
 
-Extends: baseProcess
+Composed Components: processProperties
 
 Description: Represents the process initiated when a resource creation operation is performed. Carries creation-specific inputs that are consumed during creation and not stored as persistent attributes of the created resource object.
 
@@ -3470,7 +3496,7 @@ Object Name: Domain Create Process Object
 
 Object Type: Process
 
-Extends: baseProcess
+Composed Components: createProcess
 
 Description: The Create Process Object specific to the Domain Name Data Object. Implicitly initiated by the domain create operation; carries the requested initial registration period consumed during creation and not persisted as part of the domain object's state.
 
@@ -3487,7 +3513,7 @@ Operation: Create
 
 Operation Identifier: create
 
-Description: Invoked implicitly as a side effect of the Domain Name Data Object create operation; never invoked directly. Carries the registration period consumed during domain creation.
+Description: Invoked implicitly as a side effect of the Domain Name Data Object create operation; never invoked directly. Refines the Create operation of the Create Process Object and carries the registration period consumed during domain creation.
 
 Parameters: (None)
 
@@ -3495,7 +3521,7 @@ Operation: Read
 
 Operation Identifier: read
 
-Description: Retrieves the result or status of the domain creation, if the server exposes the process resource.
+Description: Retrieves the result or status of the domain creation, if the server exposes the process resource. Refines the Read operation of the Create Process Object.
 
 Parameters: (None)
 
@@ -3505,14 +3531,15 @@ Object Name: Domain Transfer Process Object
 
 Object Type: Process
 
+Composed Components: transferProcess
+
 Description: The Transfer Process Object specific to the Domain Name Data Object. Carries the domain-specific transfer inputs and outputs, namely the requested transfer period and the resulting expiry date, that extend the common transfer process.
 
 Reference: [This-ID]
 
 Data Elements
 | Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                                                          |
-| ------------------ | ------------ | ----- | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------- |
-| processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object.              |
+| ------------------ | ------------ | ----- | ---------- | --------- | -------------------------------------------------------------------------------------------------------------------- |
 | expiryDate         | Expiry Date  | 0-1   | read-only  | Timestamp | The end of the domain object's registration period if the transfer caused or causes a change in the validity period. |
 
 Operations
@@ -3549,7 +3576,7 @@ Object Name: Restore Process Object
 
 Object Type: Process
 
-Extends: baseProcess
+Composed Components: restoreProcess
 
 Description: Represents the current state of a restore request for an object that has entered the Redemption Grace Period (RGP). Returned as output of all restore operations. This object is OPTIONAL and is only used when the RGP feature is supported.
 
@@ -3872,7 +3899,7 @@ Data Elements
 | creationDate | Creation Date   | 1     | read-only   | Timestamp                | The date and time when the message object was created and inserted into the queue.   |
 | status       | Status          | 1     | read-only   | String                   | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
 | owner        | Organisation ID | 1     | create-only | Organisation Data Object | The owning organisation for the message object.                                      |
-| data          | Data           | 1     | create-only | Base Message Object      | The data related to a specific message, such as a transfer request or a review response. |
+| data          | Data           | 1     | create-only | Object                   | The data related to a specific message, such as a transfer request or a review response. |
 
 Operations
 
@@ -4186,6 +4213,7 @@ A> TODO: write security considerations, if any
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
 * Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
+* Replaced object inheritance ("Extends") by composition (Issue #132)
 
 {toc="exclude"}
 {numbered="false"}

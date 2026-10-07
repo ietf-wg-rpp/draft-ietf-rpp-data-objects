@@ -106,10 +106,10 @@ is `[MISSING IN IANA]`, so identifier gaps are always surfaced.
 
 | Code | Meaning |
 | ---- | ------- |
-| `[PROCESS MISSING IN NORMATIVE]` | An inherited-process bullet in a Data Object's `## Processes` list names an Object **Name** that does not match any normative object (short form accepted: `Renew Process` → `Renew Process Object`) |
-| `[EXTENDS MISSING IN NORMATIVE]` | An object's `* Extends:` attribute names an Object **Name** that does not match any normative object |
+| `[PROCESS MISSING IN NORMATIVE]` | A generic-process bullet in a Data Object's `## Processes` list names an Object **Name** that does not match any normative object (short form accepted: `Renew Process` → `Renew Process Object`) |
+| `[COMPOSED COMPONENT MISSING IN NORMATIVE]` | A Component Object named in an object's `* Composed Components:` attribute does not match the **Name** of any normative object |
 
-`supported_processes` and `extends` are normative-model concepts only; neither
+`supported_processes` and `composed_components` are normative-model concepts only; neither
 has an IANA table counterpart, so there is no `MISSING IN IANA` variant for them.
 
 ---
@@ -290,11 +290,12 @@ declares which Process Objects the object supports. It has two parts, in
 this order:
 
 1. One line of intro prose.
-2. The **inherited** processes — those used unmodified — as a structured
-   bullet list.
-3. The **extended** processes — each a full object-specific Process Object
-   definition at H3, carrying an `* Extends:` attribute naming the generic
-   object it extends (by **Name**, not identifier).
+2. The **generic** processes — those used as defined generically — as a
+   structured bullet list.
+3. The **object-specific** processes — each a full, self-contained Process
+   Object definition at H3, carrying a `* Composed Components:` attribute
+   naming the Component Objects it reuses (by **Name**, not identifier),
+   e.g. `Process Properties`. Process Objects do not extend one another.
 
 ```
 ## Processes
@@ -309,8 +310,8 @@ The Domain Name Data Object supports the following Process Objects …
 
 * Name: Domain Transfer Process Object
 * Identifier: domainTransferProcess
-* Extends: Transfer Process Object
 * Unique Identifier: processId
+* Composed Components: Process Properties
 * Data Elements:
   …
 ```
@@ -318,8 +319,8 @@ The Domain Name Data Object supports the following Process Objects …
 Each bullet before the first H3 is one `SupportedProcessDef`, parsed by
 `_parse_supported_processes()`. The **bullet text itself is the reference**
 to the Process Object, by Name — there is no `Identifier` attribute, which
-would be a redundant second lookup key alongside the one `Extends:` already
-uses. `resolve_process_name()` accepts the short form, so `Renew Process`
+would be a redundant second lookup key alongside the one `Composed Components:`
+already uses. `resolve_process_name()` accepts the short form, so `Renew Process`
 resolves to the object named `Renew Process Object`
 (`[PROCESS MISSING IN NORMATIVE]` if unresolved).
 
@@ -331,9 +332,9 @@ same list-valued convention as element/param Constraints (inline value,
 H3 heading, so the embedded Process Objects' own `* Identifier:` bullets are
 never swept into it. Those H3 blocks are parsed as their own `ObjectDef`s by
 `_walk_normative_objects()` with `obj_type = "Process"` (see **Normative
-document layouts** above); their `* Extends:` value lands in
-`ObjectDef.extends` and is resolved by Object Name
-(`[EXTENDS MISSING IN NORMATIVE]` if unresolved).
+document layouts** above); their `* Composed Components:` value lands in
+`ObjectDef.composed_components` and each entry is resolved by Object Name
+(`[COMPOSED COMPONENT MISSING IN NORMATIVE]` if unresolved).
 
 ### Generic subsections
 
@@ -661,8 +662,8 @@ subsections:                # non-Data-Elements/Operations/Processes headings
   - heading: "RDATA Structures in EPP Profile"
     anchor: "{#rdata-structures}"
     notes: []                # prose paragraphs and bullets, in document order
-extends: ""                 # Object NAME this object extends, from "* Extends:"; "" if none
-supported_processes:        # inherited-process bullets from the object's "## Processes"
+composed_components: []     # Component Object NAMES from "* Composed Components:" (comma separated); [] if none
+supported_processes:        # generic-process bullets from the object's "## Processes"
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
     constraints: []          # list of strings — same convention as element/param Constraints
     notes: []                # orphan prose inside this entry's own block

@@ -36,12 +36,13 @@ Operation parameter level:
   [PARAM DESC EMPTY]           - IANA description cell is blank; normative has one
 
 Supported-process level (normative-only, no IANA table involved):
-  [PROCESS MISSING IN NORMATIVE]  - an inherited-process bullet in a Data Object's
+  [PROCESS MISSING IN NORMATIVE]  - a generic-process bullet in a Data Object's
                                      "## Processes" list names an Object Name that
                                      does not match any normative object
-  [EXTENDS MISSING IN NORMATIVE]  - an object's "* Extends:" attribute names an
-                                     Object Name that does not match any normative
-                                     object
+  [COMPOSED COMPONENT MISSING IN NORMATIVE]
+                                  - an object's "* Composed Components:" attribute
+                                     names a Component Object Name that does not
+                                     match any normative object
 """
 
 import argparse
@@ -169,23 +170,24 @@ class OperationDef:
 @dataclass
 class SupportedProcessDef:
     """
-    One entry in the inherited-process bullet list of a Data Object's
+    One entry in the generic-process bullet list of a Data Object's
     "## Processes" section: a generic Process Object the Data Object
-    supports UNMODIFIED, e.g.:
+    supports as defined generically, e.g.:
 
       * Renew Process
         * Constraints: (None)
 
     The bullet text itself is the reference to the Process Object, by Name
-    (the same lookup key "* Extends:" uses) — there is no Identifier
-    attribute, which would be a redundant second key. The short form is
-    accepted: "Renew Process" resolves to the object named "Renew Process
-    Object" (see resolve_process_name).
+    (the same lookup key "* Composed Components:" uses) — there is no
+    Identifier attribute, which would be a redundant second key. The short
+    form is accepted: "Renew Process" resolves to the object named "Renew
+    Process Object" (see resolve_process_name).
 
-    Processes the Data Object *extends* are not listed here — they appear
-    as their own H3 Process Object definitions under the same
-    "## Processes" section, each carrying an "* Extends:" attribute (see
-    ObjectDef.extends).
+    Processes the Data Object replaces by an object-specific definition are
+    not listed here — they appear as their own H3 Process Object
+    definitions under the same "## Processes" section. Process Objects do
+    not extend one another; each carries its own "* Composed Components:"
+    attribute (see ObjectDef.composed_components).
     """
     name: str          # bullet text, e.g. "Renew Process"
     line: int          # 1-based line number
@@ -214,7 +216,7 @@ class ObjectDef:
     source: str        # "normative" or "iana"
     line: int          # 1-based line of the Name / "Object:" declaration
     obj_type: str = ""       # "Component", "Process", or "Resource"
-    extends: str = ""        # "* Extends:" — the NAME of the object this one extends
+    composed_components: list[str] = field(default_factory=list)  # "* Composed Components:" — Component Object NAMES
     description: str = ""
     elements: list[ElementDef] = field(default_factory=list)
     operations: list[OperationDef] = field(default_factory=list)
@@ -431,7 +433,7 @@ _TABLE_ROW_RE = re.compile(r"^\s*\|")
 _KNOWN_ATTR_KEYS = {
     "name", "identifier", "cardinality", "mutability", "data type",
     "description", "constraints", "unique identifier", "object type",
-    "reference", "extends",
+    "reference", "composed components",
 }
 
 
@@ -654,7 +656,7 @@ def _parse_normative_elements_flat(lines: list[str], body_start: int,
 def _parse_supported_processes(lines: list[str], body_start: int,
                                 body_end: int) -> list[SupportedProcessDef]:
     """
-    Parse the inherited-process bullet list of a Data Object's
+    Parse the generic-process bullet list of a Data Object's
     "## Processes" section. The bullet text IS the reference to the Process
     Object (by Name); only Constraints may follow as an attribute:
 
@@ -1114,22 +1116,21 @@ def _parse_supported_processes_for_object(
         lines: list[str], obj_start: int, obj_end: int,
         obj_heading_level: int, obj_type: str) -> list[SupportedProcessDef]:
     """
-    Find and parse the INHERITED-process bullet list in a Data Object's
+    Find and parse the generic-process bullet list in a Data Object's
     "## Processes" sub-section (a sibling of "## Operations", one level
     deeper than the object's own heading):
 
       ## Processes                     <- obj_heading_level + 1
         <one line of intro prose>
-        * Renew Process                <- inherited, used unmodified
+        * Renew Process                <- generic definition used
           * Identifier: renewProcess
-        ### Domain Transfer Process Object   <- EXTENDED, its own ObjectDef
+        ### Domain Transfer Process Object   <- object-specific, its own ObjectDef
 
     Only the bullet list before the first H3 belongs here: the H3
-    sub-headings are object-specific Process Objects that extend a generic
-    one, each parsed as its own ObjectDef by _walk_normative_objects (and
-    carrying an "* Extends:" attribute naming what it extends). Processes
-    listed as bullets are the ones used unmodified, with no extending
-    object of their own.
+    sub-headings are object-specific Process Objects, each parsed as its own
+    ObjectDef by _walk_normative_objects (and carrying its own
+    "* Composed Components:" attribute). Processes listed as bullets are the
+    generic ones, with no object-specific definition of their own.
     """
     if obj_type in OBJ_TYPES_WITHOUT_OPERATIONS:
         return []
@@ -1139,7 +1140,7 @@ def _parse_supported_processes_for_object(
             lines, obj_start, obj_end, sub_level):
         if heading_text != "Processes":
             continue
-        # The inherited-process list ends where the first embedded Process
+        # The generic-process list ends where the first embedded Process
         # Object heading (one level deeper) begins.
         list_end = block_end
         child_headings = _find_sibling_headings(
@@ -1223,7 +1224,7 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
                         header_end: int, obj_heading_level: int,
                         obj_type: str, obj_id: str, obj_line: int,
                         obj_name: str, obj_desc: str,
-                        obj_extends: str = "") -> ObjectDef:
+                        obj_composed: list[str] | None = None) -> ObjectDef:
     """
     Parse one object's body (elements, operations, preamble, subsections)
     given its already-known span and identity. Called top-down by
@@ -1289,7 +1290,7 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
         source="normative",
         line=obj_line,
         obj_type=obj_type,
-        extends=obj_extends,
+        composed_components=list(obj_composed or []),
         description=obj_desc,
         elements=elements,
         operations=operations,
@@ -1300,15 +1301,16 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
 
 
 def _parse_object_header(lines: list[str], obj_start: int,
-                          search_end: int) -> tuple[str, str, str, str, int] | None:
+                          search_end: int) -> tuple[str, str, str, list[str], int] | None:
     """
     Parse the object's own header attribute bullets ("* Name:", "* Identifier:",
-    "* Description:", "* Extends:") starting at obj_start (which may itself be
+    "* Description:", "* Composed Components:") starting at obj_start (which may itself be
     the "* Name:" line, for nested objects, or the line right after an
     "## Object Description" heading, for flat/Resource objects - the caller
     positions obj_start appropriately in each case).
 
-    Returns (name, identifier, description, extends, header_end) or None if no
+    Returns (name, identifier, description, composed_components, header_end)
+    or None if no
     "* Name:" bullet is found at or shortly after obj_start (leading blank
     lines - e.g. the blank line a heading is always followed by - and "A>"
     aside lines, e.g. an editorial TODO before an object's header bullets,
@@ -1326,7 +1328,7 @@ def _parse_object_header(lines: list[str], obj_start: int,
     obj_name = m_name.group(1).strip()
     obj_id = ""
     obj_desc = ""
-    obj_extends = ""
+    obj_composed: list[str] = []
     header_end = min(obj_start + 10, search_end)
     for j in range(obj_start + 1, min(obj_start + 10, search_end)):
         m_id = TOP_LEVEL_IDENT_RE.match(lines[j])
@@ -1337,9 +1339,10 @@ def _parse_object_header(lines: list[str], obj_start: int,
         if m_desc:
             obj_desc = m_desc.group(1).strip()
             continue
-        m_extends = re.match(r"^\* Extends:\s*(.+)$", lines[j])
-        if m_extends:
-            obj_extends = m_extends.group(1).strip()
+        m_composed = re.match(r"^\* Composed Components:\s*(.+)$", lines[j])
+        if m_composed:
+            obj_composed = [c.strip() for c in m_composed.group(1).split(",")
+                            if c.strip()]
             continue
         # "* Data Elements:" / "* Operations:" / "* Object Type:" mark the
         # true end of the object's own header attributes.
@@ -1359,7 +1362,7 @@ def _parse_object_header(lines: list[str], obj_start: int,
                 break
     if not obj_id:
         return None
-    return obj_name, obj_id, obj_desc, obj_extends, header_end
+    return obj_name, obj_id, obj_desc, obj_composed, header_end
 
 
 def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
@@ -1390,12 +1393,12 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
             header = _parse_object_header(lines, heading_line + 1, block_end)
             if header is None:
                 continue
-            obj_name, obj_id, obj_desc, obj_extends, header_end = header
+            obj_name, obj_id, obj_desc, obj_composed, header_end = header
             objects.append(_parse_object_body(
                 lines, heading_line + 1, block_end, header_end,
                 obj_heading_level=2, obj_type=obj_type, obj_id=obj_id,
                 obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
-                obj_extends=obj_extends))
+                obj_composed=obj_composed))
         return objects
 
     # Data Object section: the H1 itself is the object. Its "* Name:" bullet
@@ -1405,12 +1408,12 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
         if heading_text == "Object Description":
             header = _parse_object_header(lines, heading_line + 1, block_end)
             if header is not None:
-                obj_name, obj_id, obj_desc, obj_extends, header_end = header
+                obj_name, obj_id, obj_desc, obj_composed, header_end = header
                 objects.append(_parse_object_body(
                     lines, h1_start + 1, h1_end, header_end,
                     obj_heading_level=1, obj_type=obj_type, obj_id=obj_id,
                     obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
-                    obj_extends=obj_extends))
+                    obj_composed=obj_composed))
         elif heading_text == "Processes":
             # Embedded Process Objects: every H3 child of "## Processes" is
             # its own object at heading level 3, obj_type "Process".
@@ -1419,12 +1422,12 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
                 p_header = _parse_object_header(lines, p_heading_line + 1, p_block_end)
                 if p_header is None:
                     continue
-                p_name, p_id, p_desc, p_extends, p_header_end = p_header
+                p_name, p_id, p_desc, p_composed, p_header_end = p_header
                 objects.append(_parse_object_body(
                     lines, p_heading_line + 1, p_block_end, p_header_end,
                     obj_heading_level=3, obj_type="Process", obj_id=p_id,
                     obj_line=p_heading_line + 2, obj_name=p_name, obj_desc=p_desc,
-                    obj_extends=p_extends))
+                    obj_composed=p_composed))
     return objects
 
 
@@ -1847,9 +1850,10 @@ def check_supported_processes(norm_obj: ObjectDef,
     """
     Verify a Data Object's process declarations resolve to real normative
     objects. Both references are by Object Name:
-      - every inherited-process bullet in its "## Processes" list (short
+      - every generic-process bullet in its "## Processes" list (short
         form accepted, see resolve_process_name);
-      - an object's "* Extends:" attribute (exact Name).
+      - every Component Object named in an object's "* Composed Components:"
+        attribute (exact Name).
     Normative-only cross-check: neither concept has an IANA table
     counterpart.
     """
@@ -1864,12 +1868,13 @@ def check_supported_processes(norm_obj: ObjectDef,
                 f"of any normative object."
             )
 
-    if norm_obj.extends and _norm(norm_obj.extends) not in norm_names:
-        errors.append(
-            f"[EXTENDS MISSING IN NORMATIVE] {prefix} at line {norm_obj.line}: "
-            f"Extends '{norm_obj.extends}' does not match the Name of any "
-            f"normative object."
-        )
+    for comp in norm_obj.composed_components:
+        if _norm(comp) not in norm_names:
+            errors.append(
+                f"[COMPOSED COMPONENT MISSING IN NORMATIVE] {prefix} at line "
+                f"{norm_obj.line}: Composed Component '{comp}' does not match "
+                f"the Name of any normative object."
+            )
 
     return errors
 
@@ -2242,7 +2247,7 @@ def _object_to_dict(obj: ObjectDef) -> dict:
         "identifier": obj.identifier,
         "name": obj.name,
         "object_type": obj.obj_type,
-        "extends": obj.extends,
+        "composed_components": list(obj.composed_components),
         "description": obj.description,
         "preamble": list(obj.preamble),
         "elements": [_element_to_dict(e) for e in obj.elements],
@@ -3032,8 +3037,8 @@ def _test_resolve_process_name_accepts_short_form():
 def _test_parse_supported_processes_stops_at_extended_process_heading():
     """
     A Data Object's "## Processes" section holds an intro line, then the
-    inherited-process bullet list, then H3 definitions of the processes it
-    EXTENDS. Only the bullet list before the first H3 is a
+    generic-process bullet list, then H3 definitions of the object-specific
+    processes it defines. Only the bullet list before the first H3 is a
     SupportedProcessDef - the H3 blocks are separate ObjectDefs and their
     own "* Identifier:" bullets must not be swept into the list.
     """
@@ -3059,7 +3064,7 @@ def _test_parse_supported_processes_stops_at_extended_process_heading():
         "",
         "* Name: Widget Transfer Process Object",
         "* Identifier: widgetTransferProcess",
-        "* Extends: Transfer Process Object",
+        "* Composed Components: Process Properties",
         "* Data Elements:",
         "  * Process ID",
         "    * Identifier: processId",
@@ -3076,25 +3081,26 @@ def _test_parse_supported_processes_stops_at_extended_process_heading():
     assert [op.identifier for op in operations] == ["create"], operations
 
 
-def _test_parse_object_header_captures_extends():
+def _test_parse_object_header_captures_composed_components():
     """
-    "* Extends:" is an object header attribute (naming the extended object
-    by Name) and must not terminate header parsing early.
+    "* Composed Components:" is an object header attribute (naming the
+    composed Component Objects by Name, comma separated) and must not
+    terminate header parsing early.
     """
     lines = [
         "* Name: Widget Transfer Process Object",
         "* Identifier: widgetTransferProcess",
-        "* Extends: Transfer Process Object",
+        "* Composed Components: Process Properties, Widget Properties",
         "* Unique Identifier: processId",
         "* Description: A widget transfer.",
         "* Data Elements:",
     ]
     header = _parse_object_header(lines, 0, len(lines))
     assert header is not None
-    name, ident, desc, extends, _end = header
+    name, ident, desc, composed, _end = header
     assert name == "Widget Transfer Process Object"
     assert ident == "widgetTransferProcess"
-    assert extends == "Transfer Process Object", extends
+    assert composed == ["Process Properties", "Widget Properties"], composed
     assert desc == "A widget transfer.", desc
 
 
@@ -3114,33 +3120,33 @@ def _test_parse_object_header_unique_identifier_does_not_end_header():
     ]
     header = _parse_object_header(lines, 0, len(lines))
     assert header is not None
-    _name, _ident, desc, _extends, header_end = header
+    _name, _ident, desc, _composed, header_end = header
     assert desc == "Represents a transfer request.", desc
     assert lines[header_end] == "* Data Elements:", (header_end, lines[header_end])
 
 
-def _test_check_supported_processes_resolves_names_and_extends():
+def _test_check_supported_processes_resolves_names_and_composed_components():
     """
     Both references resolve by Object Name: [PROCESS MISSING IN NORMATIVE]
-    for an inherited-process bullet, [EXTENDS MISSING IN NORMATIVE] for an
-    object's Extends.
+    for a generic-process bullet, [COMPOSED COMPONENT MISSING IN NORMATIVE]
+    for an object's Composed Components.
     """
     obj = ObjectDef(
         name="Widget Transfer Process Object", identifier="widgetTransferProcess",
         source="normative", line=1, obj_type="Process",
-        extends="Transfer Process Object",
+        composed_components=["Process Properties"],
         supported_processes=[SupportedProcessDef(name="Bogus Process", line=3)],
     )
     norm_names = {"Widget Transfer Process Object"}  # neither reference present
     errors = check_supported_processes(obj, norm_names)
     assert any("[PROCESS MISSING IN NORMATIVE]" in e and "Bogus Process" in e
                for e in errors), errors
-    assert any("[EXTENDS MISSING IN NORMATIVE]" in e and "Transfer Process Object" in e
+    assert any("[COMPOSED COMPONENT MISSING IN NORMATIVE]" in e and "Process Properties" in e
                for e in errors), errors
     assert len(errors) == 2, errors
 
     # "Bogus Process" resolves via the short form to "Bogus Process Object".
-    norm_names_ok = norm_names | {"Transfer Process Object", "Bogus Process Object"}
+    norm_names_ok = norm_names | {"Process Properties", "Bogus Process Object"}
     assert check_supported_processes(obj, norm_names_ok) == []
 
 
@@ -3414,9 +3420,9 @@ _SELF_TESTS = [
     _test_parse_supported_processes_basic,
     _test_resolve_process_name_accepts_short_form,
     _test_parse_supported_processes_stops_at_extended_process_heading,
-    _test_parse_object_header_captures_extends,
+    _test_parse_object_header_captures_composed_components,
     _test_parse_object_header_unique_identifier_does_not_end_header,
-    _test_check_supported_processes_resolves_names_and_extends,
+    _test_check_supported_processes_resolves_names_and_composed_components,
     _test_walk_normative_objects_skips_aside_before_header,
     _test_object_header_tolerates_blank_lines_and_asides_between_attrs,
     _test_walk_normative_objects_flat_data_object,

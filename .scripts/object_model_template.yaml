@@ -47,15 +47,18 @@
 #                              paragraph and each top-level bullet becomes
 #                              one list entry (bullets fold deeper nesting
 #                              into that same entry, same as Constraints)
-#     extends:      the object's "* Extends:" attribute — the NAME (not the
-#                   identifier) of the object this one extends, e.g. a
-#                   Domain Transfer Process Object extends "Transfer Process
-#                   Object". Empty string for objects that extend nothing.
-#     supported_processes: the INHERITED-process bullet list from a Data
+#     composed_components: the object's "* Composed Components:" attribute —
+#                   the list of NAMES (not identifiers) of the Component
+#                   Objects whose data elements the object reuses, e.g. a
+#                   Transfer Process Object composes "Process Properties".
+#                   Empty list for objects that compose nothing. Composition
+#                   is a model-level reuse only; it is not inheritance.
+#     supported_processes: the generic-process bullet list from a Data
 #                   Object's "## Processes" section — the Process Objects it
-#                   supports UNMODIFIED. Processes it *extends* are not
-#                   listed here: they appear as their own Process Object
-#                   entries (under "processes") carrying "extends". Empty
+#                   supports as defined generically. Processes it replaces
+#                   by an object-specific definition are not listed here:
+#                   they appear as their own Process Object
+#                   entries (under "processes"). Empty
 #                   list if the object declares none. Each entry:
 #                     name:       the reference to the Process Object, by
 #                                 Object Name — the bullet text itself
