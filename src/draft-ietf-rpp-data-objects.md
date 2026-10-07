@@ -204,7 +204,7 @@ Wherever "Object Authorisation" is mentioned, it means that an operation MAY acc
 
 ### Uniform interface
 
-For the typical set of Create, Read, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
+For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
 
 #### Create
 
@@ -224,6 +224,11 @@ If the querying client is not the sponsoring client but the client provides vali
 
 If the querying client is not the sponsoring client and the client does not provide valid Object Authorisation information, server policy determines which OPTIONAL elements are returned, if any, or whether the entire request is rejected.
 
+#### Query
+
+* Input: (None)
+* Output: Zero or more Objects (read-write and read-only properties)
+
 #### Update
 
 * Input: Object identifier, Object changes (read-write properties)
@@ -233,6 +238,10 @@ If the querying client is not the sponsoring client and the client does not prov
 
 * Input: Object identifier
 * Output: Object (read-write and read-only properties) or nothing
+
+### Offline Review
+
+RPP allows for offline review for Uniform Interface operations that change the state of an object (Create, Update, Delete) before the requested action is actually completed. In such situations, the response from the server MUST clearly indicate that the operation has been received, but that the requested action is pending. The state of the corresponding object MUST clearly reflect processing of the pending action, typically through a server-set pending status label (e.g. `pendingCreate`, `pendingUpdate`, `pendingDelete`). The server MUST also notify the client when offline processing of the action has been completed, by sending a `review-response` message (see (#messages)).
 
 ### Operations beyond uniform interface
 
@@ -253,7 +262,55 @@ The server MAY implement local policies to prevent transfers from stalling and i
 
 All transfer operations act on or return the Transfer Process Object and are executed in the context of the Owner Data Object the operation is created upon.
 
-A> TODO: The server MUST notify the current sponsoring client of a pending transfer request. The notification mechanism is not defined in this document.
+If the server does not directly approve a pull transfer request and the current sponsoring client first approve the transfer request, the server MUST wait for the sponsoring client's decision before proceeding. If the sponsoring client approves, the server completes the transfer; if the sponsoring client rejects, the server cancels the transfer. The server MUST send a `transfer-request` message to the sponsoring client. For a pending push transfer, the server MUST send a `transfer-request` message to the designated gaining client that must act on it. If the server directly approves a transfer, it MUST send a `transfer-outcome` message to the client managing the object before the transfer. When a transfer is resolved after the currently managing client's decision, the server MUST send a `transfer-outcome` message to the requesting client.
+
+#### Transfer Messages
+
+The [Pull Transfer Direct Approval Message Diagram](#fig-pull-transfer-direct-approval) illustrates the sequence of messages exchanged during a pull transfer with direct approval. The [Pull Transfer Pending Approval Message Diagram](#fig-pull-transfer-pending-approval) illustrates the sequence of messages exchanged during a pull transfer that requires approval.
+The [Push Transfer Message Diagram](#fig-push-transfer) illustrates the sequence of messages exchanged during a push transfer.
+
+For a pull transfer, the requesting client is the gaining client; for a push transfer, the requesting client is the sponsoring client. The messages in the diagrams are surrounded by square brackets to indicate message types.
+
+Pull transfer (direct approval):
+
+```ascii
+   Gaining Client              Server                Sponsoring Client
+         |                       |                          |
+         |--- transferCreate --->|                          |
+         |                       |                          |
+         |                  Direct approval                 |
+         |                       |--- [transfer-outcome] -->|
+         |                       |                          |
+```
+Figure: Pull Transfer Direct Approval Message  {#fig-pull-transfer-direct-approval}
+
+Pull transfer (pending approval):
+
+```ascii
+   Gaining Client                Server                Sponsoring Client
+         |                         |                          |
+         |--- transferCreate ----->|                          |
+         |                         |                          |
+         |                         |                          |
+         |                    Pending approval                |
+         |                         |--- [transfer-request] -->|
+         |                         |<-- approve / reject -----|
+         |<-- [transfer-outcome] --|                          |
+```
+Figure: Pull Transfer Pending Approval Message {#fig-pull-transfer-pending-approval}
+
+
+Push transfer:
+
+```ascii
+  Sponsoring Client               Server                 Gaining Client
+         |                         |                           |
+         |--- transferCreate ----->|                           |
+         |                         |--- [transfer-request] --->|
+         |                         |<-- approve / reject ------|
+         |<-- [transfer-outcome] --|                           |
+```
+Figure: Push Transfer Message Diagram {#fig-push-transfer}
 
 A> TODO: Transfer-specific error conditions (object not eligible for transfer, object pending transfer, object not pending transfer) are not defined in this document.
 
@@ -283,6 +340,14 @@ RPP is designed to coexist with the Extensible Provisioning Protocol (EPP), ofte
 To address this, this document defines an "EPP Compatibility Profile". This profile specifies a set of additional constraints on RPP data objects and operations that a server MUST adhere to when supporting both RPP and EPP concurrently.
 
 Throughout this document, all constraints that are part of this profile are explicitly marked with a reference to "EPP Compatibility Profile". Implementers of systems in a mixed EPP/RPP environment MUST follow these specific constraints in addition to the base RPP requirements.
+
+# Messages {#messages}
+
+Messages are used to communicate events, requests, and responses between clients and the server. They provide a mechanism for notifying clients about changes in the state of objects, the outcome of operations, and other relevant information.
+
+For a message reporting completion of an offline review, the server MUST send a `review-response` message to each client involved in the transaction when the requested action has been completed and the pending status has been removed.
+
+The server can send `transfer-outcome`, `expiration-deletion`, and `auto-renewal` messages to clients affected by those events. The `service-notice` conveys operational information to all clients. Extensions should use the `Base Message Object` as the foundation for defining new message types for notifications of changes to Data Objects.
 
 # External Data Types
 
@@ -1561,26 +1626,11 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Description: The create processes initiated on the owning Data Object.
     * Constraints: (None)
 
-# Process Objects {#process-objects}
+## Base Process Object {#base-process}
 
-This section defines the Process Objects used in this document.
-
-Each Process Object carries an OPTIONAL Process ID data element, defined as follows:
-
-* Process ID
-  * Identifier: processId
-  * Cardinality: 0-1
-  * Mutability: read-only
-  * Data Type: String
-  * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-  * Constraints: The value is set by the server and cannot be specified by the client.
-
-## Transfer Process Object
-
-* Name: Transfer Process Object
-* Identifier: transferProcess
-* Unique Identifier: processId
-* Description: Represents a transfer request for a provisioned object. Creating this object initiates a transfer. The object supports approve and reject as additional operations, and delete as the cancel operation. Reading the object returns the current transfer status.
+* Name: Base Process Object
+* Identifier: baseProcess
+* Description: Base structure for all Process Objects, containing the data elements common to every process. Each Process Object extends this object.
 * Data Elements:
   * Process ID
     * Identifier: processId
@@ -1589,6 +1639,239 @@ Each Process Object carries an OPTIONAL Process ID data element, defined as foll
     * Data Type: String
     * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
     * Constraints: The value is set by the server and cannot be specified by the client.
+
+## Messages
+
+The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type extends the Base Message Object to include additional data elements relevant to that message type. Any of the types defined in this section may be used for the `data` data element defined for the Message Data Object.
+
+### Base Message Object
+
+* Name: Base Message Object
+* Identifier: baseMessage
+* Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
+* Data Elements:
+  * Object Type
+    * Identifier: objectType
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The object identifier of the object affected by the requested action (e.g., "domainName", "host", "contact").
+    * Constraints:
+      * Must only be used when the `objectId` field is present.
+  * Object Identifier
+    * Identifier: objectId
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The unique identifier of the object affected by the requested operation.
+    * Constraints:
+      * Must be a valid unique identifier for the object type specified in the `objectType` field.
+      * For both "domainName", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
+      * For "contact" the `objectId` must be a valid contact identifier.
+      * When the message is not related to a specific object, the `objectId` field may be empty.
+  * Process
+    * Identifier: process
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Aggregation[Base Process Object]
+    * Description: The transfer process the message pertains to.
+    * Constraints: Not all messages may be related to a specific process, and in such cases, this field may be empty.
+
+### Review Response Object
+
+The Review Response Object defines the data elements for returning the result of an offline-review. Offline-review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.
+
+* Name: Review Response Object
+* Identifier: reviewResponseMessage
+* Extends: Base Message Object
+* Description: Notification of the result of an offline-review of a requested operation.
+* Data Elements:
+  * Approval Result
+    * Identifier: approved
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Boolean
+    * Description: Whether the requested action was approved and completed.
+    * Constraints: `false` means the action was denied and not performed.
+  * Client Transaction ID
+    * Identifier: clientTransactionId
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The client transaction identifier from the original request, if supplied.
+    * Constraints: (None)
+  * Server Transaction ID
+    * Identifier: serverTransactionId
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The server transaction identifier returned for the original request.
+    * Constraints: (None)
+  * Completion Date
+    * Identifier: completionDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The date and time when review of the requested action was completed.
+    * Constraints: (None)
+  * Message
+    * Identifier: message
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: Human-readable message associated with the review response.
+    * Constraints: (None)
+
+### Transfer Request Message Object
+
+* Name: Transfer Request Message Object
+* Identifier: transferRequestMessage
+* Extends: Base Message Object
+* Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
+* Data Elements:
+  * Transfer Status
+    * Identifier: status
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The current state of the transfer request.
+    * Constraints: The value MUST be `pending`.
+  * Request Date
+    * Identifier: requestDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The date and time the transfer was requested.
+    * Constraints: (None)
+  * Action Date
+    * Identifier: actionDate
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The deadline for responding before the server takes an automated action.
+    * Constraints:
+      * The action date MUST be later than the request date and is subject to server policy.
+
+### Transfer Outcome Message Object
+
+* Name: Transfer Outcome Message Object
+* Identifier: transferOutcomeMessage
+* Extends: Base Message Object
+* Description: Notification for a client affected by the completion of a transfer request.
+* Data Elements:
+  * Transfer Status
+    * Identifier: trStatus
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The final state of the transfer request.
+    * Constraints: The value MUST be one of `clientApproved`, `clientCancelled`, `clientRejected`, `serverApproved`, or `serverCancelled`.
+  * Request Date
+    * Identifier: requestDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The date and time the transfer was requested.
+    * Constraints: (None)
+  * Action Date
+    * Identifier: actionDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The date and time the transfer request was resolved.
+    * Constraints: (None)
+  * Expiry Date
+    * Identifier: expiryDate
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The end of the object's validity period if the operation causes a change in the validity period.
+    * Constraints: (None)
+
+### Expiration Deletion Message Object
+
+* Name: Expiration Deletion Message Object
+* Identifier: expirationDeletionMessage
+* Extends: Base Message Object
+* Description: Notification for the sponsoring client that an object was deleted following expiration.
+* Data Elements:
+  * Deletion Date
+    * Identifier: deletionDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The date and time the server deleted the object.
+    * Constraints: (None)
+
+### Auto-Renewal Message Object
+  
+* Name: Auto-Renewal Message Object
+* Identifier: autoRenewalMessage
+* Extends: Base Message Object
+* Description: Notification for the sponsoring client that the server automatically renewed an object.
+* Data Elements:
+  * Renewal Date
+    * Identifier: renewalDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The date and time the server renewed the object.
+    * Constraints: (None)
+  * Expiry Date
+    * Identifier: expiryDate
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The new expiration date of the object.
+    * Constraints: (None)
+
+### Service Notice Message Object
+
+The Service Notice Message Object is not linked to a specific object or process and can be used to convey general information to the client.
+
+* Name: Service Notice Message Object
+* Identifier: serviceNoticeMessage
+* Extends: Base Message Object
+* Description: Generic text based message containing information not covered by any other message type.
+* Data Elements:
+  * Message
+    * Identifier: message
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: Human-readable service information for the receiving organisation.
+    * Constraints:
+      * The server MUST NOT misuse this field by using it for transmitting structured data or machine-readable information.
+
+**TODO** Complete the Service Notice Message Object definition, do we need it at all?
+
+### Maintenance Message Object
+
+The Maintenance Message Object is used to notify the client about planned maintenance events. It is not linked to a specific object or process.
+
+* Name: Maintenance Message Object
+* Identifier: maintenanceMessage
+* Extends: Base Message Object
+* Description: Notification about planned maintenance events.
+* Data Elements:
+
+**TODO** Complete the Maintenance Message Object definition.
+see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
+
+# Process Objects {#process-objects}
+
+This section defines the Process Objects used in this document.
+
+Each Process Object extends the Base Process Object (#base-process) and therefore carries its OPTIONAL Process ID data element.
+
+## Transfer Process Object
+
+* Name: Transfer Process Object
+* Identifier: transferProcess
+* Unique Identifier: processId
+* Extends: Base Process Object
+* Description: Represents a transfer request for a provisioned object. Creating this object initiates a transfer. The object supports approve and reject as additional operations, and delete as the cancel operation. Reading the object returns the current transfer status.
+* Data Elements:
   * Transfer Direction
     * Identifier: transferDir
     * Cardinality: 0-1
@@ -1726,15 +2009,9 @@ The following transient data elements are defined for this operation:
 * Name: Restore Process Object
 * Identifier: restoreProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents the current state of a restore request for an object that has entered the Redemption Grace Period (RGP).
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Restore Status
     * Identifier: restoreStatus
     * Cardinality: 1
@@ -1832,15 +2109,9 @@ The following transient data elements are defined for this operation:
 * Name: Renew Process Object
 * Identifier: renewProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents a renew request for a provisioned object. Creating this object initiates a renewal process that extends the registration period of the object. Reading this object returns the new expiry date if the renewal has been completed.
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Expiry Date
     * Identifier: expiryDate
     * Cardinality: 0-1
@@ -1875,17 +2146,11 @@ The renew operation extends the validity period of an existing object by creatin
 * Name: Create Process Object
 * Identifier: createProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: Represents the process initiated when a resource creation operation is performed. It carries creation-specific inputs that are consumed during the creation operation and are not stored as persistent attributes of the created resource object.
-* Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
+* Data Elements: (None)
 
-Beyond the Process ID, the generic Create Process Object defines no additional data elements. Individual object definitions extend it with object-specific creation inputs (such as the Domain Create Process Object (#domain-create-process), which adds the registration period).
+Beyond the data elements of the Base Process Object, the generic Create Process Object defines no additional data elements. Individual object definitions extend it with object-specific creation inputs (such as the Domain Create Process Object (#domain-create-process), which adds the registration period).
 
 ### Operations
 
@@ -2162,15 +2427,9 @@ No domain-specific transient data elements extend the common restore operations 
 * Name: Domain Create Process Object
 * Identifier: domainCreateProcess
 * Unique Identifier: processId
+* Extends: Base Process Object
 * Description: The domain-specific Create Process Object (#create-process). It is implicitly initiated by the Domain Name Data Object create operation and carries the domain creation-specific inputs, namely the requested initial registration period, that are consumed during creation and not persisted as part of the domain object's state.
 * Data Elements:
-  * Process ID
-    * Identifier: processId
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
-    * Constraints: The value is set by the server and cannot be specified by the client.
   * Period
     * Identifier: period
     * Cardinality: 0-1
@@ -2624,6 +2883,114 @@ An organisation object MUST NOT be deleted if it is associated with other known 
 
 The error response SHOULD indicate the related associated objects.
 
+# Message Data Object
+
+## Object Description
+
+* Name: Message Data Object
+* Identifier: message
+* Unique Identifier: id
+* Description: A Message Data Object represents a message which is inserted in the message queue of an organisation and retrieved by clients associated with that organisation.
+
+## Data Elements
+
+The following data elements are defined for the Message Data Object.
+
+* Message ID
+  * Identifier: id
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Identifier
+  * Description: A server-unique identifier for the message object.
+  * Constraints: (None)
+
+* Creation Date
+  * Identifier: creationDate
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Timestamp
+  * Description: The date and time when the message object was created and inserted into the queue.
+  * Constraints: The value is set by the server.
+
+* Status
+  * Identifier: status
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The current lifecycle status of the message object.
+  * Constraints:
+    * Possible values: `queued`, `delivered` and `removed`
+
+* Data
+  * Identifier: data
+  * Cardinality: 1
+  * Mutability: create-only
+  * Data Type: Base Message Object
+  * Description: The data related to a specific message type, such as a transfer request or a review response.
+  * Constraints: (None)
+
+## Operations
+
+### Create Operation
+
+* Identifier: create
+
+The Create operation allows a server to insert a new message into the queue for a registrar. The operation accepts as input all create-only and read-write data elements defined for the Message Data Object.
+
+* Authorisation:
+  * Only the server is authorised to create new message objects.
+
+### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the data elements of a Message Data Object.
+
+* Authorisation:
+  * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
+
+Organisation ID (`owner`) MUST NOT be provided in the response, since a client can only ever retrieve messages linked to its own organisation.
+
+### Query Operation
+
+* Identifier: query
+
+The Query operation allows a client to retrieve a collection of Message Data Object instances based on specified criteria.
+
+* Authorisation:
+  * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
+
+In addition, the following transient data elements are defined for this operation:
+
+* Message Count
+  * Identifier: count
+  * Cardinality: 0-1
+  * Mutability: create-only
+  * Data Type: Integer
+  * Location: selector
+  * Description: The number of messages to retrieve when querying message objects.
+  * Constraints:
+    * The count value MUST be a non-negative integer.
+
+* Message Type
+  * Identifier: type
+  * Cardinality: 0-1
+  * Mutability: create-only
+  * Data Type: String
+  * Location: selector
+  * Description: The type of the message to use as a filter when retrieving message objects.
+  * Constraints:
+    * The type value MUST be a valid identifier for an RPP message component (e.g. reviewResponse).
+
+### Delete Operation
+
+* Identifier: delete
+
+The Delete operation allows a client to remove an existing Message Data Object. The operation targets a specific data object identified by its Message ID.
+
+* Authorisation:
+  * Generally clients are authorised to delete message objects linked to the organisation the client belongs to.
+
 # User Object
 
 ## Object Description
@@ -2743,7 +3110,7 @@ Private (non-standardised) extensions are not required to register in this regis
 
 The registry is organised as a collection of Object definitions. Each Object definition MUST include:
 
-* A header containing the Object Identifier, Object Name, Object Type (Resource, Process or Component), a brief description, and a reference to its defining specification.
+* A header containing the Object Identifier, Object Name, Object Type (Resource, Process or Component), the identifier of the object it extends (if any), a brief description, and a reference to its defining specification.
 
 * A "Data Elements" table listing all persisted data elements associated with the object. Each entry MUST specify the element's Identifier, Name, Cardinality, Mutability, Data Type, description, and a reference to the specification that defines it.
 
@@ -2898,11 +3265,45 @@ Data Elements
 | restoreProcess     | Restore Processes | 0+    | read-only  | Aggregation [Restore Process Object]  | The restore processes initiated on the owning Data Object.  |
 | createProcess      | Create Processes  | 0+    | read-only  | Aggregation [Create Process Object]   | The create processes initiated on the owning Data Object.   |
 
+Object: baseProcess
+
+Object Name: Base Process Object
+
+Object Type: Component
+
+Description: Base structure for all Process Objects, containing the data elements common to every process.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                                |
+| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------ |
+| processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
+
+Object: baseMessage
+
+Object Name: Base Message Object
+
+Object Type: Component
+
+Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name      | Card. | Mutability | Data Type                       | Description                                                                          |
+| ------------------ | ----------------- | ----- | ---------- | ------------------------------- | ------------------------------------------------------------------------------------ |
+| objectType         | Object Type       | 0-1   | read-only  | String                          | The object identifier of the object affected by the requested action.                |
+| objectId           | Object Identifier | 0-1   | read-only  | String                          | The unique identifier of the object affected by the requested operation.             |
+| process            | Process           | 0-1   | read-only  | Aggregation [Base Process Object] | The process the message pertains to. Empty if the message is not related to a process. |
+
 Object: transferProcess
 
 Object Name: Transfer Process Object
 
 Object Type: Process
+
+Extends: baseProcess
 
 Description: Represents a transfer request for a provisioned object. Creating this object initiates the transfer. Approve and Reject are additional operations; Delete corresponds to cancel.
 
@@ -2911,7 +3312,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name         | Card. | Mutability  | Data Type         | Description                                                                                     |
 | ------------------ | -------------------- | ----- | ----------- | ----------------- | ----------------------------------------------------------------------------------------------- |
-| processId          | Process ID           | 0-1   | read-only   | String            | A server-assigned identifier of the process instance, unique within the Owner Data Object.      |
 | transferDir        | Transfer Direction   | 0-1   | create-only | String            | The direction of the transfer ("pull" or "push"). If omitted, server policy determines default. |
 | gainingClientId    | Gaining Client ID    | 0-1   | create-only | Client Identifier | The designated gaining client. REQUIRED for push transfers; MUST NOT be provided for pull.      |
 | trStatus           | Transfer Status      | 1     | read-only   | String            | The state of the transfer request.                                                              |
@@ -2972,6 +3372,8 @@ Object Name: Renew Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: Represents a renewal request for a provisioned object. Creating this object initiates the renewal.
 
 Reference: [This-ID]
@@ -2979,7 +3381,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name         | Card. | Mutability  | Data Type         | Description                                                                                     |
 | ------------------ | -------------------- | ----- | ----------- | ----------------- | ----------------------------------------------------------------------------------------------- |
-| processId          | Process ID           | 0-1   | read-only   | String            | A server-assigned identifier of the process instance, unique within the Owner Data Object.      |
 | expiryDate        | Expiry Date          | 0-1   | read-only | Timestamp            | The expiry date of the object after the renewal is completed. |
 
 Operations
@@ -2998,14 +3399,13 @@ Object Name: Create Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: Represents the process initiated when a resource creation operation is performed. Carries creation-specific inputs that are consumed during creation and not stored as persistent attributes of the created resource object.
 
 Reference: [This-ID]
 
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                       |
-| ------------------ | ------------ | ----- | ---------- | --------- | --------------------------------------------------------------------------------- |
-| processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
+Data Elements: (None)
 
 Operations
 
@@ -3031,6 +3431,8 @@ Object Name: Domain Create Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: The Create Process Object specific to the Domain Name Data Object. Implicitly initiated by the domain create operation; carries the requested initial registration period consumed during creation and not persisted as part of the domain object's state.
 
 Reference: [This-ID]
@@ -3038,7 +3440,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name | Card. | Mutability  | Data Type     | Description                                      |
 | ------------------ | ------------ | ----- | ----------- | ------------- | ------------------------------------------------ |
-| processId          | Process ID   | 0-1   | read-only   | String        | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
 | period             | Period       | 0-1   | create-only | Period Object | The initial registration period for the domain name. |
 
 Operations
@@ -3080,6 +3481,8 @@ Object Name: Restore Process Object
 
 Object Type: Process
 
+Extends: baseProcess
+
 Description: Represents the current state of a restore request for an object that has entered the Redemption Grace Period (RGP). Returned as output of all restore operations. This object is OPTIONAL and is only used when the RGP feature is supported.
 
 Reference: [This-ID]
@@ -3087,7 +3490,6 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                                                                                             |
 | ------------------ | --------------- | ----- | ---------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| processId          | Process ID      | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object.                                              |
 | restoreStatus      | Restore Status  | 1     | read-only  | String    | The current state of the restore process.                                                                                               |
 | requestDate        | Request Date    | 0-1   | read-only  | Timestamp | The date and time when the restore request was submitted. Absent if no request has been submitted.                                      |
 | reportDate         | Report Date     | 0-1   | read-only  | Timestamp | The date and time when the most recent restore report was accepted. Absent if no report has been accepted.                              |
@@ -3410,6 +3812,64 @@ Description: Removes an existing Organisation Data Object.
 
 Parameters: (None)
 
+Object: message
+
+Object Name: Message Data Object
+
+Object Type: Resource
+
+Description: Represents a message placed into an organisation's queue by the server and retrieved by the client.
+
+Reference: [This-ID]
+
+Data Elements
+| Identifier   | Name            | Card. | Mutability  | Data Type                | Description                                                                         |
+| ------------ | --------------- | ----- | ----------- | ------------------------ | ------------------------------------------------------------------------------------ |
+| id           | Message ID      | 1     | read-only   | Identifier               | A server-unique identifier for the message object.                                   |
+| type         | Type            | 1     | create-only | String                   | The type of the message object. |
+| creationDate | Creation Date   | 1     | read-only   | Timestamp                | The date and time when the message object was created and inserted into the queue.   |
+| status       | Status          | 1     | read-only   | String                   | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
+| owner        | Organisation ID | 1     | create-only | Organisation Data Object | The owning organisation for the message object.                                      |
+| data          | Data           | 1     | create-only | Base Message Object      | The data related to a specific message, such as a transfer request or a review response. |
+
+Operations
+
+Operation: Create
+
+Operation Identifier: create
+
+Description: Inserts a new message into the queue for an organisation.
+
+Parameters: (None)
+
+Operation: Read
+
+Operation Identifier: read
+
+Description: Retrieves the data elements of one or more Message Data Objects.
+
+Parameters: (None)
+
+Operation: Query
+
+Operation Identifier: query
+
+Description: Retrieves zero or more Message Data Objects, optionally filtered by the specified parameters.
+
+Parameters:
+| Identifier | Name          | Card. | Data Type | Description                                                                 |
+| ---------- | ------------- | ----- | --------- | ---------------------------------------------------------------------------- |
+| count      | Message Count | 0-1   | Integer   | The number of messages to retrieve when querying message objects.            |
+| type       | Message Type  | 0-1   | String    | The type of the message to use as a filter when retrieving message objects.  |
+
+Operation: Delete
+
+Operation Identifier: delete
+
+Description: Removes a specific Message Data Object.
+
+Parameters: (None)
+
 Object: user
 
 Object Name: User Data Object
@@ -3679,6 +4139,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
 * Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
 
 {toc="exclude"}
