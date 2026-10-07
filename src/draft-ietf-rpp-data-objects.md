@@ -141,6 +141,12 @@ A Dictionary is a collection of key-value pairs where keys are unique Strings an
 
 An Object is a composite structure containing named properties. The set of allowed property names, their data types, and their constraints are determined by the data element definition that uses this type. Usages MUST specify the expected structure, including any required or optional properties. An Object differs from a Component Object in that it is defined inline as part of a data element rather than being a standalone reusable definition registered separately.
 
+### Conforming Object {#conforming-object}
+
+Notation: Object[Composes: Type]
+
+A Conforming Object is an Object whose value is an instance of any registered Data Object, Component Object or Process Object that lists `Type` in its `Composed Components` attribute, either directly or transitively (see (#composed-components)). `Type` MUST be a Component Object or a Process Object.
+
 ### Fully Qualified Domain Name (FQDN)
 
 A String that represents a Fully Qualified Domain Name (FQDN) that conforms to the description included in section 2 of [@!RFC9499] and includes the following additional restrictions:
@@ -401,7 +407,7 @@ For a message reporting completion of an offline review, the server MUST send a 
 
 When the requested transaction has been completed, and the  pendingCreate, pendingDelete, pendingTransfer, or pendingUpdate status has been removed. All clients involved in the transaction MUST be notified with a service message that the action has been completed and that the status of the object has changed.
 
-Extensions SHOULD compose the Message Properties Component Object when defining new message types for notifications of changes to Data Objects.
+Extensions that define new message types MUST compose the Message Properties Component Object, so that these message types are valid values of the `data` data element of the Message Data Object.
 
 # External Data Types
 
@@ -2987,10 +2993,11 @@ The following data elements are defined for the Message Data Object.
   * Identifier: data
   * Cardinality: 1
   * Mutability: create-only
-  * Data Type: Object
+  * Data Type: Object[Composes: Message Properties]
   * Description: The data related to a specific message type, such as a transfer request or a review response.
   * Constraints:
-    * The value MUST be exactly one of the concrete message objects defined in (#message-components), or a message object defined by an extension. The type of the message is identified by the message object itself.
+    * The value MUST be exactly one of the concrete message objects defined in (#message-components), or a message object registered by an extension, each of which composes Message Properties.
+    * The type of the message is identified by the Object Identifier of the concrete message object (for example `reviewResponseMessage`).
 
 ## Operations
 
@@ -3899,7 +3906,7 @@ Data Elements
 | creationDate | Creation Date   | 1     | read-only   | Timestamp                | The date and time when the message object was created and inserted into the queue.   |
 | status       | Status          | 1     | read-only   | String                   | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
 | owner        | Organisation ID | 1     | create-only | Organisation Data Object | The owning organisation for the message object.                                      |
-| data          | Data           | 1     | create-only | Object                   | The data related to a specific message, such as a transfer request or a review response. |
+| data          | Data           | 1     | create-only | Object [Composes: Message Properties] | The data related to a specific message, such as a transfer request or a review response. |
 
 Operations
 
