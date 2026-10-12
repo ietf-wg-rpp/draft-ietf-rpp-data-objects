@@ -3349,7 +3349,7 @@ The following data elements are defined for the Discovery Data Object.
   * Mutability: read-only
   * Data Type: LabelledAggregation[String]
     * Label Description: The relation type of the link.
-    * Label Constraints: The value MUST be a link relation type registered in the RPP Link Relation Types registry (#link-rel-registry).
+    * Label Constraints: The value MUST be a link relation type registered in the IANA "Link Relation Types" registry [@!RFC8288] (#link-rel-registry).
   * Description: Links to documents related to the use of RPP with the server, such as policies and terms. Each value is the location of a linked document, labelled with its relation type.
   * Constraints:
     * Each value MUST be an absolute URL using the HTTPS scheme.
@@ -4322,7 +4322,7 @@ Data Elements
 | profiles | Profiles | 0+ | read-only | String | The profiles supported by the server. |
 | objects | Objects | 1+ | read-only | String | The resource collections supported by the server. |
 | datetime | Date and Time | 1 | read-only | Timestamp | The current date and time of the server. |
-| links | Links | 0+ | read-only | LabelledAggregation [String] | Links to documents related to the use of RPP with the server, labelled with a relation type registered in the RPP Link Relation Types registry. |
+| links | Links | 0+ | read-only | LabelledAggregation [String] | Links to documents related to the use of RPP with the server, labelled with a relation type registered in the IANA "Link Relation Types" registry. |
 | idnLgr | IDN LGRs | 0+ | read-only | Discovery IDN LGR Object | The Label Generation Rulesets supported by the server. |
 | notices | Notices | 0+ | read-only | Discovery Notice Object | Notices from the server operator. |
 
@@ -4353,32 +4353,20 @@ Fields to be registered:
 - `permission`: The permission level associated with the user role, for example "read-only", "read-write", or "admin".
 - `description`: A human-readable description of the user role and its intended use.
 
-## RPP Link Relation Types Registry {#link-rel-registry}
+## Link Relation Types Registry {#link-rel-registry}
 
-This document establishes the "RESTful Provisioning Protocol (RPP) Link Relation Types Registry". This registry serves as a catalogue of all link relation types that can be used as labels of the `links` data element of the Discovery Data Object.
+This document does not establish a new registry for the link relation types used as labels of the `links` data element of the Discovery Data Object. The labels are taken from the existing IANA "Link Relation Types" registry [@!RFC8288].
 
-```text
-Name of the registry: RPP Link Relation Types
-Registry group: RESTful Provisioning Protocol (RPP)
-Registration procedure: Specification Required
-```
-
-Fields to be registered:
-
-- `name`: The name of the link relation type, for example "privacy-policy".
-- `description`: A human-readable description of the linked document and its intended use.
-- `reference`: A reference to the specification that defines the link relation type.
-
-### Initial Registrations
-
-The initial registrations for the RPP Link Relation Types registry are as follows.
+The link relation types used by this document are already registered in that registry by [@!RFC6903]:
 
 | Name | Description | Reference |
 |------|-------------|-----------|
-| privacy-policy | The privacy policy of the server operator, describing how personal data is collected, used, retained and disclosed. A server SHOULD provide this link. | [This-ID] |
-| terms-of-service | The terms of service that apply to the use of the RPP server. A server SHOULD provide this link. | [This-ID] |
-Table: Initial RPP Link Relation Types Registrations
+| privacy-policy | Refers to a privacy policy associated with the link's context. | [@!RFC6903, section 4] |
+| terms-of-service | Refers to the terms of service associated with the link's context. | [@!RFC6903, section 5] |
+Table: Link Relation Types used by this document
 {#tbl-link-rel-registry}
+
+No IANA action is required for these values. Any additional link relation type that is needed for the `links` data element MUST be registered in the IANA "Link Relation Types" registry using the procedure defined in [@!RFC8288].
 
 ## RPP Domain Name Status Values Registry
 
@@ -4581,7 +4569,7 @@ A> TODO: write security considerations, if any
 ## draft-ietf-rpp-data-objects -01 - -02
 
 * Added Discovery Data Object (Issue #136)
-* Added the RPP Link Relation Types registry and required the labels of the Discovery Data Object `links` element to be registered types (Issue #137)
+* Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relation Types" registry (Issue #137)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
