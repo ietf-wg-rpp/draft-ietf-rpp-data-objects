@@ -4596,6 +4596,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added Discovery Data Object (Issue #136)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
