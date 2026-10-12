@@ -1916,6 +1916,43 @@ The Maintenance Message Object is used to notify the client about planned mainte
 **TODO** Complete the Maintenance Message Object definition.
 see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
 
+## RPP Extension Object
+
+* Name: RPP Extension Object
+* Identifier: rppExtension
+* Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The name of the extension, for example "urn:ietf:params:rpp:extension:example".
+    * Constraints: The value MUST identify an extension that is supported by the server.
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The URL for the extension specification.
+    * Constraints:
+      * For a standard extension, the value MUST be the URL of the extension in the IANA registry for RPP extensions.
+      * For a private extension, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+  * Description
+    * Identifier: description
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A human-readable description of the extension and its intended use.
+    * Constraints: (None)
+
 # Process Objects {#process-objects}
 
 This section defines the Process Objects used in this document.
@@ -3165,6 +3202,93 @@ The Delete operation removes a specific User Object.
 
 The server MUST reject this operation if the User is associated with an Organisation Object.
 
+# Profile Data Object
+
+## Object Description
+
+* Name: Profile Data Object
+* Identifier: profile
+* Unique Identifier: name
+* Description: A Profile Data Object represents a named set of protocol features and versions that defines the compatibility and capabilities of RPP server implementations. A profile is published by the server, and a client can retrieve it to determine which features, objects and extensions it can use.
+
+## Data Elements
+
+The following data elements are defined for the Profile Data Object. All data elements are managed by the server.
+
+* Name
+  * Identifier: name
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: A unique name that identifies the profile.
+  * Constraints:
+    * The name of a standard profile, which is published in the IANA registry for RPP profiles, MUST use the RPP URN namespace, for example `urn:ietf:params:rpp:profile:{profile_name}`, and MUST be unique within that namespace. It SHOULD be descriptive of the features and versions included in the profile.
+    * The name of a private profile, which is not published in the IANA registry, MUST be globally unique. The use of reverse domain name notation is RECOMMENDED.
+
+* Description
+  * Identifier: description
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: A human-readable description of the profile and its intended use.
+  * Constraints: (None)
+
+* Version
+  * Identifier: version
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The version of the profile.
+  * Constraints: (None)
+
+* RPP Version
+  * Identifier: rppVersion
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The minimum version of the RPP protocol that is supported or required for the profile.
+  * Constraints: (None)
+
+* Objects
+  * Identifier: objects
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The objects allowed for provisioning operations, for example "domainName", "host" or "contact".
+  * Constraints: The values MUST be valid object identifiers as defined in the RPP Data Object Registry.
+
+* Extensions
+  * Identifier: extensions
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: RPP Extension Object
+  * Description: The extensions, including their names and versions, that are supported or required for the profile.
+  * Constraints:
+    * A profile MUST NOT list the same extension name more than once.
+    * The server MUST support all extensions listed in the profile.
+
+* Base Profile
+  * Identifier: baseProfile
+  * Cardinality: 0-1
+  * Mutability: read-only
+  * Data Type: Profile Data Object
+  * Description: A base profile that is extended by this profile. The features and versions of the base profile are included in this profile, which MAY add to them or override them, for example the version of an extension.
+  * Constraints:
+    * The base profile MUST be published in the IANA registry for RPP profiles, or be made available to the client using other means.
+    * The depth of inheritance MUST be limited to 1: the base profile MUST NOT itself have a base profile.
+    * A profile MUST NOT be its own base profile.
+
+## Operations
+
+### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the Profile Data Object identified by its name. It is the only operation supported for this object.
+
+* Authorisation:
+  * Any authenticated client is authorised to perform this operation.
+
 # IANA Considerations
 
 ## RPP Data Object Registry
@@ -3998,6 +4122,55 @@ Description: Removes a specific User Object.
 
 Parameters: (None)
 
+Object: rppExtension
+
+Object Name: RPP Extension Object
+
+Object Type: Component
+
+Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | The name of the extension. |
+| version | Version | 1 | read-only | String | The version of the extension that is supported or required for the profile. |
+| url | URL | 1 | read-only | URL | The URL for the extension specification. |
+| description | Description | 1 | read-only | String | A human-readable description of the extension and its intended use. |
+
+Object: profile
+
+Object Name: Profile Data Object
+
+Object Type: Resource
+
+Description: Represents a named set of protocol features and versions that defines the compatibility and capabilities of RPP server implementations.
+
+Reference: [This-ID]
+
+Data Elements
+| Identifier | Name | Card. | Mutability | Data Type | Description |
+| ---------- | ---- | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | A unique name that identifies the profile. |
+| description | Description | 1 | read-only | String | A human-readable description of the profile and its intended use. |
+| version | Version | 1 | read-only | String | The version of the profile. |
+| rppVersion | RPP Version | 1 | read-only | String | The minimum version of the RPP protocol that is supported or required for the profile. |
+| objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
+| extensions | Extensions | 0+ | read-only | RPP Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
+| baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
+
+Operations
+
+Operation: Read
+
+Operation Identifier: read
+
+Description: Retrieves the Profile Data Object identified by its name.
+
+Parameters: (None)
+
 ## RPP User Role Values Registry
 
 This document establishes the "RESTful Provisioning Protocol (RPP) User Role Values Registry". This registry serves as a catalogue of all user role values used within RPP.
@@ -4215,6 +4388,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added Profile Data Object (Issue #140)
 * added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)

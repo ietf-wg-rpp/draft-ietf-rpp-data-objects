@@ -81,6 +81,7 @@ NORMATIVE_TOPLEVEL_SECTIONS = [
     "# Host Data Object",
     "# Organisation Data Object",
     "# User Object",
+    "# Profile Data Object",
 ]
 
 IANA_SECTION_MARKER = "# IANA Considerations"
@@ -94,6 +95,7 @@ SECTION_TO_OBJ_TYPE: dict[str, str] = {
     "# Host Data Object":        "Resource",
     "# Organisation Data Object": "Resource",
     "# User Object":              "Resource",
+    "# Profile Data Object":      "Resource",
 }
 
 # H1 sections that are an ENVELOPE containing multiple objects at H2 (each
