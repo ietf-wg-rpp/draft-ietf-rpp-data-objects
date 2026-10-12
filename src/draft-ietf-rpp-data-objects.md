@@ -1890,6 +1890,166 @@ The Maintenance Message Object is used to notify the client about planned mainte
 **TODO** Complete the Maintenance Message Object definition.
 see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
 
+## Discovery
+
+### Version Object
+
+* Name: Discovery Version Object
+* Identifier: discoveryVersion
+* Description: Describes a version of RPP supported by the server.
+* Data Elements:
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The RPP version, for example "1.0".
+    * Constraints: The value MUST use the Semantic Versioning format.
+  * Base URL
+    * Identifier: baseUrl
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The base URL specific for the version, used as a prefix for all endpoint URL templates.
+    * Constraints: (None)
+
+### Environment Object
+
+* Name: Discovery Environment Object
+* Identifier: discoveryEnvironment
+* Description: Describes the environment of the RPP server.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The name of the RPP server, for example "rpp.example".
+    * Constraints: (None)
+  * Status
+    * Identifier: status
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The operational status of the RPP server, for example "production", "test", or "development".
+    * Constraints: (None)
+
+### Extension Object
+
+* Name: Discovery Extension Object
+* Identifier: discoveryExtension
+* Description: Describes an extension supported by the server.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A short name for the extension, for example "registry fee extension".
+    * Constraints: (None)
+  * Extension ID
+    * Identifier: id
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A unique URN identifier for the extension, for example "urn:ietf:params:rpp:extension:registry-fee".
+    * Constraints: (None)
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension supported by the server, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the extension specification.
+    * Constraints:
+      * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
+      * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+
+### Link Object
+
+* Name: Discovery Link Object
+* Identifier: discoveryLink
+* Description: Describes a link to a document related to the use of RPP with the server, such as a policy or terms.
+* Data Elements:
+  * Relation
+    * Identifier: rel
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The relation type of the link.
+    * Constraints:
+      * Possible values: `privacy-policy` (the privacy policy of the server operator, describing how personal data is collected, used, retained and disclosed) and `terms-of-service` (the terms of service that apply to the use of the RPP server).
+      * A server SHOULD provide a link for each of these values.
+  * Hyperlink Reference
+    * Identifier: href
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the linked document.
+    * Constraints: The value MUST be an absolute HTTPS URL. The document MUST be accessible to the client without authentication.
+
+### IDN LGR Object
+
+* Name: Discovery IDN LGR Object
+* Identifier: discoveryIdnLgr
+* Description: Describes a Label Generation Ruleset (LGR) supported by the server for internationalized domain names.
+* Data Elements:
+  * TLDs
+    * Identifier: tld
+    * Cardinality: 1+
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The top-level domains (TLDs) to which the LGR applies.
+    * Constraints: (None)
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The IANA-registered name of the LGR.
+    * Constraints: The value MUST be a valid LGR name as listed in the IANA IDN Tables registry [IDN-Tables].
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the LGR specification in the IANA IDN Tables registry [IDN-Tables].
+    * Constraints: (None)
+  * Default
+    * Identifier: default
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Boolean
+    * Description: Indicates whether this LGR is the default for the specified TLDs.
+    * Constraints: (None)
+
+### Notice Object
+
+* Name: Discovery Notice Object
+* Identifier: discoveryNotice
+* Description: Describes a notice from the server operator.
+* Data Elements:
+  * Publication Time
+    * Identifier: pubTime
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The publication time of the notice.
+    * Constraints: (None)
+  * Text
+    * Identifier: text
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A human-readable description of the notice.
+    * Constraints: (None)
+
 # Process Objects {#process-objects}
 
 This section defines the Process Objects used in this document.
@@ -3137,6 +3297,120 @@ The Delete operation removes a specific User Object.
 
 The server MUST reject this operation if the User is associated with an Organisation Object.
 
+# Discovery Data Object
+
+## Object Description
+
+* Name: Discovery Data Object
+* Identifier: discovery
+* Unique Identifier: (None)
+* Description: A Discovery Data Object describes the capabilities of an RPP server, such as the supported versions, TLDs, extensions, profiles, resource collections, authentication methods and endpoints. The server provides a single Discovery Data Object, which is therefore not identified by a Unique Identifier.
+
+## Data Elements
+
+The following data elements are defined for the Discovery Data Object.
+
+* Versions
+  * Identifier: versions
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: Discovery Version Object
+  * Description: The versions of RPP supported by the server.
+  * Constraints: An operator that supports more than one incompatible version MUST deploy them on distinct base URLs and announce each of them.
+
+* Environment
+  * Identifier: environment
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Discovery Environment Object
+  * Description: Information about the RPP server.
+  * Constraints: (None)
+
+* TLDs
+  * Identifier: tlds
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The TLDs supported by the server, for example "example" or "org".
+  * Constraints: (None)
+
+* Extensions
+  * Identifier: extensions
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery Extension Object
+  * Description: The extensions supported by the server.
+  * Constraints: The server MUST include the version of each extension.
+
+* Profiles
+  * Identifier: profiles
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The names of the profiles supported by the server.
+  * Constraints: (None)
+
+* Objects
+  * Identifier: objects
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The resource collections supported by the server, for example "domains", "hosts" or "entities".
+  * Constraints: (None)
+
+* Authentication
+  * Identifier: authentication
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The authentication methods supported by the server, for example "Bearer" or "Basic".
+  * Constraints: (None)
+
+* Date and Time
+  * Identifier: datetime
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Timestamp
+  * Description: The current date and time of the server.
+  * Constraints: The value MUST be expressed in UTC using the `Z` suffix, for example `2026-06-01T10:00:00Z`, and MUST NOT use a numeric UTC offset or any other time zone.
+
+* Links
+  * Identifier: links
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery Link Object
+  * Description: Links to documents related to the use of RPP with the server, such as policies and terms.
+  * Constraints: (None)
+
+* IDN LGRs
+  * Identifier: idnLgr
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery IDN LGR Object
+  * Description: The Label Generation Rulesets (LGRs) supported by the server.
+  * Constraints: (None)
+
+* Notices
+  * Identifier: notices
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery Notice Object
+  * Description: Notices from the server operator.
+  * Constraints: (None)
+
+## Operations
+
+### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the Discovery Data Object. The operation takes no input. It is the only operation supported for this object.
+
+* Output: Discovery Data Object
+
+* Authorisation:
+  * Any client is authorised to perform this operation. The operation MUST be available without authentication, so that a client can retrieve it before authenticating with the server.
+
 # IANA Considerations
 
 ## RPP Data Object Registry
@@ -3967,6 +4241,141 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes a specific User Object.
+
+Parameters: (None)
+
+Object: discoveryVersion
+
+Object Name: Discovery Version Object
+
+Object Type: Component
+
+Description: Describes a version of RPP supported by the server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| version | Version | 1 | read-only | String | The RPP version, for example "1.0". |
+| baseUrl | Base URL | 1 | read-only | URL | The base URL specific for the version, used as a prefix for all endpoint URL templates. |
+
+Object: discoveryEnvironment
+
+Object Name: Discovery Environment Object
+
+Object Type: Component
+
+Description: Describes the environment of the RPP server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | The name of the RPP server. |
+| status | Status | 1 | read-only | String | The operational status of the RPP server. |
+
+Object: discoveryExtension
+
+Object Name: Discovery Extension Object
+
+Object Type: Component
+
+Description: Describes an extension supported by the server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | A short name for the extension. |
+| id | Extension ID | 1 | read-only | String | A unique URN identifier for the extension. |
+| version | Version | 1 | read-only | String | The version of the extension supported by the server. |
+| url | URL | 1 | read-only | URL | The location of the extension specification. |
+
+Object: discoveryLink
+
+Object Name: Discovery Link Object
+
+Object Type: Component
+
+Description: Describes a link to a document related to the use of RPP with the server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| rel | Relation | 1 | read-only | String | The relation type of the link (`privacy-policy`, `terms-of-service`). |
+| href | Hyperlink Reference | 1 | read-only | URL | The location of the linked document. |
+
+Object: discoveryIdnLgr
+
+Object Name: Discovery IDN LGR Object
+
+Object Type: Component
+
+Description: Describes a Label Generation Ruleset (LGR) supported by the server for internationalized domain names.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| tld | TLDs | 1+ | read-only | String | The top-level domains to which the LGR applies. |
+| name | Name | 1 | read-only | String | The IANA-registered name of the LGR. |
+| url | URL | 1 | read-only | URL | The location of the LGR specification. |
+| default | Default | 1 | read-only | Boolean | Indicates whether this LGR is the default for the specified TLDs. |
+
+Object: discoveryNotice
+
+Object Name: Discovery Notice Object
+
+Object Type: Component
+
+Description: Describes a notice from the server operator.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| pubTime | Publication Time | 1 | read-only | Timestamp | The publication time of the notice. |
+| text | Text | 1 | read-only | String | A human-readable description of the notice. |
+
+Object: discovery
+
+Object Name: Discovery Data Object
+
+Object Type: Resource
+
+Description: Describes the capabilities of an RPP server.
+
+Reference: [This-ID]
+
+Data Elements
+| Identifier | Name | Card. | Mutability | Data Type | Description |
+| ---------- | ---- | ----- | ---------- | --------- | ----------- |
+| versions | Versions | 1+ | read-only | Discovery Version Object | The versions of RPP supported by the server. |
+| environment | Environment | 1 | read-only | Discovery Environment Object | Information about the RPP server. |
+| tlds | TLDs | 1+ | read-only | String | The TLDs supported by the server. |
+| extensions | Extensions | 0+ | read-only | Discovery Extension Object | The extensions supported by the server. |
+| profiles | Profiles | 0+ | read-only | String | The profiles supported by the server. |
+| objects | Objects | 1+ | read-only | String | The resource collections supported by the server. |
+| authentication | Authentication | 0+ | read-only | String | The authentication methods supported by the server. |
+| datetime | Date and Time | 1 | read-only | Timestamp | The current date and time of the server. |
+| links | Links | 0+ | read-only | Discovery Link Object | Links to documents related to the use of RPP with the server. |
+| idnLgr | IDN LGRs | 0+ | read-only | Discovery IDN LGR Object | The Label Generation Rulesets supported by the server. |
+| notices | Notices | 0+ | read-only | Discovery Notice Object | Notices from the server operator. |
+
+Operations
+
+Operation: Read
+
+Operation Identifier: read
+
+Description: Retrieves the Discovery Data Object.
 
 Parameters: (None)
 
