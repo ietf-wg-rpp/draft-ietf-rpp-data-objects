@@ -256,7 +256,7 @@ The server processes this data element as follows:
 * If a listed Identifier is not the Identifier of a top-level data element defined for the returned object, including data elements defined by extensions not supported by the server, the server MUST reject the request with an error.
 * For each listed Identifier, the server MUST include the referenced data element in the output if it is present on the object and the client is authorised to view it. Otherwise the element is omitted without an error.
 
-Listing a data element that is already included in the output by default has no effect. The data element thereby remains applicable where an operation or a representation defines an output that omits some elements by default, for example a minimal representation, in which case the client obtains that output together with the listed elements.
+Listing a data element that is already included in the output by default has no effect. The parameter thereby remains applicable where an operation or a representation defines an output that omits some elements by default.
 
 ### Uniform interface
 
