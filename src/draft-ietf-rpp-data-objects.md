@@ -56,18 +56,16 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 The following terms related to the relationship between host objects and domain objects are used as defined in [@!RFC5732, section 1.1]:
 
 Subordinate host
-: A host name object that has a subordinate relationship to a superordinate domain name object. For example, host name "ns1.example.com" has a subordinate relationship to domain name "example.com".
+: A host name object is a subordinate host of a domain when the host name consists of one or more labels followed by the name of that domain, for example, host `ns1.domain.example` is a subordinate host of domain `domain.example`.
 
 Superordinate domain
-: A domain name object to which a host name object is subordinate.
+: A domain name object is the superordinate domain of a host when the name of the host consists of one or more labels followed by the name of that domain, for example, domain `domain.example` is the superordinate domain of host `ns1.domain.example`.
 
 Internal host
 : A host whose name belongs to the namespace of the repository in which the host is being used for delegation purposes.
 
 External host
 : A host whose name does not belong to the namespace of the repository in which the host is being used for delegation purposes.
-
-The following terms are defined and used in this document:
 
 Object Authorisation
 : Authorisation data related to the object beyond the default client-level authorisation accompanying the request, in order to authorise operations on the object. Typically it is a value related to or derived from an Authorisation Information Object provisioned with the object.
@@ -2310,8 +2308,6 @@ A> TBC: IANA registry for contact role label?
   * Description: A collection of nameservers associated with the domain.
   * Constraints:
     * A Host Data Object MUST be known to the server before it can be associated with the domain.
-    * In EPP Compatibility Profile, a server MUST use one form of specifying nameservers consistently. A server that supports host objects MUST NOT allow nameservers to be described by host attributes (NS, A, and AAAA records in DNS Data), and a server that does not support host objects MUST allow them.
-    * In EPP Compatibility Profile, when nameservers are described by host attributes, IP addresses SHOULD be required only as needed to generate DNS glue records, and are not needed to identify a nameserver being removed.
     * MUST not be used when 1 or more DNS Data entries are specified through the DNS Data element.
 
 * DNS Data
@@ -2700,8 +2696,7 @@ The following data elements are defined for the Host Data Object.
   * Data Type: Fully Qualified Domain Name
   * Description: Fully qualified name of a host.
   * Constraints:
-    * A host whose name belongs to a domain within the server's namespace is an internal host. An internal host MUST be treated as a subordinate host, subject to the rules governing operations on subordinate hosts, even when it is used as a nameserver for a domain other than its superordinate domain.
-    * A host whose name does not belong to the server's namespace is an external host.
+    * An internal host MUST be treated as a subordinate host when it is used as a nameserver for a domain other than its superordinate domain.
     * Actions that do not preserve the relationship between a host object and its superordinate domain object MUST be disallowed.
 
 * Provisioning Metadata
