@@ -232,6 +232,10 @@ For each operation authorisation requirements and operation behaviour is specifi
 
 Wherever "Object Authorisation" is mentioned, it means that an operation MAY accept or require additional authorisation data related to the object beyond default client-level authorisation, or that an operation MAY result in different processing or response if such authorisation is provided.
 
+### Include Authorisation
+
+The `includeAuth` transient input data element is defined for all operations, including but not limited to the Uniform interface operations, whose output can include authorisation data elements, such as the Authorisation Information of a data object. It indicates whether the client explicitly requests such authorisation data elements to be included in the response. It is a boolean value, with the default being `false`. When set to `true`, the server will include the authorisation data elements in the response if the client is authorised to view them. Operations whose output does not contain authorisation data elements SHOULD ignore this parameter.
+
 ### Uniform interface
 
 For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
@@ -2343,7 +2347,7 @@ A> TBC: IANA registry for contact role label?
   * Mutability: read-write
   * Data Type: Authorisation Information Object
   * Description: Authorisation information associated with the domain object.
-  * Constraints: (None)
+  * Constraints: This element MUST only be returned in the response to the client when the client is authorised to view the authorisation information and the client has requested it explicitly.
 
 * Processes
   * Identifier: processes
@@ -2571,7 +2575,7 @@ The following data elements are defined for the Contact Data Object.
   * Mutability: read-write
   * Data Type: Authorisation Information
   * Description: Authorisation information associated with the contact object.
-  * Constraints: (None)
+  * Constraints: This element MUST only be returned in the response to the client when the client is authorised to view the authorisation information and the client has requested it explicitly.
 
 * Disclose
   * Identifier: disclose
@@ -4198,6 +4202,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added "Include Authorisation" section for operations (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
