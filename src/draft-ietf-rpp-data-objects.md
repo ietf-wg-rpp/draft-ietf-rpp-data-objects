@@ -271,7 +271,7 @@ If the querying client is not the sponsoring client and the client does not prov
 
 ### Offline Review
 
-RPP allows for offline review for Uniform Interface operations that change the state of an object (Create, Update, Delete) before the requested action is actually completed. In such situations, the response from the server MUST clearly indicate that the operation has been received, but that the requested action is pending. The state of the corresponding object MUST clearly reflect processing of the pending action, typically through a server-set pending status label (e.g. `pendingCreate`, `pendingUpdate`, `pendingDelete`). The server MUST also notify the client when offline processing of the action has been completed, by sending a `review-response` message (see (#messages)).
+RPP allows for offline review for operations that change the state of an object (Uniform Interface Create, Update, Delete, and the Renew and Transfer process operations) before the requested action is actually completed. In such situations, the response from the server MUST clearly indicate that the operation has been received, but that the requested action is pending. The state of the corresponding object MUST clearly reflect processing of the pending action, typically through a server-set pending status label (e.g. `pendingCreate`, `pendingUpdate`, `pendingDelete`, `pendingRenew`, `pendingTransfer`). The server MUST also notify the client when offline processing of the action has been completed, by sending a `review-response` message (see (#messages)).
 
 ### Operations beyond uniform interface
 
@@ -756,7 +756,7 @@ This section defines the Component Objects used in this document.
 Status values that can be added or removed by a client are prefixed
 with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
-do not begin with either "client" or "server" are server-managed. Status values that begin with "rgp" are related to the Redemption Grace Period (RGP) and are also server-managed.
+do not begin with either "client" or "server" are server-managed. Status values that begin with "rgp" are related to the Redemption Grace Period (RGP) and are also server-managed. A client MUST NOT alter status values set by the server. A server MAY alter or override status values set by a client, subject to local server policies.
 
 | Status Value | Description |
 |--------------|-------------|
@@ -961,7 +961,7 @@ A> TBD: Idea - model status object as Labelled Composition using "Label"? Con: G
 Status values that can be added or removed by a client are prefixed
 with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
-do not begin with either "client" or "server" are server-managed.
+do not begin with either "client" or "server" are server-managed. A client MUST NOT alter status values set by the server. A server MAY alter or override status values set by a client, subject to local server policies.
 
 | Status Value | Description |
 |--------------|-------------|
@@ -1056,7 +1056,7 @@ the status of the object has changed.
 Table: Host Status Exclusions
 {#tbl-host-status-exclusions}
 
-Other status combinations not expressly prohibited MAY be used.
+The `linked` status MAY be combined with any status. Other status combinations not expressly prohibited MAY be used.
 
 ## Contact Status Object
 
@@ -1085,7 +1085,7 @@ Other status combinations not expressly prohibited MAY be used.
 Status values that can be added or removed by a client are prefixed
 with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
-do not begin with either "client" or "server" are server-managed.
+do not begin with either "client" or "server" are server-managed. A client MUST NOT alter status values set by the server. A server MAY alter or override status values set by a client, subject to local server policies.
 
 | Status Value | Description |
 |--------------|-------------|
@@ -1183,7 +1183,7 @@ the status of the object has changed.
 Table: Contact Status Exclusions
 {#tbl-contact-status-exclusions}
 
-Other status combinations not expressly prohibited MAY be used.
+The `linked` status MAY be combined with any status. Other status combinations not expressly prohibited MAY be used.
 
 ## Organisation Role Status Object
 
@@ -2297,6 +2297,7 @@ A> TBC: leave registrant here or move it to contacts with a type?
       * In the EPP Compatibility Profile, the value MUST be one of: "admin", "billing", or "tech"
   * Description: A collection of other contact objects associated with the domain object.
   * Constraints: 
+    * Each associated contact MUST correspond to a valid Contact Data Object known to the server before it can be associated with the domain.
     * Maximum number of associated contacts (per role) MAY be restricted by server policy
 
 A> TBC: IANA registry for contact role label? 
@@ -2307,7 +2308,11 @@ A> TBC: IANA registry for contact role label?
   * Mutability: read-write
   * Data Type: Aggregation[Host Data Object]
   * Description: A collection of nameservers associated with the domain.
-  * Constraints: (None)
+  * Constraints:
+    * A Host Data Object MUST be known to the server before it can be associated with the domain.
+    * In EPP Compatibility Profile, a server MUST use one form of specifying nameservers consistently. A server that supports host objects MUST NOT allow nameservers to be described by host attributes (NS, A, and AAAA records in DNS Data), and a server that does not support host objects MUST allow them.
+    * In EPP Compatibility Profile, when nameservers are described by host attributes, IP addresses SHOULD be required only as needed to generate DNS glue records, and are not needed to identify a nameserver being removed.
+    * MUST not be used when 1 or more DNS Data entries are specified through the DNS Data element.
 
 * DNS Data
   * Identifier: dns
@@ -2320,6 +2325,7 @@ A> TBC: IANA registry for contact role label?
     * In EPP Compatibility Profile, a server MUST support NS, A, and AAAA record types for delegation, and with DNSSEC Extension [@RFC5910] a server MUST additionally support DS and/or DNSKEY record types. 
     * The names of DNS entries MUST be the domain name itself or subordinate to the domain name and MUST NOT be below zone cut in case of present delegation.
     * A server MAY forbid use of NS/A/AAAA record types if the server only supports host object model through Nameserver property defining those records. 
+    * MUST not be used when 1 or more nameservers are specified through the Nameserver element.
 
 * Subordinate Hosts
   * Identifier: subordinateHosts
@@ -2343,7 +2349,8 @@ A> TBC: IANA registry for contact role label?
   * Mutability: read-write
   * Data Type: Authorisation Information Object
   * Description: Authorisation information associated with the domain object.
-  * Constraints: (None)
+  * Constraints:
+    * This element MUST only be returned if the querying client is the sponsoring client or if the client supplied valid Object Authorisation with the operation.
 
 * Processes
   * Identifier: processes
@@ -2405,6 +2412,8 @@ The Update operation allows a client to modify the read-write data elements of a
 * Authorisation:
   * Only sponsoring client is authorised to perform this operation
 
+At least one change to a read-write data element MUST be provided, unless the operation is extended. The registrant and the Authorisation Information MAY be removed. Contacts, nameservers, and the registrant to be added MUST be known to the server.
+
 ### Delete Operation
 
 * Identifier: delete
@@ -2440,7 +2449,7 @@ The Domain Name Data Object supports the following Process Objects (#process-obj
     * Mutability: create-only
     * Data Type: Period Object
     * Description: The initial registration period for the domain name. This value is used by the server to calculate the initial `expiryDate` of the object.
-    * Constraints: (None)
+    * Constraints: The default value MAY be defined by server policy. The number of units available MAY be subject to limits imposed by the server.
 
 #### Operations
 
@@ -2491,7 +2500,7 @@ The Read operation retrieves the result or status of the domain creation, if the
     * Description: The end of the domain object's registration period if the transfer caused or causes a change in the validity period.
     * Constraints: (None)
 
-Transfer of a Domain Name Data Object MUST implicitly transfer all Host Data Objects that are subordinate to the domain object. For example, if domain object "example.com" is transferred and host object "ns1.example.com" exists, the host object MUST be transferred as part of the "example.com" transfer process.
+Transfer of a Domain Name Data Object MUST implicitly transfer all Host Data Objects that are subordinate to the domain object. For example, if domain object "example.com" is transferred and host object "ns1.example.com" exists, the host object MUST be transferred as part of the "example.com" transfer process. Actions that do not preserve the relationship between a domain object and its subordinate host objects MUST be disallowed.
 
 #### Operations
 
@@ -2564,6 +2573,10 @@ The following data elements are defined for the Contact Data Object.
   * Mutability: read-write
   * Data Type: External:RPP-JSContact-Profile:Card
   * Description: Contains contact information.
+  * Constraints:
+    * In EPP Compatibility Profile, at most one internationalised and one localised form of the contact information are provided. The internationalised form MUST be represented in a subset of UTF-8 that can be represented in the 7-bit US-ASCII character set, while the localised form MAY be represented in unrestricted UTF-8.
+    * In EPP Compatibility Profile, a postal address consists of up to three street lines, a city, an OPTIONAL state or province, an OPTIONAL postal code, and a country code that is a two-character identifier as specified in ISO 3166-1.
+    * In EPP Compatibility Profile, telephone numbers MUST begin with a plus sign ("+"), followed by a country code defined in ITU-T E.164, followed by a dot ("."), followed by a sequence of digits, and MAY note an extension. Email addresses MUST conform to the syntax defined in [@!RFC5322].
 
 * Authorisation Information
   * Identifier: authInfo
@@ -2579,6 +2592,8 @@ The following data elements are defined for the Contact Data Object.
   * Mutability: read-write
   * Data Type: Disclose Object.
   * Description: Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties.
+  * Constraints:
+    * A server MUST reject any transaction that requests disclosure practices that do not conform to the server's announced data-collection policy.
 
 * Processes
   * Identifier: processes
@@ -2642,7 +2657,7 @@ The following aspects of the contact object MAY be modified:
 * Status values that are client-manageable (prefixed with "client") MAY be added or removed.
 * Contact Information, Voice Phone Number, Fax Phone Number, E-mail, Authorisation Information, and Disclose preferences MAY be changed.
 
-A client MUST NOT add, delete or alter values for statuses managed by the server (prefixed with "server"). A server MAY add, delete or alter status values set by a client, subject to server policy.
+At least one change MUST be provided, unless the operation is extended.
 
 ### Delete Operation
 
@@ -2663,6 +2678,8 @@ The Contact Data Object supports the following Process Objects (#process-objects
 
 * Transfer Process
 
+Renewal semantics do not apply to contact objects.
+
 # Host Data Object
 
 ## Object Description
@@ -2682,7 +2699,10 @@ The following data elements are defined for the Host Data Object.
   * Mutability: read-write
   * Data Type: Fully Qualified Domain Name
   * Description: Fully qualified name of a host.
-  * Constraints: (none)
+  * Constraints:
+    * A host whose name belongs to a domain within the server's namespace is an internal host. An internal host MUST be treated as a subordinate host, subject to the rules governing operations on subordinate hosts, even when it is used as a nameserver for a domain other than its superordinate domain.
+    * A host whose name does not belong to the server's namespace is an external host.
+    * Actions that do not preserve the relationship between a host object and its superordinate domain object MUST be disallowed.
 
 * Provisioning Metadata
   * Identifier: provMetadata
@@ -2709,6 +2729,7 @@ The following data elements are defined for the Host Data Object.
   * Constraints:
     * The names of DNS entries MUST be the host name itself or subordinate to the host name.
     * In EPP Compatibility Profile the record entries MUST be limited to A and AAAA entries for IPv4 and IPv6 glue records respectively.
+    * In EPP Compatibility Profile, IPv4 addresses MUST conform to [@!RFC0791] and IPv6 addresses MUST conform to [@!RFC4291]. A server MAY reject IP addresses that have not been allocated for public use by IANA.
 
 * Processes
   * Identifier: processes
@@ -2752,7 +2773,9 @@ The Update operation allows a client to modify the attributes of an existing Hos
 * Authorisation:
   * Only sponsoring client is authorised to perform this operation
 
-Host name changes MAY require the addition or removal of IP addresses to be accepted by the server. IP address association MAY be subject to server policies for provisioning hosts as name servers.
+Host name changes MAY require the addition or removal of IP addresses to be accepted by the server. IP address association MAY be subject to server policies for provisioning hosts as name servers. The IP address restrictions described for the Create operation apply to updates as well.
+
+At least one change to a data element MUST be provided, unless the operation is extended.
 
 Host name changes can have an impact on associated objects that refer to the host object. A Host Name change SHOULD NOT require additional updates of associated objects to preserve existing associations, with one exception: changing an external host object that has associations with objects that are sponsored by a different client. Attempts to update such hosts directly MUST fail. The change can be provisioned by creating a new external host with a new name and any needed new attributes, and subsequently updating the other objects sponsored by the client.
 
@@ -2777,6 +2800,9 @@ The Host Data Object supports the following Process Objects (#process-objects), 
 
 * Restore Process
   * Constraints: OPTIONAL; available only when the RGP feature for the Host Data Object is supported by the server.
+
+* Transfer Process
+  * Constraints: Host objects MUST NOT be transferred directly. They are transferred implicitly when their superordinate domain object is transferred.
 
 # Organisation Data Object
 
