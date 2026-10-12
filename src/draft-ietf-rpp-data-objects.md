@@ -1971,29 +1971,6 @@ see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
       * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
       * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
 
-### Link Object
-
-* Name: Discovery Link Object
-* Identifier: discoveryLink
-* Description: Describes a link to a document related to the use of RPP with the server, such as a policy or terms.
-* Data Elements:
-  * Relation
-    * Identifier: rel
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: The relation type of the link.
-    * Constraints:
-      * Possible values: `privacy-policy` (the privacy policy of the server operator, describing how personal data is collected, used, retained and disclosed) and `terms-of-service` (the terms of service that apply to the use of the RPP server).
-      * A server SHOULD provide a link for each of these values.
-  * Hyperlink Reference
-    * Identifier: href
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: URL
-    * Description: The location of the linked document.
-    * Constraints: The value MUST be an absolute HTTPS URL. The document MUST be accessible to the client without authentication.
-
 ### IDN LGR Object
 
 * Name: Discovery IDN LGR Object
@@ -3355,15 +3332,7 @@ The following data elements are defined for the Discovery Data Object.
   * Cardinality: 1+
   * Mutability: read-only
   * Data Type: String
-  * Description: The resource collections supported by the server, for example "domains", "hosts" or "entities".
-  * Constraints: (None)
-
-* Authentication
-  * Identifier: authentication
-  * Cardinality: 0+
-  * Mutability: read-only
-  * Data Type: String
-  * Description: The authentication methods supported by the server, for example "Bearer" or "Basic".
+  * Description: The list of identifiers of data objects supported by the server
   * Constraints: (None)
 
 * Date and Time
@@ -3378,9 +3347,14 @@ The following data elements are defined for the Discovery Data Object.
   * Identifier: links
   * Cardinality: 0+
   * Mutability: read-only
-  * Data Type: Discovery Link Object
-  * Description: Links to documents related to the use of RPP with the server, such as policies and terms.
-  * Constraints: (None)
+  * Data Type: LabelledAggregation[String]
+    * Label Description: The relation type of the link.
+    * Label Constraints: The value MUST be a link relation type registered in the RPP Link Relation Types registry (#link-rel-registry).
+  * Description: Links to documents related to the use of RPP with the server, such as policies and terms. Each value is the location of a linked document, labelled with its relation type.
+  * Constraints:
+    * Each value MUST be an absolute URL using the HTTPS scheme.
+    * The document MUST be accessible to the client without authentication.
+    * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types.
 
 * IDN LGRs
   * Identifier: idnLgr
@@ -4294,22 +4268,6 @@ Data Elements
 | version | Version | 1 | read-only | String | The version of the extension supported by the server. |
 | url | URL | 1 | read-only | URL | The location of the extension specification. |
 
-Object: discoveryLink
-
-Object Name: Discovery Link Object
-
-Object Type: Component
-
-Description: Describes a link to a document related to the use of RPP with the server.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
-| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
-| rel | Relation | 1 | read-only | String | The relation type of the link (`privacy-policy`, `terms-of-service`). |
-| href | Hyperlink Reference | 1 | read-only | URL | The location of the linked document. |
-
 Object: discoveryIdnLgr
 
 Object Name: Discovery IDN LGR Object
@@ -4363,9 +4321,8 @@ Data Elements
 | extensions | Extensions | 0+ | read-only | Discovery Extension Object | The extensions supported by the server. |
 | profiles | Profiles | 0+ | read-only | String | The profiles supported by the server. |
 | objects | Objects | 1+ | read-only | String | The resource collections supported by the server. |
-| authentication | Authentication | 0+ | read-only | String | The authentication methods supported by the server. |
 | datetime | Date and Time | 1 | read-only | Timestamp | The current date and time of the server. |
-| links | Links | 0+ | read-only | Discovery Link Object | Links to documents related to the use of RPP with the server. |
+| links | Links | 0+ | read-only | LabelledAggregation [String] | Links to documents related to the use of RPP with the server, labelled with a relation type registered in the RPP Link Relation Types registry. |
 | idnLgr | IDN LGRs | 0+ | read-only | Discovery IDN LGR Object | The Label Generation Rulesets supported by the server. |
 | notices | Notices | 0+ | read-only | Discovery Notice Object | Notices from the server operator. |
 
@@ -4395,6 +4352,33 @@ Fields to be registered:
 - `url`: The URL for the user role specification, for example "https://www.iana.org/assignments/rpp-user-roles/rpp-example-role-1.0".
 - `permission`: The permission level associated with the user role, for example "read-only", "read-write", or "admin".
 - `description`: A human-readable description of the user role and its intended use.
+
+## RPP Link Relation Types Registry {#link-rel-registry}
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Link Relation Types Registry". This registry serves as a catalogue of all link relation types that can be used as labels of the `links` data element of the Discovery Data Object.
+
+```text
+Name of the registry: RPP Link Relation Types
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `name`: The name of the link relation type, for example "privacy-policy".
+- `description`: A human-readable description of the linked document and its intended use.
+- `reference`: A reference to the specification that defines the link relation type.
+
+### Initial Registrations
+
+The initial registrations for the RPP Link Relation Types registry are as follows.
+
+| Name | Description | Reference |
+|------|-------------|-----------|
+| privacy-policy | The privacy policy of the server operator, describing how personal data is collected, used, retained and disclosed. A server SHOULD provide this link. | [This-ID] |
+| terms-of-service | The terms of service that apply to the use of the RPP server. A server SHOULD provide this link. | [This-ID] |
+Table: Initial RPP Link Relation Types Registrations
+{#tbl-link-rel-registry}
 
 ## RPP Domain Name Status Values Registry
 
@@ -4597,6 +4581,7 @@ A> TODO: write security considerations, if any
 ## draft-ietf-rpp-data-objects -01 - -02
 
 * Added Discovery Data Object (Issue #136)
+* Added the RPP Link Relation Types registry and required the labels of the Discovery Data Object `links` element to be registered types (Issue #137)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
