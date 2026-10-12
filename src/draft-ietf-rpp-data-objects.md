@@ -3017,16 +3017,6 @@ The Query operation allows a client to retrieve a collection of Message Data Obj
 
 In addition, the following transient data elements are defined for this operation:
 
-* Message Count
-  * Identifier: count
-  * Cardinality: 0-1
-  * Mutability: create-only
-  * Data Type: Integer
-  * Location: selector
-  * Description: The number of messages to retrieve when querying message objects.
-  * Constraints:
-    * The count value MUST be a non-negative integer.
-
 * Message Type
   * Identifier: type
   * Cardinality: 0-1
@@ -3918,7 +3908,6 @@ Description: Retrieves zero or more Message Data Objects, optionally filtered by
 Parameters:
 | Identifier | Name          | Card. | Data Type | Description                                                                 |
 | ---------- | ------------- | ----- | --------- | ---------------------------------------------------------------------------- |
-| count      | Message Count | 0-1   | Integer   | The number of messages to retrieve when querying message objects.            |
 | type       | Message Type  | 0-1   | String    | The type of the message to use as a filter when retrieving message objects.  |
 
 Operation: Delete
