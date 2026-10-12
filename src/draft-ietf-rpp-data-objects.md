@@ -176,7 +176,7 @@ The following aspects of the data model are extensible:
 
 When an extension adds data elements or transient parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
 
-## Data Element Semantics
+## Data Element Semantics {#data-element-semantics}
 
 The definition of each data element within an object consists of the following attributes:
 
@@ -197,6 +197,11 @@ The definition of each data element within an object consists of the following a
 * Direct Access: An optional flag indicating whether the associated object or objects are additionally exposed as an addressable sub-resource of the containing object. When set to `true`, the associated object or objects are exposed as a sub-resource that can be addressed independently of the containing object, in addition to their inline representation within it. When absent or set to `false`, the element is accessed only inline. The default value is `false`.
 
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
+* Visibility: An optional attribute indicating whether the data element is included in operation output by default. It MUST be one of the following:
+  * default: The element is included in the output of any operation returning the containing object, subject to authorisation and server policy. This value applies when the attribute is absent.
+  * onDemand: The element is included in the output only when the client explicitly requests it using the Include Elements transient data element (see (#include-elements)), subject to authorisation and server policy.
+
+The Visibility attribute affects operation output only. It does not affect whether a client can provide the element as input.
 
 ## Inheritance {#inheritance}
 
@@ -232,6 +237,27 @@ For each operation authorisation requirements and operation behaviour is specifi
 
 Wherever "Object Authorisation" is mentioned, it means that an operation MAY accept or require additional authorisation data related to the object beyond default client-level authorisation, or that an operation MAY result in different processing or response if such authorisation is provided.
 
+### Include Elements {#include-elements}
+
+The `includeElements` parameter is defined for every operation whose output contains one or more objects, including, but not limited to, the Uniform interface operations and the operations of Process Objects. It allows a client to request specific data elements to be included in the operation output in addition to those included by default. Individual operation definitions do not repeat it.
+
+* Include Elements
+  * Identifier: includeElements
+  * Cardinality: 0-1
+  * Data Type: String
+  * Description: A comma-separated list of Identifiers of data elements that the client requests to be included in the operation output.
+  * Constraints: Each list item is the Identifier of a top-level data element of the object or objects returned by the operation. Data elements nested within component objects or other associated objects cannot be listed. Identifiers are case-sensitive. The list contains no whitespace.
+
+A listed Identifier refers to the data element as a whole. For a data element with a cardinality of `0+` or `1+`, it refers to the entire collection of values, and individual values cannot be selected. For a data element whose Data Type is a component object or an association, it refers to the complete associated object or objects.
+
+The server processes this data element as follows:
+
+* If `includeElements` is absent, the server MUST NOT include any data element with `onDemand` Visibility in the output.
+* If a listed Identifier is not the Identifier of a top-level data element defined for the returned object, including data elements defined by extensions not supported by the server, the server MUST reject the request with an error.
+* For each listed Identifier, the server MUST include the referenced data element in the output if it is present on the object and the client is authorised to view it. Otherwise the element is omitted without an error.
+
+Listing a data element that is already included in the output by default has no effect. The data element thereby remains applicable where an operation or a representation defines an output that omits some elements by default, for example a minimal representation, in which case the client obtains that output together with the listed elements.
+
 ### Uniform interface
 
 For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
@@ -248,7 +274,7 @@ For the typical set of Create, Read, Query, Update and Delete operations the fol
 
 The output Object MAY vary depending on the identity of the querying client, use of Object Authorisation information, and server policy towards unauthorised clients.
 
-If the querying client is the sponsoring client, all available information MUST be returned.
+If the querying client is the sponsoring client, all available information MUST be returned, except data elements with `onDemand` Visibility not requested using `includeElements` (see (#include-elements)).
 
 If the querying client is not the sponsoring client but the client provides valid Object Authorisation information, all available information SHOULD be returned, however some optional elements MAY be reserved to the sponsoring client only. 
 
@@ -2342,6 +2368,7 @@ A> TBC: IANA registry for contact role label?
   * Cardinality: 0-1
   * Mutability: read-write
   * Data Type: Authorisation Information Object
+  * Visibility: onDemand
   * Description: Authorisation information associated with the domain object.
   * Constraints: (None)
 
@@ -2570,6 +2597,7 @@ The following data elements are defined for the Contact Data Object.
   * Cardinality: 0-1
   * Mutability: read-write
   * Data Type: Authorisation Information
+  * Visibility: onDemand
   * Description: Authorisation information associated with the contact object.
   * Constraints: (None)
 
@@ -4198,6 +4226,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
