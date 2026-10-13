@@ -4756,8 +4756,8 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
-* Added  Data Object (Issue #136)
-* Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relation Types" registry (Issue #137)
+* Added Discovery Data Object (Issue #136)
+* Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
 * Added Profile Data Object (Issue #140)
 * added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
