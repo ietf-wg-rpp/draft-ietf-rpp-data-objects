@@ -1645,6 +1645,43 @@ A> TODO: Model Disclose in universal (extendible) way
 
 A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
+## RPP Extension Object
+
+* Name: RPP Extension Object
+* Identifier: rppExtension
+* Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The name of the extension, for example "urn:ietf:params:rpp:extension:example".
+    * Constraints: The value MUST identify an extension that is supported by the server.
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The URL for the extension specification.
+    * Constraints:
+      * For a standard extension, the value MUST be the URL of the extension in the IANA registry for RPP extensions.
+      * For a private extension, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+  * Description
+    * Identifier: description
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A human-readable description of the extension and its intended use.
+    * Constraints: (None)
+
 ## Processes Object
 
 * Name: Processes Object
@@ -3376,12 +3413,12 @@ The following data elements are defined for the Discovery Data Object.
   * Mutability: read-only
   * Data Type: LabelledAggregation[String]
     * Label Description: The relation type of the link.
-    * Label Constraints: The value MUST be a link relation type registered in the IANA "Link Relation Types" registry [@!RFC8288] (#link-rel-registry).
+    * Label Constraints: The value MUST be a link relation type registered in the IANA "Link Relation" registry.
   * Description: Links to documents related to the use of RPP with the server, such as policies and terms. Each value is the location of a linked document, labelled with its relation type.
   * Constraints:
     * Each value MUST be an absolute URL using the HTTPS scheme.
     * The document MUST be accessible to the client without authentication.
-    * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types, defined in [@!RFC690]].
+    * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types, defined in [@!RFC6903].
 
 * IDN LGRs
   * Identifier: idnLgr
