@@ -176,7 +176,7 @@ The following aspects of the data model are extensible:
 
 When an extension adds data elements or transient parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
 
-## Data Element Semantics
+## Data Element Semantics {#data-element-semantics}
 
 The definition of each data element within an object consists of the following attributes:
 
@@ -197,6 +197,11 @@ The definition of each data element within an object consists of the following a
 * Direct Access: An optional flag indicating whether the associated object or objects are additionally exposed as an addressable sub-resource of the containing object. When set to `true`, the associated object or objects are exposed as a sub-resource that can be addressed independently of the containing object, in addition to their inline representation within it. When absent or set to `false`, the element is accessed only inline. The default value is `false`.
 
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
+* Visibility: An optional attribute indicating whether the data element is included in operation output by default. It MUST be one of the following:
+  * default: The element is included in the output of any operation returning the containing object, subject to authorisation and server policy. This value applies when the attribute is absent.
+  * onDemand: The element is included in the output only when the client explicitly requests it using the Include Elements transient data element (see (#include-elements)), subject to authorisation and server policy.
+
+The Visibility attribute affects operation output only. It does not affect whether a client can provide the element as input.
 
 ## Inheritance {#inheritance}
 
@@ -232,6 +237,27 @@ For each operation authorisation requirements and operation behaviour is specifi
 
 Wherever "Object Authorisation" is mentioned, it means that an operation MAY accept or require additional authorisation data related to the object beyond default client-level authorisation, or that an operation MAY result in different processing or response if such authorisation is provided.
 
+### Include Elements {#include-elements}
+
+The `includeElements` parameter is defined for every operation whose output contains one or more objects, including, but not limited to, the Uniform interface operations and the operations of Process Objects. It allows a client to request specific data elements to be included in the operation output in addition to those included by default. Individual operation definitions do not repeat it.
+
+* Include Elements
+  * Identifier: includeElements
+  * Cardinality: 0-1
+  * Data Type: String
+  * Description: A comma-separated list of Identifiers of data elements that the client requests to be included in the operation output.
+  * Constraints: Each list item is the Identifier of a top-level data element of the object or objects returned by the operation. Data elements nested within component objects or other associated objects cannot be listed. Identifiers are case-sensitive. The list contains no whitespace.
+
+A listed Identifier refers to the data element as a whole. For a data element with a cardinality of `0+` or `1+`, it refers to the entire collection of values, and individual values cannot be selected. For a data element whose Data Type is a component object or an association, it refers to the complete associated object or objects.
+
+The server processes this data element as follows:
+
+* If `includeElements` is absent, the server MUST NOT include any data element with `onDemand` Visibility in the output.
+* If a listed Identifier is not the Identifier of a top-level data element defined for the returned object, including data elements defined by extensions not supported by the server, the server MUST reject the request with an error.
+* For each listed Identifier, the server MUST include the referenced data element in the output if it is present on the object and the client is authorised to view it. Otherwise the element is omitted without an error.
+
+Listing a data element that is already included in the output by default has no effect. The parameter thereby remains applicable where an operation or a representation defines an output that omits some elements by default.
+
 ### Uniform interface
 
 For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
@@ -248,7 +274,7 @@ For the typical set of Create, Read, Query, Update and Delete operations the fol
 
 The output Object MAY vary depending on the identity of the querying client, use of Object Authorisation information, and server policy towards unauthorised clients.
 
-If the querying client is the sponsoring client, all available information MUST be returned.
+If the querying client is the sponsoring client, all available information MUST be returned, except data elements with `onDemand` Visibility not requested using `includeElements` (see (#include-elements)).
 
 If the querying client is not the sponsoring client but the client provides valid Object Authorisation information, all available information SHOULD be returned, however some optional elements MAY be reserved to the sponsoring client only. 
 
@@ -1959,7 +1985,7 @@ see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
     * Cardinality: 1
     * Mutability: read-only
     * Data Type: String
-    * Description: The version of the extension supported by the server, for example "1.0".
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
     * Constraints: (None)
   * URL
     * Identifier: url
@@ -2479,6 +2505,7 @@ A> TBC: IANA registry for contact role label?
   * Cardinality: 0-1
   * Mutability: read-write
   * Data Type: Authorisation Information Object
+  * Visibility: onDemand
   * Description: Authorisation information associated with the domain object.
   * Constraints: (None)
 
@@ -2707,6 +2734,7 @@ The following data elements are defined for the Contact Data Object.
   * Cardinality: 0-1
   * Mutability: read-write
   * Data Type: Authorisation Information
+  * Visibility: onDemand
   * Description: Authorisation information associated with the contact object.
   * Constraints: (None)
 
@@ -3325,7 +3353,6 @@ The following data elements are defined for the Discovery Data Object.
   * Mutability: read-only
   * Data Type: String
   * Description: The names of the profiles supported by the server.
-  * Constraints: (None)
 
 * Objects
   * Identifier: objects
@@ -3334,7 +3361,7 @@ The following data elements are defined for the Discovery Data Object.
   * Data Type: String
   * Description: The list of identifiers of data objects supported by the server
   * Constraints: (None)
-
+  
 * Date and Time
   * Identifier: datetime
   * Cardinality: 1
@@ -3371,6 +3398,8 @@ The following data elements are defined for the Discovery Data Object.
   * Data Type: Discovery Notice Object
   * Description: Notices from the server operator.
   * Constraints: (None)
+  * Description: The objects allowed for provisioning operations, for example "domainName", "host" or "contact".
+  * Constraints: The values MUST be valid object identifiers as defined in the RPP Data Object Registry.
 
 ## Operations
 
@@ -3384,6 +3413,94 @@ The Read operation allows a client to retrieve the Discovery Data Object. The op
 
 * Authorisation:
   * Any client is authorised to perform this operation. The operation MUST be available without authentication, so that a client can retrieve it before authenticating with the server.
+
+  
+# Profile Data Object
+
+## Object Description
+
+* Name: Profile Data Object
+* Identifier: profile
+* Unique Identifier: name
+* Description: A Profile Data Object represents a named set of protocol features and versions that defines the compatibility and capabilities of RPP server implementations. A profile is published by the server, and a client can retrieve it to determine which features, objects and extensions it can use.
+
+## Data Elements
+
+The following data elements are defined for the Profile Data Object. All data elements are managed by the server.
+
+* Name
+  * Identifier: name
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: A unique name that identifies the profile.
+  * Constraints:
+    * The name of a standard profile, which is published in the IANA registry for RPP profiles, MUST use the RPP URN namespace, for example `urn:ietf:params:rpp:profile:{profile_name}`, and MUST be unique within that namespace. It SHOULD be descriptive of the features and versions included in the profile.
+    * The name of a private profile, which is not published in the IANA registry, MUST be globally unique. The use of reverse domain name notation is RECOMMENDED.
+
+* Description
+  * Identifier: description
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: A human-readable description of the profile and its intended use.
+  * Constraints: (None)
+
+* Version
+  * Identifier: version
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The version of the profile.
+  * Constraints: (None)
+
+* RPP Version
+  * Identifier: rppVersion
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The minimum version of the RPP protocol that is supported or required for the profile.
+  * Constraints: (None)
+
+* Objects
+  * Identifier: objects
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The list of identifiers of data objects supported by the server
+  * Constraints: (None)
+  
+* Extensions
+  * Identifier: extensions
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: RPP Extension Object
+  * Description: The extensions, including their names and versions, that are supported or required for the profile.
+  * Constraints:
+    * A profile MUST NOT list the same extension name more than once.
+    * The server MUST support all extensions listed in the profile.
+
+* Base Profile
+  * Identifier: baseProfile
+  * Cardinality: 0-1
+  * Mutability: read-only
+  * Data Type: Profile Data Object
+  * Description: A base profile that is extended by this profile. The features and versions of the base profile are included in this profile, which MAY add to them or override them, for example the version of an extension.
+  * Constraints:
+    * The base profile MUST be published in the IANA registry for RPP profiles, or be made available to the client using other means.
+    * The depth of inheritance MUST be limited to 1: the base profile MUST NOT itself have a base profile.
+    * A profile MUST NOT be its own base profile.
+
+## Operations
+
+### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the Profile Data Object identified by its name. It is the only operation supported for this object.
+
+* Authorisation:
+  * Any authenticated client is authorised to perform this operation.
 
 # IANA Considerations
 
@@ -4218,6 +4335,55 @@ Description: Removes a specific User Object.
 
 Parameters: (None)
 
+Object: rppExtension
+
+Object Name: RPP Extension Object
+
+Object Type: Component
+
+Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | The name of the extension. |
+| version | Version | 1 | read-only | String | The version of the extension that is supported or required for the profile. |
+| url | URL | 1 | read-only | URL | The URL for the extension specification. |
+| description | Description | 1 | read-only | String | A human-readable description of the extension and its intended use. |
+
+Object: profile
+
+Object Name: Profile Data Object
+
+Object Type: Resource
+
+Description: Represents a named set of protocol features and versions that defines the compatibility and capabilities of RPP server implementations.
+
+Reference: [This-ID]
+
+Data Elements
+| Identifier | Name | Card. | Mutability | Data Type | Description |
+| ---------- | ---- | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | A unique name that identifies the profile. |
+| description | Description | 1 | read-only | String | A human-readable description of the profile and its intended use. |
+| version | Version | 1 | read-only | String | The version of the profile. |
+| rppVersion | RPP Version | 1 | read-only | String | The minimum version of the RPP protocol that is supported or required for the profile. |
+| objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
+| extensions | Extensions | 0+ | read-only | RPP Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
+| baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
+
+Operations
+
+Operation: Read
+
+Operation Identifier: read
+
+Description: Retrieves the Profile Data Object identified by its name.
+
+Parameters: (None)
+
 Object: discoveryVersion
 
 Object Name: Discovery Version Object
@@ -4553,8 +4719,10 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
-* Added Discovery Data Object (Issue #136)
+* Added  Data Object (Issue #136)
 * Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relation Types" registry (Issue #137)
+* Added Profile Data Object (Issue #140)
+* added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
 * Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
