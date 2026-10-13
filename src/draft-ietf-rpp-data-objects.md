@@ -4420,6 +4420,7 @@ Data Elements
 | objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
 | extensions | Extensions | 0+ | read-only | RPP Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
 | baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
+| defaultProfile | Default Profile | 1 | read-only | Boolean | Indicates whether this profile is the default profile. |
 
 Operations
 
