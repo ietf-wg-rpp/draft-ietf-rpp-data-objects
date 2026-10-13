@@ -1645,6 +1645,43 @@ A> TODO: Model Disclose in universal (extendible) way
 
 A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
+## RPP Extension Object
+
+* Name: RPP Extension Object
+* Identifier: rppExtension
+* Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The name of the extension, for example "urn:ietf:params:rpp:extension:example".
+    * Constraints: The value MUST identify an extension that is supported by the server.
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The URL for the extension specification.
+    * Constraints:
+      * For a standard extension, the value MUST be the URL of the extension in the IANA registry for RPP extensions.
+      * For a private extension, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+  * Description
+    * Identifier: description
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A human-readable description of the extension and its intended use.
+    * Constraints: (None)
+
 ## Processes Object
 
 * Name: Processes Object
@@ -1916,19 +1953,70 @@ The Maintenance Message Object is used to notify the client about planned mainte
 **TODO** Complete the Maintenance Message Object definition.
 see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
 
-## RPP Extension Object
+## Discovery
 
-* Name: RPP Extension Object
-* Identifier: rppExtension
-* Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
+### Version Object
+
+* Name: Discovery Version Object
+* Identifier: discoveryVersion
+* Description: Describes a version of RPP supported by the server.
+* Data Elements:
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The RPP version, for example "1.0".
+    * Constraints: The value MUST use the Semantic Versioning format.
+  * Base URL
+    * Identifier: baseUrl
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The base URL specific for the version, used as a prefix for all endpoint URL templates.
+    * Constraints: (None)
+
+### Environment Object
+
+* Name: Discovery Environment Object
+* Identifier: discoveryEnvironment
+* Description: Describes the environment of the RPP server.
 * Data Elements:
   * Name
     * Identifier: name
     * Cardinality: 1
     * Mutability: read-only
     * Data Type: String
-    * Description: The name of the extension, for example "urn:ietf:params:rpp:extension:example".
-    * Constraints: The value MUST identify an extension that is supported by the server.
+    * Description: The name of the RPP server, for example "rpp.example".
+    * Constraints: (None)
+  * Status
+    * Identifier: status
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The operational status of the RPP server, for example "production", "test", or "development".
+    * Constraints: (None)
+
+### Extension Object
+
+* Name: Discovery Extension Object
+* Identifier: discoveryExtension
+* Description: Describes an extension supported by the server.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A short name for the extension, for example "registry fee extension".
+    * Constraints: (None)
+  * Extension ID
+    * Identifier: id
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A unique URN identifier for the extension, for example "urn:ietf:params:rpp:extension:registry-fee".
+    * Constraints: (None)
   * Version
     * Identifier: version
     * Cardinality: 1
@@ -1941,16 +2029,65 @@ see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
     * Cardinality: 1
     * Mutability: read-only
     * Data Type: URL
-    * Description: The URL for the extension specification.
+    * Description: The location of the extension specification.
     * Constraints:
-      * For a standard extension, the value MUST be the URL of the extension in the IANA registry for RPP extensions.
-      * For a private extension, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
-  * Description
-    * Identifier: description
+      * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
+      * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+
+### IDN LGR Object
+
+* Name: Discovery IDN LGR Object
+* Identifier: discoveryIdnLgr
+* Description: Describes a Label Generation Ruleset (LGR) supported by the server for internationalized domain names.
+* Data Elements:
+  * TLDs
+    * Identifier: tld
+    * Cardinality: 1+
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The top-level domains (TLDs) to which the LGR applies.
+    * Constraints: (None)
+  * Name
+    * Identifier: name
     * Cardinality: 1
     * Mutability: read-only
     * Data Type: String
-    * Description: A human-readable description of the extension and its intended use.
+    * Description: The IANA-registered name of the LGR.
+    * Constraints: The value MUST be a valid LGR name as listed in the IANA IDN Tables registry [IDN-Tables].
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the LGR specification in the IANA IDN Tables registry [IDN-Tables].
+    * Constraints: (None)
+  * Default
+    * Identifier: default
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Boolean
+    * Description: Indicates whether this LGR is the default for the specified TLDs.
+    * Constraints: (None)
+
+### Notice Object
+
+* Name: Discovery Notice Object
+* Identifier: discoveryNotice
+* Description: Describes a notice from the server operator.
+* Data Elements:
+  * Publication Time
+    * Identifier: pubTime
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Timestamp
+    * Description: The publication time of the notice.
+    * Constraints: (None)
+  * Text
+    * Identifier: text
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A human-readable description of the notice.
     * Constraints: (None)
 
 # Process Objects {#process-objects}
@@ -3202,6 +3339,119 @@ The Delete operation removes a specific User Object.
 
 The server MUST reject this operation if the User is associated with an Organisation Object.
 
+# Discovery Data Object
+
+## Object Description
+
+* Name: Discovery Data Object
+* Identifier: discovery
+* Unique Identifier: (None)
+* Description: A Discovery Data Object describes the capabilities of an RPP server, such as the supported versions, TLDs, extensions, profiles, resource collections, authentication methods and endpoints. The server provides a single Discovery Data Object, which is therefore not identified by a Unique Identifier.
+
+## Data Elements
+
+The following data elements are defined for the Discovery Data Object.
+
+* Versions
+  * Identifier: versions
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: Discovery Version Object
+  * Description: The versions of RPP supported by the server.
+  * Constraints: An operator that supports more than one incompatible version MUST deploy them on distinct base URLs and announce each of them.
+
+* Environment
+  * Identifier: environment
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Discovery Environment Object
+  * Description: Information about the RPP server.
+  * Constraints: (None)
+
+* TLDs
+  * Identifier: tlds
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The TLDs supported by the server, for example "example" or "org".
+  * Constraints: (None)
+
+* Extensions
+  * Identifier: extensions
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery Extension Object
+  * Description: The extensions supported by the server.
+  * Constraints: The server MUST include the version of each extension.
+
+* Profiles
+  * Identifier: profiles
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The names of the profiles supported by the server.
+
+* Objects
+  * Identifier: objects
+  * Cardinality: 1+
+  * Mutability: read-only
+  * Data Type: String
+  * Description: The list of identifiers of data objects supported by the server
+  * Constraints: (None)
+  
+* Date and Time
+  * Identifier: datetime
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Timestamp
+  * Description: The current date and time of the server.
+  * Constraints: The value MUST be expressed in UTC using the `Z` suffix, for example `2026-06-01T10:00:00Z`, and MUST NOT use a numeric UTC offset or any other time zone.
+
+* Links
+  * Identifier: links
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: LabelledAggregation[String]
+    * Label Description: The relation type of the link.
+    * Label Constraints: The value MUST be a link relation type registered in the IANA "Link Relation" registry.
+  * Description: Links to documents related to the use of RPP with the server, such as policies and terms. Each value is the location of a linked document, labelled with its relation type.
+  * Constraints:
+    * Each value MUST be an absolute URL using the HTTPS scheme.
+    * The document MUST be accessible to the client without authentication.
+    * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types, defined in [@!RFC6903].
+
+* IDN LGRs
+  * Identifier: idnLgr
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery IDN LGR Object
+  * Description: The Label Generation Rulesets (LGRs) supported by the server.
+  * Constraints: (None)
+
+* Notices
+  * Identifier: notices
+  * Cardinality: 0+
+  * Mutability: read-only
+  * Data Type: Discovery Notice Object
+  * Description: Notices from the server operator.
+  * Constraints: (None)
+  * Description: The objects allowed for provisioning operations, for example "domainName", "host" or "contact".
+  * Constraints: The values MUST be valid object identifiers as defined in the RPP Data Object Registry.
+
+## Operations
+
+### Read Operation
+
+* Identifier: read
+
+The Read operation allows a client to retrieve the Discovery Data Object. The operation takes no input. It is the only operation supported for this object.
+
+* Output: Discovery Data Object
+
+* Authorisation:
+  * Any client is authorised to perform this operation. The operation MUST be available without authentication, so that a client can retrieve it before authenticating with the server.
+
+  
 # Profile Data Object
 
 ## Object Description
@@ -3254,9 +3504,9 @@ The following data elements are defined for the Profile Data Object. All data el
   * Cardinality: 1+
   * Mutability: read-only
   * Data Type: String
-  * Description: The objects allowed for provisioning operations, for example "domainName", "host" or "contact".
-  * Constraints: The values MUST be valid object identifiers as defined in the RPP Data Object Registry.
-
+  * Description: The list of identifiers of data objects supported by the server
+  * Constraints: (None)
+  
 * Extensions
   * Identifier: extensions
   * Cardinality: 0+
@@ -4171,6 +4421,124 @@ Description: Retrieves the Profile Data Object identified by its name.
 
 Parameters: (None)
 
+Object: discoveryVersion
+
+Object Name: Discovery Version Object
+
+Object Type: Component
+
+Description: Describes a version of RPP supported by the server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| version | Version | 1 | read-only | String | The RPP version, for example "1.0". |
+| baseUrl | Base URL | 1 | read-only | URL | The base URL specific for the version, used as a prefix for all endpoint URL templates. |
+
+Object: discoveryEnvironment
+
+Object Name: Discovery Environment Object
+
+Object Type: Component
+
+Description: Describes the environment of the RPP server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | The name of the RPP server. |
+| status | Status | 1 | read-only | String | The operational status of the RPP server. |
+
+Object: discoveryExtension
+
+Object Name: Discovery Extension Object
+
+Object Type: Component
+
+Description: Describes an extension supported by the server.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | A short name for the extension. |
+| id | Extension ID | 1 | read-only | String | A unique URN identifier for the extension. |
+| version | Version | 1 | read-only | String | The version of the extension supported by the server. |
+| url | URL | 1 | read-only | URL | The location of the extension specification. |
+
+Object: discoveryIdnLgr
+
+Object Name: Discovery IDN LGR Object
+
+Object Type: Component
+
+Description: Describes a Label Generation Ruleset (LGR) supported by the server for internationalized domain names.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| tld | TLDs | 1+ | read-only | String | The top-level domains to which the LGR applies. |
+| name | Name | 1 | read-only | String | The IANA-registered name of the LGR. |
+| url | URL | 1 | read-only | URL | The location of the LGR specification. |
+| default | Default | 1 | read-only | Boolean | Indicates whether this LGR is the default for the specified TLDs. |
+
+Object: discoveryNotice
+
+Object Name: Discovery Notice Object
+
+Object Type: Component
+
+Description: Describes a notice from the server operator.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| pubTime | Publication Time | 1 | read-only | Timestamp | The publication time of the notice. |
+| text | Text | 1 | read-only | String | A human-readable description of the notice. |
+
+Object: discovery
+
+Object Name: Discovery Data Object
+
+Object Type: Resource
+
+Description: Describes the capabilities of an RPP server.
+
+Reference: [This-ID]
+
+Data Elements
+| Identifier | Name | Card. | Mutability | Data Type | Description |
+| ---------- | ---- | ----- | ---------- | --------- | ----------- |
+| versions | Versions | 1+ | read-only | Discovery Version Object | The versions of RPP supported by the server. |
+| environment | Environment | 1 | read-only | Discovery Environment Object | Information about the RPP server. |
+| tlds | TLDs | 1+ | read-only | String | The TLDs supported by the server. |
+| extensions | Extensions | 0+ | read-only | Discovery Extension Object | The extensions supported by the server. |
+| profiles | Profiles | 0+ | read-only | String | The profiles supported by the server. |
+| objects | Objects | 1+ | read-only | String | The resource collections supported by the server. |
+| datetime | Date and Time | 1 | read-only | Timestamp | The current date and time of the server. |
+| links | Links | 0+ | read-only | LabelledAggregation [String] | Links to documents related to the use of RPP with the server, labelled with a relation type registered in the IANA "Link Relation Types" registry. |
+| idnLgr | IDN LGRs | 0+ | read-only | Discovery IDN LGR Object | The Label Generation Rulesets supported by the server. |
+| notices | Notices | 0+ | read-only | Discovery Notice Object | Notices from the server operator. |
+
+Operations
+
+Operation: Read
+
+Operation Identifier: read
+
+Description: Retrieves the Discovery Data Object.
+
+Parameters: (None)
+
 ## RPP User Role Values Registry
 
 This document establishes the "RESTful Provisioning Protocol (RPP) User Role Values Registry". This registry serves as a catalogue of all user role values used within RPP.
@@ -4388,6 +4756,8 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added Discovery Data Object (Issue #136)
+* Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
 * Added Profile Data Object (Issue #140)
 * added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)

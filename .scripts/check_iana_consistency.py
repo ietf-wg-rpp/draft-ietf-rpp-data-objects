@@ -81,6 +81,7 @@ NORMATIVE_TOPLEVEL_SECTIONS = [
     "# Host Data Object",
     "# Organisation Data Object",
     "# User Object",
+    "# Discovery Data Object",
     "# Profile Data Object",
 ]
 
@@ -95,6 +96,7 @@ SECTION_TO_OBJ_TYPE: dict[str, str] = {
     "# Host Data Object":        "Resource",
     "# Organisation Data Object": "Resource",
     "# User Object":              "Resource",
+    "# Discovery Data Object":    "Resource",
     "# Profile Data Object":      "Resource",
 }
 
