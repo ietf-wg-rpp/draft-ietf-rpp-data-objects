@@ -4882,25 +4882,6 @@ The registry MUST be initially populated with the RPP result codes listed in Tab
 Table: Initial RPP Result Codes registrations, derived from [@!RFC5730] result codes
 {#tbl-rpp-iana-result-codes-initial}
 
-## Link Relation Type
-
-The IANA is requested to register the "rpp-process" link relation type in the "Link Relation Types" registry, following the template in [@!RFC8288]:
-
-```text
-Relation Name: rpp-process
-Description:   Identifies a process resource that was implicitly created as a
-               side effect of a uniform interface operation on the target
-               resource.  The context resource is the provisioning object on
-               which the operation was performed; the target resource is the
-               created process instance.  The following target attributes are
-               defined for this relation type: "process" (the Process Object
-               Identifier, REQUIRED), "processId" (the server-assigned process
-               instance identifier, OPTIONAL), and "latest" (the boolean value
-               "true", OPTIONAL, indicating the target URL uses the "latest"
-               mnemonic).
-Reference:     This document
-```
-
 # Security Considerations
 
 A> TODO: write security considerations, if any
