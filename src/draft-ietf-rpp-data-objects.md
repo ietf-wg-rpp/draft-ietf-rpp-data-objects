@@ -3354,7 +3354,7 @@ The following data elements are defined for the Discovery Data Object.
   * Constraints:
     * Each value MUST be an absolute URL using the HTTPS scheme.
     * The document MUST be accessible to the client without authentication.
-    * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types.
+    * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types, defined in [@!RFC690]].
 
 * IDN LGRs
   * Identifier: idnLgr
@@ -4352,21 +4352,6 @@ Fields to be registered:
 - `url`: The URL for the user role specification, for example "https://www.iana.org/assignments/rpp-user-roles/rpp-example-role-1.0".
 - `permission`: The permission level associated with the user role, for example "read-only", "read-write", or "admin".
 - `description`: A human-readable description of the user role and its intended use.
-
-## Link Relation Types Registry {#link-rel-registry}
-
-This document does not establish a new registry for the link relation types used as labels of the `links` data element of the Discovery Data Object. The labels are taken from the existing IANA "Link Relation Types" registry [@!RFC8288].
-
-The link relation types used by this document are already registered in that registry by [@!RFC6903]:
-
-| Name | Description | Reference |
-|------|-------------|-----------|
-| privacy-policy | Refers to a privacy policy associated with the link's context. | [@!RFC6903, section 4] |
-| terms-of-service | Refers to the terms of service associated with the link's context. | [@!RFC6903, section 5] |
-Table: Link Relation Types used by this document
-{#tbl-link-rel-registry}
-
-No IANA action is required for these values. Any additional link relation type that is needed for the `links` data element MUST be registered in the IANA "Link Relation Types" registry using the procedure defined in [@!RFC8288].
 
 ## RPP Domain Name Status Values Registry
 
