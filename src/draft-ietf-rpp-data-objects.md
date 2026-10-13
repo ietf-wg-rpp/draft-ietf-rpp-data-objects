@@ -3528,6 +3528,16 @@ The following data elements are defined for the Profile Data Object. All data el
     * The depth of inheritance MUST be limited to 1: the base profile MUST NOT itself have a base profile.
     * A profile MUST NOT be its own base profile.
 
+* Default Profile
+  * Identifier: defaultProfile
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Boolean
+  * Description: The default profile that is used when no specific profile is requested by the client.
+  * Constraints:
+    * The default profile MUST be published in the IANA registry for RPP profiles, or be made available to the client using other means.
+    * Only one profile MUST be designated as the default profile.
+
 ## Operations
 
 ### Read Operation
