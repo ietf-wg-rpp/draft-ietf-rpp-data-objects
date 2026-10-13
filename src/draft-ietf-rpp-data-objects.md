@@ -450,6 +450,8 @@ A relation between two independent objects.
 
 If the cardinality of the target object is more than 1, this represents an unordered array.
 
+The target object of an aggregation MUST already exist when the association is created. The target object MAY be only partially visible to the client, or not visible at all, for example when it is managed by the server or by another client and the client only knows its identifier. Limited visibility of the target object does not prevent the client from using it in the association. This rule also applies to Labelled Aggregation and Dictionary Aggregation.
+
 Example aggregation having cardinality 1:
 
 ```ascii
@@ -2696,7 +2698,7 @@ The following data elements are defined for the Host Data Object.
   * Data Type: Fully Qualified Domain Name
   * Description: Fully qualified name of a host.
   * Constraints:
-    * An internal host MUST be treated as a subordinate host when it is used as a nameserver for a domain other than its superordinate domain.
+    * An Internal host MUST be treated as a subordinate host when it is used as a nameserver for a domain other than its superordinate domain.
     * Actions that do not preserve the relationship between a host object and its superordinate domain object MUST be disallowed.
 
 * Provisioning Metadata
@@ -2772,7 +2774,7 @@ Host name changes MAY require the addition or removal of IP addresses to be acce
 
 At least one change to a data element MUST be provided, unless the operation is extended.
 
-Host name changes can have an impact on associated objects that refer to the host object. A Host Name change SHOULD NOT require additional updates of associated objects to preserve existing associations, with one exception: changing an external host object that has associations with objects that are sponsored by a different client. Attempts to update such hosts directly MUST fail. The change can be provisioned by creating a new external host with a new name and any needed new attributes, and subsequently updating the other objects sponsored by the client.
+Host name changes can have an impact on associated objects that refer to the host object. A Host Name change SHOULD NOT require additional updates of associated objects to preserve existing associations, with one exception: changing an External host object that has associations with objects that are sponsored by a different client. Attempts to update such hosts directly MUST fail. The change can be provisioned by creating a new External host with a new name and any needed new attributes, and subsequently updating the other objects sponsored by the client.
 
 ### Delete Operation
 
