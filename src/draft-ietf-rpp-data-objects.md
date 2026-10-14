@@ -1940,19 +1940,6 @@ The Service Notice Message Object is not linked to a specific object or process 
 
 **TODO** Complete the Service Notice Message Object definition, do we need it at all?
 
-### Maintenance Message Object
-
-The Maintenance Message Object is used to notify the client about planned maintenance events. It is not linked to a specific object or process.
-
-* Name: Maintenance Message Object
-* Identifier: maintenanceMessage
-* Extends: Base Message Object
-* Description: Notification about planned maintenance events.
-* Data Elements:
-
-**TODO** Complete the Maintenance Message Object definition.
-see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
-
 ## Discovery
 
 ### Version Object
