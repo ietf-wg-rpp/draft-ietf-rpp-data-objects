@@ -1645,43 +1645,6 @@ A> TODO: Model Disclose in universal (extendible) way
 
 A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
-## RPP Extension Object
-
-* Name: RPP Extension Object
-* Identifier: rppExtension
-* Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
-* Data Elements:
-  * Name
-    * Identifier: name
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: The name of the extension, for example "urn:ietf:params:rpp:extension:example".
-    * Constraints: The value MUST identify an extension that is supported by the server.
-  * Version
-    * Identifier: version
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
-    * Constraints: (None)
-  * URL
-    * Identifier: url
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: URL
-    * Description: The URL for the extension specification.
-    * Constraints:
-      * For a standard extension, the value MUST be the URL of the extension in the IANA registry for RPP extensions.
-      * For a private extension, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
-  * Description
-    * Identifier: description
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A human-readable description of the extension and its intended use.
-    * Constraints: (None)
-
 ## Processes Object
 
 * Name: Processes Object
@@ -1953,6 +1916,43 @@ The Maintenance Message Object is used to notify the client about planned mainte
 **TODO** Complete the Maintenance Message Object definition.
 see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
 
+## Extension Object
+
+* Name: Extension Object
+* Identifier: extension
+* Description: Describes an extension supported by the server.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A short name for the extension, for example "registry fee extension".
+    * Constraints: (None)
+  * Extension ID
+    * Identifier: id
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A unique URN identifier for the extension, for example "urn:ietf:params:rpp:extension:registry-fee".
+    * Constraints: (None)
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the extension specification.
+    * Constraints:
+      * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
+      * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+
 ## Discovery
 
 ### Version Object
@@ -1996,43 +1996,6 @@ see: https://github.com/ietf-wg-rpp/draft-ietf-rpp-core/issues/119
     * Data Type: String
     * Description: The operational status of the RPP server, for example "production", "test", or "development".
     * Constraints: (None)
-
-### Extension Object
-
-* Name: Discovery Extension Object
-* Identifier: discoveryExtension
-* Description: Describes an extension supported by the server.
-* Data Elements:
-  * Name
-    * Identifier: name
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A short name for the extension, for example "registry fee extension".
-    * Constraints: (None)
-  * Extension ID
-    * Identifier: id
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: A unique URN identifier for the extension, for example "urn:ietf:params:rpp:extension:registry-fee".
-    * Constraints: (None)
-  * Version
-    * Identifier: version
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: String
-    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
-    * Constraints: (None)
-  * URL
-    * Identifier: url
-    * Cardinality: 1
-    * Mutability: read-only
-    * Data Type: URL
-    * Description: The location of the extension specification.
-    * Constraints:
-      * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
-      * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
 
 ### IDN LGR Object
 
@@ -3380,7 +3343,7 @@ The following data elements are defined for the Discovery Data Object.
   * Identifier: extensions
   * Cardinality: 0+
   * Mutability: read-only
-  * Data Type: Discovery Extension Object
+  * Data Type: Extension Object
   * Description: The extensions supported by the server.
   * Constraints: The server MUST include the version of each extension.
 
@@ -3511,7 +3474,7 @@ The following data elements are defined for the Profile Data Object. All data el
   * Identifier: extensions
   * Cardinality: 0+
   * Mutability: read-only
-  * Data Type: RPP Extension Object
+  * Data Type: Extension Object
   * Description: The extensions, including their names and versions, that are supported or required for the profile.
   * Constraints:
     * A profile MUST NOT list the same extension name more than once.
@@ -4372,24 +4335,6 @@ Description: Removes a specific User Object.
 
 Parameters: (None)
 
-Object: rppExtension
-
-Object Name: RPP Extension Object
-
-Object Type: Component
-
-Description: Describes an RPP extension, based on the fields of the RPP Extensions registry, that is supported or required by a profile.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
-| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
-| name | Name | 1 | read-only | String | The name of the extension. |
-| version | Version | 1 | read-only | String | The version of the extension that is supported or required for the profile. |
-| url | URL | 1 | read-only | URL | The URL for the extension specification. |
-| description | Description | 1 | read-only | String | A human-readable description of the extension and its intended use. |
-
 Object: profile
 
 Object Name: Profile Data Object
@@ -4408,7 +4353,7 @@ Data Elements
 | version | Version | 1 | read-only | String | The version of the profile. |
 | rppVersion | RPP Version | 1 | read-only | String | The minimum version of the RPP protocol that is supported or required for the profile. |
 | objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
-| extensions | Extensions | 0+ | read-only | RPP Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
+| extensions | Extensions | 0+ | read-only | Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
 | baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
 
 Operations
@@ -4453,9 +4398,9 @@ Data Elements
 | name | Name | 1 | read-only | String | The name of the RPP server. |
 | status | Status | 1 | read-only | String | The operational status of the RPP server. |
 
-Object: discoveryExtension
+Object: extension
 
-Object Name: Discovery Extension Object
+Object Name: Extension Object
 
 Object Type: Component
 
@@ -4521,7 +4466,7 @@ Data Elements
 | versions | Versions | 1+ | read-only | Discovery Version Object | The versions of RPP supported by the server. |
 | environment | Environment | 1 | read-only | Discovery Environment Object | Information about the RPP server. |
 | tlds | TLDs | 1+ | read-only | String | The TLDs supported by the server. |
-| extensions | Extensions | 0+ | read-only | Discovery Extension Object | The extensions supported by the server. |
+| extensions | Extensions | 0+ | read-only | Extension Object | The extensions supported by the server. |
 | profiles | Profiles | 0+ | read-only | String | The profiles supported by the server. |
 | objects | Objects | 1+ | read-only | String | The resource collections supported by the server. |
 | datetime | Date and Time | 1 | read-only | Timestamp | The current date and time of the server. |
