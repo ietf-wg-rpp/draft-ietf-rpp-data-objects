@@ -3476,6 +3476,16 @@ The following data elements are defined for the Profile Data Object. All data el
     * The depth of inheritance MUST be limited to 1: the base profile MUST NOT itself have a base profile.
     * A profile MUST NOT be its own base profile.
 
+* Default Profile
+  * Identifier: defaultProfile
+  * Cardinality: 1
+  * Mutability: read-only
+  * Data Type: Boolean
+  * Description: The default profile that is used when no specific profile is requested by the client.
+  * Constraints:
+    * The default profile MUST be published in the IANA registry for RPP profiles, or be made available to the client using other means.
+    * Only one profile MUST be designated as the default profile.
+
 ## Operations
 
 ### Read Operation
@@ -4340,6 +4350,7 @@ Data Elements
 | objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
 | extensions | Extensions | 0+ | read-only | Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
 | baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
+| defaultProfile | Default Profile | 1 | read-only | Boolean | Indicates whether this profile is the default profile. |
 
 Operations
 
@@ -4686,6 +4697,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added Default Profile element to Profile Data Object (Issue #155)
 * Added Discovery Data Object (Issue #136)
 * Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
 * Added Profile Data Object (Issue #140)
