@@ -3499,7 +3499,23 @@ The Read operation allows a client to retrieve the Profile Data Object identifie
 
 # IANA Considerations
 
+## RPP registry group
+
+The IANA is requested to create a new registry group for RPP, this will be used to group together all the RPP-related registries such as those for discovery URLs, extensions and profiles.
+
+```text
+Name of the registry: RESTful Provisioning Protocol (RPP)
+Reference: This Document
+IANA Registry Reference: TODO
+```
+
+<!-- see: https://www.iana.org/help/protocol-registration -->
+
 ## RPP Data Object Registry
+
+Name of the registry: RPP Data Object Registry
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
 
 This document establishes the "RESTful Provisioning Protocol (RPP) Data Object Registry". This registry serves as a catalogue of all data objects, component objects, data elements, and operations used within RPP.
 
@@ -4685,6 +4701,72 @@ The initial registrations for the RPP Organisation Status Values registry are th
 Table: Initial RPP Organisation Status Values Registrations
 {#tbl-organisation-status-registry}
 
+## URN Sub-namespace for RPP (urn:ietf:params:rpp)
+
+The IANA is requested to add the following value to the "IETF URN Sub-namespace for Registered Protocol Parameter Identifiers" registry, following the template in [@!RFC3553]:
+TODO: add filled in template, if we decide to use URN for profile identification, for example "urn:ietf:params:rpp:profile:example-profile"
+
+```text
+Registry name: rpp 
+Specification: This Document
+Repository: ?
+Index value: ?
+```
+
+<!-- see: https://datatracker.ietf.org/doc/html/rfc3553 -->
+<!-- see: https://www.iana.org/assignments/params/params.xml#urn-subnamespaces -->
+
+## RPP Discovery registry
+
+The IANA is requested to create a new registry for RPP discovery URLs, this registry will be used to register the well-known URLs for RPP discovery endpoints, used by RPP clients to discover the capabilities of a RPP server.
+
+```text
+Name of the registry: RPP Discovery URLs
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Expert Review
+```
+
+Fields to be registered:
+
+- `tld`: The top-level domain (TLD) for which the discovery URL is applicable, for example "example".
+- `url`: The URL for the discovery endpoint, for example "https://rpp.example/.well-known/rpp.json".
+- `description`: A human-readable description of the discovery URL and its intended use.
+
+## RPP Extension registry
+
+The IANA is requested to create a new registry for RPP extensions, this registry will be used to register standardized extensions to the RPP protocol. Extensions are defined as additional features or capabilities that can be added to the base RPP protocol, for example support for additional resource types, additional operations or additional authentication methods.
+
+```text
+Name of the registry: RPP Extensions
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Expert Review
+```
+
+Fields to be registered:
+
+- `name`: The name of the extension, for example "RPP example extension".
+- `version`: The version of the extension, for example "1.0".
+- `url`: The URL for the extension specification, for example "https://www.iana.org/assignments/rpp-extensions/rpp-example-extension".
+- `description`: A human-readable description of the extension and its intended use.
+
+## RPP Profile registry
+
+The IANA is requested to create a new registry for RPP profiles, this registry will be used to register standardized profiles for the RPP protocol. Profiles are defined as specific configurations of the RPP protocol that are designed to meet the needs of specific use cases or environments, for example an EPP compatibility profile that defines a set of RPP features and behaviors that are compatible with the Extensible Provisioning Protocol (EPP) [@!RFC5730].
+
+```text
+Name of the registry: RPP Profiles
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Expert Review
+```
+
+Fields to be registered:
+
+- `name`: The name of the profile, for example "EPP compatibility profile".
+- `id`: A unique URN identifier for the profile, for example "urn:ietf:params:rpp:profile:epp-compatibility".
+- `version`: The version of the profile, for example "1.0".
+- `url`: The URL for the profile specification, for example "https://www.iana.org/assignments/rpp-profiles/epp-compatibility-profile".
+- `description`: A human-readable description of the profile and its intended use.
+
 # Security Considerations
 
 A> TODO: write security considerations, if any
@@ -4697,6 +4779,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
 * Added Discovery Data Object (Issue #136)
 * Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
