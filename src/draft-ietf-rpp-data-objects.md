@@ -85,6 +85,12 @@ Owner Data Object
 Unique Identifier
 : The data element of an object whose value uniquely identifies an instance of that object within its applicable scope. The scope is defined by the object: for a Data Object it is typically the server, whereas for a Process Object it is the Owner Data Object. An object definition names its Unique Identifier explicitly in the object preamble. Objects that have no independent identity, such as component objects embedded within another object, have no Unique Identifier.
 
+Input Data Element
+: A data element that a client provides as input to a specific operation, in addition to the identifier or data elements of the object the operation targets, and that carries content the operation acts upon. An input data element is defined as part of the operation definition and is not part of the state of the object. An input data element is described using the attributes defined in (#data-element-semantics), except Direct Access, and Visibility, which do not apply.
+
+Parameter
+: A data element that a client provides as input to an operation to control how the server processes the operation or which data it returns, without itself carrying content that the operation acts upon. A parameter is not part of the state of the object and is not returned as part of the object. A parameter is described using the same attributes as an Input Data Element, and its definition specifies the behaviour of the operation when the parameter is absent.
+
 Label Generation Ruleset (LGR)
 : A set of rules defining the valid labels for a registry, including the permitted repertoire, contextual rules, and, where applicable, variant mappings. Also historically known as IDN tables.
 
@@ -152,7 +158,7 @@ The data type of a data element may also be a reference to another data object, 
 
 ## Extensibility
 
-The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional transient data elements.
+The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional data elements.
 
 ### Standardised and Private Extensions
 
@@ -170,9 +176,9 @@ The following aspects of the data model are extensible:
 * New data elements: Extensions MAY add new data elements to existing data objects. Such elements follow the same Data Element Semantics as core data elements.
 * New associations: Extensions MAY introduce new associations between existing or new objects.
 * New operations: Extensions MAY define entirely new operations on existing or new data objects.
-* Extended operation inputs and outputs: Extensions MAY add new transient data elements to the inputs or outputs of existing operations.
+* Extended operation inputs and outputs: Extensions MAY add new data elements to the inputs or outputs of existing operations.
 
-When an extension adds data elements or transient parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
+When an extension adds data elements, input data elements, or parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
 
 ## Data Element Semantics {#data-element-semantics}
 
@@ -197,7 +203,7 @@ The definition of each data element within an object consists of the following a
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
 * Visibility: An optional attribute indicating whether the data element is included in operation output by default. It MUST be one of the following:
   * default: The element is included in the output of any operation returning the containing object, subject to authorisation and server policy. This value applies when the attribute is absent.
-  * onDemand: The element is included in the output only when the client explicitly requests it using the Include Elements transient data element (see (#include-elements)), subject to authorisation and server policy.
+  * onDemand: The element is included in the output only when the client explicitly requests it using the Include Elements parameter (see (#include-elements)), subject to authorisation and server policy.
 
 The Visibility attribute affects operation output only. It does not affect whether a client can provide the element as input.
 
@@ -258,7 +264,7 @@ Listing a data element that is already included in the output by default has no 
 
 ### Uniform interface
 
-For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
+For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified, unless an operation for the specific object tells otherwise.
 
 #### Create
 
@@ -2108,7 +2114,8 @@ The Read operation allows a client to determine the real-time status of a pendin
   * This operation MUST be accessible to both the sponsoring client and the gaining client.
   * Server policy determines whether other clients may query transfer status and what information is returned.
 
-* Input: None
+* Input:
+  * Transfer Process Object reference
 * Output: Transfer Process Object
 
 #### Delete (Transfer Cancel) {#transfer-delete}
@@ -2120,7 +2127,8 @@ The Delete operation allows the initiating client to cancel its own pending tran
 * Authorisation:
   * Only the initiating client (the client that originally requested the transfer).
 
-* Input: None
+* Input:
+  * Transfer Process Object reference
 * Output: Transfer Process Object or nothing
 
 #### Approve {#transfer-approve}
@@ -2135,7 +2143,8 @@ The Approve operation allows the appropriate client to accept a pending transfer
   * Push transfer:
     * only the designated gaining client
 
-* Input: None
+* Input:
+  * Transfer Process Object reference
 * Output: Transfer Process Object
 
 #### Reject {#transfer-reject}
@@ -2150,7 +2159,10 @@ The Reject operation allows the appropriate client to decline a pending transfer
   * Push transfer:
     * only the designated gaining client
 
-The following transient data elements are defined for this operation:
+* Input:
+  * Transfer Process Object reference
+
+The following additional input data elements are defined for this operation:
 
 * Reason
   * Identifier: reason
@@ -2206,13 +2218,12 @@ The following transient data elements are defined for this operation:
 
 The Create operation initiates the recovery of an object in the `redemptionPeriod` state by creating a Restore Process Object. The server MUST reject this operation if the owning object is not in the `redemptionPeriod` state.
 
-* Input: Restore Process Object (create-only and read-write elements)
-* Output: Restore Process Object
-
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
 
-The following transient data elements are defined for this operation:
+* Input: Restore Process Object (create-only and read-write elements)
+
+The following additional input data elements are defined for this operation:
 
 * Restore Report
   * Identifier: restoreReport
@@ -2222,6 +2233,8 @@ The following transient data elements are defined for this operation:
   * Constraints:
     * MUST NOT be provided if the server does not require a restore report.
     * In EPP Compatibility Profile, corresponds to `op="request"` (without report) or a combined `op="request"` followed immediately by `op="report"` as defined in [@!RFC3915].
+
+* Output: Restore Process Object
 
 #### Read (Restore Query) {#restore-read}
 
@@ -2245,13 +2258,12 @@ This operation is OPTIONAL, only for servers which support or require submission
 
 The Report operation submits the restore report required by the RGP process for an object in the `pendingRestore` state. A report MAY be submitted more than once if corrections are required. The server MUST reject this operation if the object is not in the `pendingRestore` state.
 
-* Input: Object Identifier, Restore Report Object
-* Output: Restore Process Object
-
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
 
-The following transient data elements are defined for this operation:
+* Input: Object Identifier
+
+The following input data elements are defined for this operation:
 
 * Restore Report
   * Identifier: restoreReport
@@ -2260,6 +2272,8 @@ The following transient data elements are defined for this operation:
   * Description: The restore report to be submitted as part of the RGP process.
   * Constraints:
     * In EPP Compatibility Profile, corresponds to `op="report"` as defined in [@!RFC3915].
+
+* Output: Restore Process Object
 
 ## Renew Process Object
 
@@ -2515,7 +2529,7 @@ The Read operation allows a client to retrieve the data elements of a Domain Nam
     * With Object Authorisation:
       * Full object, however some properties only authorised to the sponsoring client MAY be redacted according to server policy
 
-The following transient data elements are defined for this operation:
+The following parameters are defined for this operation:
 
 * Hosts Filter
   * Identifier: hostsFilter
@@ -2623,6 +2637,14 @@ The Read operation retrieves the result or status of the domain creation, if the
     * Data Type: Timestamp
     * Description: The end of the domain object's registration period if the transfer caused or causes a change in the validity period.
     * Constraints: (None)
+  * Transfer Period
+    * Identifier: transferPeriod
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: Period Object
+    * Description: The number of units to be added to the registration period of the domain object upon successful completion of the transfer. The number of units available MAY be subject to limits imposed by the server.
+    * Constraints:
+      * In EPP Compatibility Profile, Transfer Period cannot be read from the Transfer Process Object 
 
 Transfer of a Domain Name Data Object MUST implicitly transfer all Host Data Objects that are subordinate to the domain object. For example, if domain object "example.com" is transferred and host object "ns1.example.com" exists, the host object MUST be transferred as part of the "example.com" transfer process. Actions that do not preserve the relationship between a domain object and its subordinate host objects MUST be disallowed.
 
@@ -2640,16 +2662,6 @@ The Create operation initiates a transfer of the Domain Name Data Object by crea
 * Output: Domain Transfer Process Object
 
 * Authorisation: as defined in (#transfer-create).
-
-The following transient data element is defined for this operation:
-
-* Transfer Period
-  * Identifier: transferPeriod
-  * Cardinality: 0-1
-  * Mutability: create-only
-  * Data Type: Period Object
-  * Description: The number of units to be added to the registration period of the domain object upon successful completion of the transfer. The number of units available MAY be subject to limits imposed by the server.
-  * Constraints: (None)
 
 # Contact Data Object
 
@@ -3165,14 +3177,12 @@ The Query operation allows a client to retrieve a collection of Message Data Obj
 * Authorisation:
   * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
 
-In addition, the following transient data elements are defined for this operation:
+In addition, the following parameters are defined for this operation:
 
 * Message Type
   * Identifier: type
   * Cardinality: 0-1
-  * Mutability: create-only
   * Data Type: String
-  * Location: selector
   * Description: The type of the message to use as a filter when retrieving message objects.
   * Constraints:
     * The type value MUST be a valid identifier for an RPP message component (e.g. reviewResponse).
@@ -3523,7 +3533,7 @@ This document establishes the "RESTful Provisioning Protocol (RPP) Data Object R
 
 The policy for adding new objects, data elements, or operations to this registry is "Specification Required" [@!RFC8126].
 
-Standardised RPP extensions that introduce new data objects, add data elements to existing objects, or define new operations or operation parameters MUST register these additions in this registry. Each such registration MUST reference the specification that defines the extension.
+Standardised RPP extensions that introduce new data objects, add data elements to existing objects, or define new operations, operation input data elements, or operation parameters MUST register these additions in this registry. Each such registration MUST reference the specification that defines the extension.
 
 Private (non-standardised) extensions are not required to register in this registry.
 
@@ -3538,9 +3548,10 @@ The registry is organised as a collection of Object definitions. Each Object def
 * An "Operations" section (applicable only for Object Types Resource or Process). For each operation, the
 registry MUST provide:
   * The Operation's Name, a description, and a reference to the specification that defines it.
-  * A "Parameters" table listing all data elements that are provided as input to the operation but are not persisted as part of the object's state. Each entry MUST specify the parameter's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
+  * An "Input Data Elements" table listing all input data elements of the operation. Each entry MUST specify the input data element's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
+  * A "Parameters" table listing all parameters of the operation. Each entry MUST specify the parameter's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
 
-Extensions MAY add new data elements, operations, or operation parameters to existing Object definitions in the registry. Each such addition MUST reference the extension specification that introduces it, allowing implementations to distinguish core protocol elements from extension-defined elements.
+Extensions MAY add new data elements, operations, operation input data elements, or operation parameters to existing Object definitions in the registry. Each such addition MUST reference the extension specification that introduces it, allowing implementations to distinguish core protocol elements from extension-defined elements.
 
 ### Initial Registrations
 
@@ -3749,6 +3760,8 @@ Operation Identifier: transferCreate
 
 Description: Initiates a transfer of a provisioned object by creating a Transfer Process Object. 
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Transfer Read
@@ -3756,6 +3769,8 @@ Operation: Transfer Read
 Operation Identifier: transferRead
 
 Description: Queries the status of a transfer of a provisioned object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3765,6 +3780,8 @@ Operation Identifier: transferDelete
 
 Description: Cancels a pending transfer of a provisioned object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Transfer Approve
@@ -3772,6 +3789,8 @@ Operation: Transfer Approve
 Operation Identifier: transferApprove
 
 Description: Approves a pending transfer of a provisioned object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3781,10 +3800,12 @@ Operation Identifier: transferReject (on Transfer Process Object)
 
 Description: Rejects a pending transfer of a provisioned object.
 
-Parameters
+Input Data Elements
 | Identifier | Name   | Card. | Data Type | Description                                                   |
 | ---------- | ------ | ----- | --------- | ------------------------------------------------------------- |
 | reason     | Reason | 0-1   | String    | A human-readable text describing the rationale for rejection. |
+
+Parameters: (None)
 
 
 Object: renewProcess
@@ -3813,6 +3834,8 @@ Operation Identifier: renewCreate
 
 Description: Initiates a renewal of a provisioned object by creating a Renew Process Object. 
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Object: createProcess
@@ -3837,6 +3860,8 @@ Operation Identifier: create
 
 Description: Invoked implicitly as a side effect of the resource object create operation; never invoked directly. Carries creation-specific inputs consumed during creation of the owning resource object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -3844,6 +3869,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the result or status of the creation, if the server exposes the process resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3872,6 +3899,8 @@ Operation Identifier: create
 
 Description: Invoked implicitly as a side effect of the Domain Name Data Object create operation; never invoked directly. Carries the registration period consumed during domain creation.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -3879,6 +3908,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the result or status of the domain creation, if the server exposes the process resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3906,10 +3937,12 @@ Operation Identifier: transferCreate
 
 Description: Initiates a transfer of a Domain Name Data Object by creating a Domain Transfer Process Object.
 
-Parameters
+Input Data Elements
 | Identifier     | Name            | Card. | Data Type     | Description                                                                                            |
 | -------------- | --------------- | ----- | ------------- | ------------------------------------------------------------------------------------------------------- |
 | transferPeriod | Transfer Period | 0-1   | Period Object | The number of units to be added to the registration period of the domain object upon successful completion of the transfer. |
+
+Parameters: (None)
 
 Object: disclose
 
@@ -3954,16 +3987,20 @@ Operation Identifier: create
 
 Description: Initiates recovery of a domain name in the redemptionPeriod state by creating a Restore Process Object. This operation is OPTIONAL and is only available when the RGP feature is supported.
 
-Parameters
+Input Data Elements
 | Identifier    | Name           | Card. | Data Type             | Description               |
 | ------------- | -------------- | ----- | --------------------- | ------------------------- |
 | restoreReport | Restore Report | 0-1   | Restore Report Object | An inline restore report. |
+
+Parameters: (None)
 
 Operation: Restore Read
 
 Operation Identifier: read (on Restore Process Object)
 
 Description: Retrieves the current state of the RGP restore process for a domain name. This operation is OPTIONAL and is only available when the RGP feature is supported.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3973,10 +4010,12 @@ Operation Identifier: report
 
 Description: Submits the restore report for a domain name in the pendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
 
-Parameters
+Input Data Elements
 | Identifier    | Name           | Card. | Data Type             | Description                         |
 | ------------- | -------------- | ----- | --------------------- | ----------------------------------- |
 | restoreReport | Restore Report | 1     | Restore Report Object | The restore report to be submitted. |
+
+Parameters: (None)
 
 
 Object: restoreReport
@@ -4034,6 +4073,8 @@ Operation Identifier: create
 
 Description: Provisions a new Domain Name resource.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4041,6 +4082,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of a Domain Name resource.
+
+Input Data Elements: (None)
 
 Parameters
 | Identifier  | Name         | Card. | Data Type | Description                                  |
@@ -4051,16 +4094,20 @@ Operation: Update
 
 Description: Modifies the read-write data elements of a Domain Name resource.
 
-Parameters
+Input Data Elements
 | Identifier | Name   | Card. | Data Type | Description                                                    |
 | ---------- | ------ | ----- | --------- | -------------------------------------------------------------- |
 | urgent     | Urgent | 0-1   | Boolean   | Requests high-priority processing of the update by the server. |
+
+Parameters: (None)
 
 Operation: Delete
 
 Operation Identifier: delete
 
 Description: Removes an existing Domain Name resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4092,6 +4139,8 @@ Operation Identifier: create
 
 Description: 
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read Operation
@@ -4099,6 +4148,8 @@ Operation: Read Operation
 Operation Identifier: read
 
 Description: 
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4108,6 +4159,8 @@ Operation Identifier: update
 
 Description: 
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete Operation
@@ -4115,6 +4168,8 @@ Operation: Delete Operation
 Operation Identifier: delete
 
 Description: 
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4144,11 +4199,15 @@ Operation: Create
 
 Description: Provisions a new Host Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
 
 Description: Retrieves the data elements of a Host Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4156,11 +4215,15 @@ Operation: Update
 
 Description: Modifies the attributes of a Host Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete
 
 Description: Removes an existing Host Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4211,6 +4274,8 @@ Operation Identifier: create
 
 Description: Provisions a new Organisation Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4218,6 +4283,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of an Organisation Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4227,6 +4294,8 @@ Operation Identifier: update
 
 Description: Modifies the attributes of an existing Organisation Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete
@@ -4234,6 +4303,8 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes an existing Organisation Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4265,6 +4336,8 @@ Operation Identifier: create
 
 Description: Inserts a new message into the queue for an organisation.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4272,6 +4345,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of one or more Message Data Objects.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4281,7 +4356,9 @@ Operation Identifier: query
 
 Description: Retrieves zero or more Message Data Objects, optionally filtered by the specified parameters.
 
-Parameters:
+Input Data Elements: (None)
+
+Parameters
 | Identifier | Name          | Card. | Data Type | Description                                                                 |
 | ---------- | ------------- | ----- | --------- | ---------------------------------------------------------------------------- |
 | type       | Message Type  | 0-1   | String    | The type of the message to use as a filter when retrieving message objects.  |
@@ -4291,6 +4368,8 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes a specific Message Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4320,6 +4399,8 @@ Operation Identifier: create
 
 Description: Creates a new User Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4327,6 +4408,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of a specific User Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4336,6 +4419,8 @@ Operation Identifier: update
 
 Description: Modifies the read-write data elements (e.g., roles) of a specific User Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete
@@ -4343,6 +4428,8 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes a specific User Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4375,6 +4462,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the Profile Data Object identified by its name.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4493,6 +4582,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the Discovery Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4779,14 +4870,15 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
 * Added Discovery Data Object (Issue #136)
 * Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
 * Added Profile Data Object (Issue #140)
-* added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
+* added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
-* Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
+* Removed the urgent parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
