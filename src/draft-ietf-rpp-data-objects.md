@@ -2553,11 +2553,15 @@ The error response SHOULD indicate the related subordinate host objects.
 
 ## Processes
 
-The Domain Name Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Domain Name Data Object supports the following Process Objects (#process-objects) unmodified:
 
-* Renew Process
+* Renew Process 
 * Restore Process
   * Constraints: OPTIONAL; available only when the RGP feature is supported.
+
+The Domain Name Data Object supports the following Process Objects extended by an object-specific definition:
+* Create Process (#domain-create-process)
+* Transfer Process (#domain-transfer-process)
 
 ### Domain Create Process Object {#domain-create-process}
 
@@ -2799,11 +2803,11 @@ The error response SHOULD indicate the existing object associations.
 
 ## Processes
 
-The Contact Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Contact Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
 
-Renewal semantics do not apply to contact objects.
+The Contact Data Object supports no Process Objects extended by an object-specific definition.
 
 # Host Data Object
 
@@ -2920,13 +2924,12 @@ The error response SHOULD indicate the related associated objects.
 
 ## Processes
 
-The Host Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
-
-* Restore Process
-  * Constraints: OPTIONAL; available only when the RGP feature for the Host Data Object is supported by the server.
+The Host Data Object Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
   * Constraints: Host objects MUST NOT be transferred directly. They are transferred implicitly when their superordinate domain object is transferred.
+
+The Host Data Object supports no Process Objects (#process-objects) extended by an object-specific definition.
 
 # Organisation Data Object
 
@@ -4779,6 +4782,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Clarification on Processes supported and extended by a Data Object
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
 * Added Discovery Data Object (Issue #136)
