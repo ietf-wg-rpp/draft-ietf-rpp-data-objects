@@ -1965,6 +1965,43 @@ The Service Notice Message Object is not linked to a specific object or process 
     * Description: The operational status of the RPP server, for example "production", "test", or "development".
     * Constraints: (None)
 
+### Extension Object
+
+* Name: Extension Object
+* Identifier: extension
+* Description: Describes an extension supported by the server.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A short name for the extension, for example "registry fee extension".
+    * Constraints: (None)
+  * Extension ID
+    * Identifier: id
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A unique URN identifier for the extension, for example "urn:ietf:params:rpp:extension:registry-fee".
+    * Constraints: (None)
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the extension specification.
+    * Constraints:
+      * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
+      * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+
 ### IDN LGR Object
 
 * Name: Discovery IDN LGR Object
