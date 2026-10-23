@@ -381,11 +381,11 @@ Restore operations manage the recovery of an object that has entered the Redempt
 The RGP process MAY involve two distinct steps:
 
 * Restore Request: (REQUIRED) Initiates the recovery of an object in the `redemptionPeriod` state, signalling to the registry the intent to restore. This corresponds to the Create operation on the Restore Process Object. On success, the object transitions to `pendingRestore`.
-* Restore Report: (OPTIONAL) Submits a report documenting the circumstances of the deletion and restoration, as required by registry policy. This corresponds to the Report operation on the Restore Process Object. On success, the object is returned to its pre-deletion status and all RGP status labels are removed.
+* Restore Report: (OPTIONAL) Submits a report documenting the circumstances of the deletion and restoration, as required by registry policy. This corresponds to the Update operation on the Restore Process Object. On success, the object is returned to its pre-deletion status and all RGP status labels are removed.
 
 Whether a restore report is required after a restore request is a matter of server policy. If the server does not require a restore report, the object returns to its pre-deletion status immediately upon a successful Create operation, bypassing the `pendingRestore` state.
 
-The Create operation MAY include the restore report inline to complete both steps atomically in a single operation.
+The Create operation MAY include the restore report, provided as the `restoreReport` data element, to complete both steps atomically in a single operation.
 
 All restore operations act on or return the Restore Process Object and are executed in the context of the Owner Data Object the operation is created upon.
 
@@ -931,7 +931,7 @@ Table: Redemption Grace Period Status Values
 
 The following state diagram describes the object lifecycle when the Redemption Grace Period (RGP) feature is supported. It adapts the diagram from [@!RFC3915, section 2] to the RPP data model, using RPP status labels and operations instead of EPP command names.
 
-In the diagram below, RPP status labels are shown in the `status` field of the object. Standard EPP-origin status labels (e.g., `ok`, `pendingDelete`) are used alongside the RGP-specific labels defined in this document. The `<create>` and `<report>` labels refer to the Create and Report operations on the Restore Process Object, replacing the EPP extended `<update>` command with `op=request` and `op=report` attributes.
+In the diagram below, RPP status labels are shown in the `status` field of the object. Standard EPP-origin status labels (e.g., `ok`, `pendingDelete`) are used alongside the RGP-specific labels defined in this document. The `<create>` and `<update>` labels refer to the Create and Update operations on the Restore Process Object, replacing the EPP extended `<update>` command with `op=request` and `op=report` attributes.
 
 ```ascii
               |
@@ -952,7 +952,7 @@ In the diagram below, RPP status labels are shown in the `status` field of the o
    |   |  +------------------+   received         | +-----------------------+
    |   |                (8) |                     |                |
    |   |    report received |                     |     purge (11) |
-   |   |       <report>     |      restore (5)    |                v
+   |   |       <update>     |      restore (5)    |                v
    |   +--------------------+      with report    | +-----------------------+
    |                               or not req.    | |      Purged       (12)|
    |                                  <create>    | +-----------------------+
@@ -2246,6 +2246,17 @@ The following additional input data elements are defined for this operation:
     * Data Type: Timestamp
     * Description: The date and time by which a restore report must be submitted before the object reverts to `redemptionPeriod` state. Only present when the object is in `pendingRestore` state.
     * Constraints: MUST NOT be present when `restoreStatus` is not `"pendingRestore"`.
+  * Restore Report
+    * Identifier: restoreReport
+    * Cardinality: 0-1
+    * Mutability: read-write
+    * Data Type: Restore Report Object
+    * Visibility: onDemand
+    * Description: The restore report submitted by the sponsoring client as required by the RGP process. A client MAY provide it in the Create operation, so that the restore request and the report are processed atomically, or in a later Update operation while the object is in `pendingRestore` state. A report provided in an Update operation replaces any previously submitted report.
+    * Constraints:
+      * MUST NOT be provided if the server does not require a restore report.
+      * In EPP Compatibility Profile, the restore report is write-only: the server does not return it in the output of any operation, because [@!RFC3915] provides no means to retrieve a submitted report.
+      * In EPP Compatibility Profile, providing this element in the Create operation corresponds to `op="report"`, omitting it corresponds to `op="request"`, and providing it in the Update operation corresponds to `op="report"` as defined in [@!RFC3915].
 
 ### Operations
 
@@ -2255,22 +2266,12 @@ The following additional input data elements are defined for this operation:
 
 The Create operation initiates the recovery of an object in the `redemptionPeriod` state by creating a Restore Process Object. The server MUST reject this operation if the owning object is not in the `redemptionPeriod` state.
 
+If the server requires a restore report and `restoreReport` is absent, the object transitions to `pendingRestore` state awaiting a subsequent Update operation. Otherwise the restore is completed immediately.
+
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
 
 * Input: Restore Process Object (create-only and read-write elements)
-
-The following additional input data elements are defined for this operation:
-
-* Restore Report
-  * Identifier: restoreReport
-  * Cardinality: 0-1
-  * Data Type: Restore Report Object
-  * Description: An OPTIONAL inline restore report. If provided, the server processes the request and the report atomically. If the server does not require a restore report, this element MUST NOT be present and the restore is completed immediately. If the server requires a report and this element is absent, the object transitions to `pendingRestore` state awaiting a subsequent Report operation.
-  * Constraints:
-    * MUST NOT be provided if the server does not require a restore report.
-    * In EPP Compatibility Profile, corresponds to `op="request"` (without report) or a combined `op="request"` followed immediately by `op="report"` as defined in [@!RFC3915].
-
 * Output: Restore Process Object
 
 #### Read (Restore Query) {#restore-read}
@@ -2287,29 +2288,18 @@ The Read operation allows the sponsoring client to retrieve the current state of
 
 In EPP Compatibility Profile this operation is not supported.
 
-#### Report {#restore-report}
+#### Update (Restore Report) {#restore-report}
 
-* Identifier: report
+* Identifier: update
 
 This operation is OPTIONAL, only for servers which support or require submission of a restore report.
 
-The Report operation submits the restore report required by the RGP process for an object in the `pendingRestore` state. A report MAY be submitted more than once if corrections are required. The server MUST reject this operation if the object is not in the `pendingRestore` state.
+The Update operation submits the restore report required by the RGP process for an object in the `pendingRestore` state. Since `restoreReport` is the only read-write data element of the Restore Process Object, the client MUST provide it in this operation. A report MAY be submitted more than once if corrections are required. The server MUST reject this operation if the object is not in the `pendingRestore` state.
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
 
-* Input: Object Identifier
-
-The following input data elements are defined for this operation:
-
-* Restore Report
-  * Identifier: restoreReport
-  * Cardinality: 1
-  * Data Type: Restore Report Object
-  * Description: The restore report to be submitted as part of the RGP process.
-  * Constraints:
-    * In EPP Compatibility Profile, corresponds to `op="report"` as defined in [@!RFC3915].
-
+* Input: Restore Process Object reference and read-write elements
 * Output: Restore Process Object
 
 ## Renew Process Object
@@ -4076,6 +4066,7 @@ Data Elements
 | requestDate        | Request Date    | 0-1   | read-only  | Timestamp | The date and time when the restore request was submitted. Absent if no request has been submitted.                                      |
 | reportDate         | Report Date     | 0-1   | read-only  | Timestamp | The date and time when the most recent restore report was accepted. Absent if no report has been accepted.                              |
 | reportDueDate      | Report Due Date | 0-1   | read-only  | Timestamp | The deadline for submitting a restore report before the object reverts to redemptionPeriod. Present only when status is pendingRestore. |
+| restoreReport      | Restore Report  | 0-1   | read-write | Restore Report Object | The restore report submitted as required by the RGP process. |
 
 Operations
 
@@ -4085,10 +4076,7 @@ Operation Identifier: create
 
 Description: Initiates recovery of a domain name in the redemptionPeriod state by creating a Restore Process Object. This operation is OPTIONAL and is only available when the RGP feature is supported.
 
-Input Data Elements
-| Identifier    | Name           | Card. | Data Type             | Description               |
-| ------------- | -------------- | ----- | --------------------- | ------------------------- |
-| restoreReport | Restore Report | 0-1   | Restore Report Object | An inline restore report. |
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4102,16 +4090,13 @@ Input Data Elements: (None)
 
 Parameters: (None)
 
-Operation: Restore Report
+Operation: Restore Update
 
-Operation Identifier: report
+Operation Identifier: update
 
-Description: Submits the restore report for a domain name in the pendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
+Description: Submits or replaces the restore report for a domain name in the pendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
 
-Input Data Elements
-| Identifier    | Name           | Card. | Data Type             | Description                         |
-| ------------- | -------------- | ----- | --------------------- | ----------------------------------- |
-| restoreReport | Restore Report | 1     | Restore Report Object | The restore report to be submitted. |
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -5068,6 +5053,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update
 * defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
