@@ -263,7 +263,7 @@ For example:
     * Elements: create-only, read-write
 * Output:
   * Object: Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 ```
 
 ### Include Elements {#include-elements}
@@ -298,7 +298,7 @@ For the Create, Read, Query, Update and Delete operations of a Data Object, the 
     * Elements: create-only, read-write
 * Output:
   * Object: This Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 #### Read
 
@@ -306,7 +306,7 @@ For the Create, Read, Query, Update and Delete operations of a Data Object, the 
   * Reference: This Object
 * Output:
   * Object: This Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 The output Object MAY vary depending on the identity of the querying client, use of Object Authorisation information, and server policy towards unauthorised clients.
 
@@ -321,7 +321,7 @@ If the querying client is not the sponsoring client and the client does not prov
 * Input: (None)
 * Output:
   * Object: This Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
     * Cardinality: 0+
 
 #### Update
@@ -332,7 +332,7 @@ If the querying client is not the sponsoring client and the client does not prov
     * Elements: read-write
 * Output:
   * Object: This Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 #### Delete
 
@@ -340,7 +340,7 @@ If the querying client is not the sponsoring client and the client does not prov
   * Reference: This Object
 * Output:
   * Object: This Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
     * Cardinality: 0-1
 
 ### Offline Review
@@ -2186,7 +2186,7 @@ The Create operation initiates a transfer by creating a Transfer Process Object 
     * Elements: create-only, read-write
 * Output:
   * Object: Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 #### Read (Transfer Query) {#transfer-read}
 
@@ -2203,7 +2203,7 @@ The Read operation allows a client to determine the real-time status of a pendin
   * Reference: Transfer Process Object
 * Output:
   * Object: Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 #### Delete (Transfer Cancel) {#transfer-delete}
 
@@ -2219,7 +2219,7 @@ The Delete operation allows the initiating client to cancel its own pending tran
   * Reference: Transfer Process Object
 * Output:
   * Object: Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
     * Cardinality: 0-1
 
 #### Approve {#transfer-approve}
@@ -2239,7 +2239,7 @@ The Approve operation allows the appropriate client to accept a pending transfer
   * Reference: Transfer Process Object
 * Output:
   * Object: Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 #### Reject {#transfer-reject}
 
@@ -2266,7 +2266,7 @@ The Reject operation allows the appropriate client to decline a pending transfer
 
 * Output:
   * Object: Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 ## Restore Process Object
 
@@ -2332,7 +2332,7 @@ The Create operation initiates the recovery of an object in the `redemptionPerio
 
 * Output:
   * Object: Restore Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 #### Read (Restore Query) {#restore-read}
 
@@ -2348,7 +2348,7 @@ The Read operation allows the sponsoring client to retrieve the current state of
   * Reference: Restore Process Object
 * Output:
   * Object: Restore Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 In EPP Compatibility Profile this operation is not supported.
 
@@ -2377,7 +2377,7 @@ The Report operation submits the restore report required by the RGP process for 
 
 * Output:
   * Object: Restore Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 ## Renew Process Object
 
@@ -2414,7 +2414,7 @@ The renew operation extends the validity period of an existing object by creatin
     * Elements: create-only, read-write
 * Output:
   * Object: Renew Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2443,7 +2443,7 @@ The Create operation is invoked implicitly as a side effect of the resource obje
     * Elements: create-only, read-write
 * Output:
   * Object: Create Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Inherited from the resource object create operation that initiates this process.
@@ -2459,7 +2459,7 @@ The Read operation retrieves the result or status of the creation, if the server
   * Reference: Create Process Object
 * Output:
   * Object: Create Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2721,7 +2721,7 @@ The Create operation is invoked implicitly as a side effect of the Domain Name D
     * Elements: create-only, read-write
 * Output:
   * Object: Domain Create Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Inherited from the Domain Name Data Object create operation that initiates this process.
@@ -2737,7 +2737,7 @@ The Read operation retrieves the result or status of the domain creation, if the
   * Reference: Domain Create Process Object
 * Output:
   * Object: Domain Create Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2782,7 +2782,7 @@ The Create operation initiates a transfer of the Domain Name Data Object by crea
     * Elements: create-only, read-write
 * Output:
   * Object: Domain Transfer Process Object
-    * Elements: read-write, read-only
+    * Elements: create-only, read-write, read-only
 
 * Authorisation: as defined in (#transfer-create).
 
