@@ -125,38 +125,44 @@
 #                   prose written directly after its "* Identifier:" bullet).
 #                   Covers every prose paragraph between "* Identifier:" and
 #                   the first "* Authorisation:"/"* Input:"/"* Output:"
-#                   bullet (or the first Input Data Elements / Parameters
-#                   lead-in line), newline-joined
-#                   if there is more than one paragraph.
+#                   bullet, newline-joined if there is more than one
+#                   paragraph.
 #     authorisation: the operation's "* Authorisation:" bullet as a LIST of
 #                   strings, one per top-level sub-bullet (same
 #                   nested-bullet folding as an element's "constraints" —
 #                   deeper nesting, e.g. "Pull transfer:"/"Push transfer:"
 #                   sub-cases, is newline-joined into that entry). Empty
 #                   list if the operation has no Authorisation bullet.
-#     input:        the operation's "* Input:" bullet value as a single
-#                   string, e.g. "Object identifier"; a nested bullet list
-#                   under a blank "* Input:" is newline-joined. Empty string
-#                   if absent.
-#     output:       the operation's "* Output:" bullet value, same rules as
-#                   input. Empty string if absent.
+#     input:        the operation's "* Input:" items, in the draft's
+#                   "Operation Input and Output" notation; [] for "(None)".
+#                   A Data Object operation that declares no Input gets the
+#                   Uniform interface default for its identifier. Each
+#                   Reference / Object / Changes item:
+#                     kind:        "Reference" | "Object" | "Changes"
+#                     target:      an object Name, "This Object" (the object
+#                                  defining the operation) or "Owner Data
+#                                  Object" (of a Process Object)
+#                     elements:    Mutability values of the included data
+#                                  elements; [] for a Reference
+#                     cardinality: number of representations ("1" unless
+#                                  an Object item says otherwise)
+#                   An "Input Data Elements" (content the operation acts
+#                   upon) / "Parameters" (controls processing or output)
+#                   item — Input only, at most once each, neither part of
+#                   the object's state:
+#                     kind:        "Input Data Elements" | "Parameters"
+#                     definitions: one entry per definition, laid out like
+#                                  the draft's "* Data Elements:" list:
+#                                  identifier, name, cardinality,
+#                                  data_type, description, constraints,
+#                                  notes — same meaning as for elements
+#                   null only if neither the operation nor a default
+#                   declares it (reported as [OP IO MISSING]).
+#     output:       the operation's "* Output:" items, same rules as input.
 #     notes:        orphan prose in the operation's body beyond description/
 #                   authorisation/input/output (e.g. a further explanatory
-#                   paragraph after the Authorisation bullet). The lead-in
-#                   lines introducing inputs/params are structure, not
-#                   notes. Empty list if none.
-#     inputs:       Input Data Elements of the operation (content the
-#                   operation acts upon, not part of the object's state),
-#                   from the bullets after a lead-in line such as "The
-#                   following input data elements are defined for this
-#                   operation:". Each with identifier, name, cardinality,
-#                   data_type, description, constraints, notes — same
-#                   meaning as for elements.
-#     params:       Parameters of the operation (control processing or
-#                   output, not part of the object's state), from the
-#                   bullets after a lead-in line such as "The following
-#                   parameters are defined for this operation:". Same
-#                   fields as inputs.
+#                   paragraph after the Authorisation bullet). Empty list
+#                   if none.
 #
 # Every attribute bullet in the draft has a field here: an element, input
 # or parameter attribute the export does not cover makes --yaml-out fail

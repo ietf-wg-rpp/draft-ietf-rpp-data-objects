@@ -105,6 +105,8 @@ captured there too. With `--no-check` there is no report; at `warning` or
 | `[OP MISSING IDENTIFIER]` | Normative operation heading has no `* Identifier:` bullet |
 | `[OP DESC EMPTY]` | IANA operation Description field is blank; normative has a description |
 | `[OP SECTION MISSING IN IANA]` | IANA operation declares neither a table nor `(None)` for `Input Data Elements` or for `Parameters` |
+| `[OP IO INVALID]` | Normative-only (`check_operation_io()`): an `Input`/`Output` value outside the "Operation Input and Output" notation, or an item target that is neither a normative object's Name nor `This Object` / `Owner Data Object` (the latter only in a Process Object) |
+| `[OP IO MISSING]` | Normative-only: an operation has no `Input` or no `Output`, neither declared nor given by a Uniform interface default |
 
 Note: `[OP MISSING IDENTIFIER]` is reported even when the parent object itself
 is `[MISSING IN IANA]`, so identifier gaps are always surfaced.
@@ -458,27 +460,36 @@ emitted, even when the parent object has no IANA entry yet.
 
 ### Input data elements and parameters
 
-An operation's Input Data Elements and Parameters are bullet definitions
-following a **lead-in line** (`_op_section_marker_kind()`): a non-bullet,
-non-heading prose line in the operation body that ends with `:` and names
-exactly one of the kinds — "input data element(s)" or "parameter(s)"
-(case-insensitive). A line naming both kinds is ambiguous and stays orphan
-prose. Each section runs from its lead-in line to the next lead-in line or
-the end of the operation block, so both kinds may appear in one operation,
-in either order.
+An operation's Input Data Elements and Parameters are listed under an
+`* Input Data Elements:` / `* Parameters:` item of its `* Input:`
+attribute, laid out exactly like an object's `* Data Elements:` list: one
+`* <Name>` entry per definition, its attribute bullets one level deeper
+(`_parse_io_definition()`; indentation read from the source).
 
-Each definition bullet must have at minimum an `* Identifier:` sub-bullet;
+```
+* Input:
+  * Reference: This Object
+  * Parameters:
+    * Hosts Filter
+      * Identifier: hostsFilter
+      * Cardinality: 0-1
+      * ...
+```
+
+Each of the two items is allowed in Input only and at most once, with a
+blank inline value and at least one entry (`[OP IO INVALID]` otherwise). Their
+definitions also fill `OperationDef.inputs` / `params` for the IANA check.
+No sentence in the operation body is a marker: a former lead-in line such
+as "The following parameters are defined for this operation:" is plain
+orphan prose.
+
+Each definition must have at minimum an `* Identifier:` sub-bullet
+(`[OP IO INVALID]` otherwise);
 `* Cardinality:`, `* Data Type:`, `* Description:` and `* Constraints:`
 (`PARAM_ATTR_KEYS`) are captured when present. Any other attribute bullet
 is kept verbatim in `extra_attrs` and reported as
 `[INPUT|PARAM ATTR NOT APPLICABLE]`; it is never exported and blocks
-`--yaml-out`. Operation field bullets (`* Input:`,
-`* Output:`, `* Authorisation:`) inside a section are parsed as fields, not
-as definitions.
-
-Lead-in lines without the words above (e.g. the former "transient data
-element" wording) are not recognised: their bullets are not parsed as
-definitions and their text shows up as orphan prose.
+`--yaml-out`.
 
 ### Constraints (and other list-valued attributes)
 
@@ -518,21 +529,32 @@ differs from elements/objects:
 - **Description** is never a `* Description:` bullet (that form is
   element/object-only) — it is plain prose written directly after
   `* Identifier:`. Every prose paragraph between `* Identifier:` and the
-  first recognised field bullet below (or the first input/parameter lead-in
-  line) is the description, newline-joined if there is more than one
+  first recognised field bullet below is the description, newline-joined if there is more than one
   paragraph.
 - **`* Authorisation:`** always has a blank inline value followed by a
   nested bullet list — parsed the same way as a Constraints sub-list (one
   string per top-level bullet, deeper nesting such as "Pull transfer:" /
   "Push transfer:" sub-cases newline-folded into that entry). Its
   indentation is read from the source, not assumed.
-- **`* Input:`** / **`* Output:`** are captured as plain strings: the inline
-  value, or — when the inline value is blank — the items of the nested
-  bullet list, newline-joined.
-- Field bullets are recognised anywhere after the description, in any order
-  (e.g. `* Output:` after a list of input data elements).
-- Any prose after the description that is not a field bullet, lead-in line
-  or input/parameter definition (e.g. a further explanatory paragraph
+- **`* Input:`** / **`* Output:`** follow the draft's "Operation Input and
+  Output" notation and are parsed into `IOItemDef` lists
+  (`_parse_io_items()`): inline `(None)` gives `[]`; otherwise each nested
+  bullet `<Kind>: <target>` (`Reference`, `Object`, `Changes`) is one item,
+  with optional sub-bullets `* Elements: <mutability>, …` (Object/Changes,
+  required) and `* Cardinality: <card>` (Object only, default `1`); an
+  `Input Data Elements` / `Parameters` item carries definitions (see
+  [Input data elements and parameters](#input-data-elements-and-parameters)). Any
+  other form is recorded in `io_errors` and reported as `[OP IO INVALID]`;
+  free text is never interpreted. An absent attribute stays `None`.
+- **Uniform interface defaults.** `parse_uniform_interface()` parses the
+  headings under `### Uniform interface` (`#### Create`, …) the same way,
+  keyed by the lower-cased heading text. `apply_uniform_interface()` gives
+  every Data Object operation with that identifier the default Input
+  and/or Output it does not declare itself. Every operation must end up
+  with both (`[OP IO MISSING]`).
+- Field bullets are recognised anywhere after the description, in any order.
+- Any prose after the description that is not a field bullet with its
+  nested list (e.g. a further explanatory paragraph
   following Authorisation) is NOT part of the description — it stays in the
   operation's `notes`.
 
@@ -738,8 +760,8 @@ the list items at the source.
 | `_object_lead_prose()` | start of `ObjectDef.preamble` | from just after an object's heading to its `* Name:` bullet |
 | `_parse_object_body()` | `ObjectDef.preamble` | from the end of the object's header attribute bullets to its first element/operation |
 | `_parse_normative_elements_nested()` / `_parse_normative_elements_flat()` | `ElementDef.notes` | from just after the element header bullet to the next element (or block end) |
-| `_parse_normative_operations_nested()` (via `_parse_operation_body_fields()`) | `OperationDef.notes` | the operation body after the description, excluding field bullets (with nested lists), input/parameter lead-in lines and each parsed definition's own range |
-| `_parse_normative_params_from_bullets()` | `ParamDef.notes` (in `inputs` or `params`) | from just after the definition's header bullet to the next 0-indent bullet (or section end) |
+| `_parse_normative_operations_nested()` (via `_parse_operation_body_fields()`) | `OperationDef.notes` | the operation body after the description, excluding field bullets with their nested lists |
+| `_parse_io_definition()` | `ParamDef.notes` (an entry of an Input Data Elements / Parameters item) | the entry's own nested lines |
 | `_parse_subsection_body()` | `SubsectionDef.notes` | a generic subsection's body — prose paragraphs and 0-indent bullet lists, in document order (not `extract_orphan_prose`, which treats bullets as headers to skip; see **Generic subsections** above) |
 
 ### Warnings
@@ -794,18 +816,22 @@ operations:
     name: Create Operation
     description: "..."     # prose after "* Identifier:" — see Operation body fields above
     authorisation: []      # list of strings — see Operation body fields above
-    input: ""
-    output: ""
+    input:                 # IOItemDef items; [] for "(None)"
+      - kind: Reference
+        target: This Object
+        elements: []
+        cardinality: "1"
+      - kind: Parameters   # or "Input Data Elements"
+        definitions:
+          - identifier: ...
+            name: ...
+            cardinality: "..."
+            data_type: "..."
+            description: "..."
+            constraints: []
+            notes: []
+    output: []
     notes: []              # orphan prose beyond description/authorisation/input/output
-    inputs:                # Input Data Elements
-      - identifier: ...
-        name: ...
-        cardinality: "..."
-        data_type: "..."
-        description: "..."
-        constraints: []
-        notes: []
-    params: []             # Parameters — same shape as inputs
 subsections:                # non-Data-Elements/Operations/Processes headings
   - heading: "RDATA Structures in EPP Profile"
     anchor: "{#rdata-structures}"
@@ -872,8 +898,10 @@ list-parsing for nested and flat element/parameter layouts (including
 blank-line/`A>`-aside tolerance between attribute bullets (elements,
 parameters, and object headers); operation description/authorisation/
 input/output field parsing, including the multi-paragraph-description-vs-
-trailing-notes split; input data element / parameter lead-in detection,
-section splitting, out-of-order field bullets and `extra_attrs`; the
+trailing-notes split; Input Data Elements / Parameters items (several entries, nested
+constraints, rejection in Output, repeated/inline/empty items, a former
+lead-in line as orphan prose) and
+`extra_attrs`; the
 YAML export refusing uncovered attributes; IANA
 `Input Data Elements`/`Parameters` section parsing (including absence);
 the operation-input checks (kind mismatch, missing in either direction,
@@ -887,7 +915,8 @@ orphan-prose extraction (paragraph joining, aside skipping,
 empty-when-fully-structured, fenced blocks skipped); unique
 identifier and owner; Direct Access/Visibility parsing and the element
 attribute checks; the element list ending at a heading; subsection tables
-and nesting; Organisation/User section recognition; an
+and nesting; Input/Output notation parsing, the Uniform interface
+defaults and the operation Input/Output check; Organisation/User section recognition; an
 end-to-end check that the real draft's `organisation`/`user` objects parse;
 YAML model structure; and a YAML round-trip (render → `yaml.safe_load` →
 verify).

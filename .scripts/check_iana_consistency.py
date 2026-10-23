@@ -54,6 +54,7 @@ Supported-process level (normative-only, no IANA table involved):
 """
 
 import argparse
+import copy
 import re
 import sys
 from dataclasses import dataclass, field
@@ -187,14 +188,42 @@ class ParamDef:
 
 
 @dataclass
+class IOItemDef:
+    """
+    One item of an operation's Input or Output, in the notation of the
+    draft's "Operation Input and Output" section:
+
+      * Object: Transfer Process Object     <- kind: target
+        * Elements: create-only, read-write
+        * Cardinality: 0+
+      * Parameters:                          <- kind, then definitions laid
+        * Hosts Filter                          out like "* Data Elements:"
+          * Identifier: hostsFilter
+          * ...
+    """
+    kind: str          # one of IO_KINDS or IO_DEFINITION_KINDS
+    target: str = ""   # an object Name, "This Object", "Owner Data Object";
+                       # "" for a definition kind
+    elements: list[str] = field(default_factory=list)  # Mutability values
+    cardinality: str = "1"
+    # "Input Data Elements" / "Parameters" items: the definitions.
+    definitions: list["ParamDef"] = field(default_factory=list)
+
+
+@dataclass
 class OperationDef:
     name: str          # human-readable name (e.g. "Create", "Read")
     identifier: str    # machine-readable id (e.g. "create", "read")
     line: int          # 1-based line number
     description: str = ""
     authorisation: list[str] = field(default_factory=list)
-    input: str = ""
-    output: str = ""
+    # "* Input:" / "* Output:" items; None when the operation declares no
+    # such attribute ("(None)" gives []). A Data Object operation without
+    # one gets the Uniform interface default (apply_uniform_interface).
+    input: list[IOItemDef] | None = None
+    output: list[IOItemDef] | None = None
+    # Notation problems found while parsing Input/Output ([OP IO INVALID]).
+    io_errors: list[str] = field(default_factory=list)
     inputs: list[ParamDef] = field(default_factory=list)  # Input Data Elements
     params: list[ParamDef] = field(default_factory=list)  # Parameters
     notes: list[str] = field(default_factory=list)
@@ -837,105 +866,45 @@ PARAM_ATTR_KEYS = {"identifier", "cardinality", "data type", "description",
                    "constraints"}
 
 
-def _parse_normative_params_from_bullets(lines: list[str], start: int,
-                                         end: int,
-                                         ranges_out: list[tuple[int, int]] | None = None,
-                                         ) -> list[ParamDef]:
+def _parse_io_definition(lines: list[str], header: int, end: int,
+                         name: str) -> tuple[ParamDef | None, list[str]]:
     """
-    Parse Input Data Element or Parameter definitions from a bullet block.
-    Used for both nested (Process, 4-space attrs) and flat (Data Object, 2-space attrs).
-
-    Nested (Process objects – params live inside the #### heading block):
-      * Param Name              ← 0-indent
-        * Identifier: foo       ← 2-space indent
-        * Cardinality: 0-1
-        * Data Type: String
-
-    The function tries 2-space attrs first and falls back to 4-space if not found.
-    Operation field bullets ("* Input:", "* Output:", "* Authorisation:")
-    and attribute bullets are never treated as headers. If *ranges_out* is
-    given, the 0-based half-open line range of each parsed definition is
-    appended to it.
+    The definition whose "* <Name>" bullet is lines[header], an entry of an
+    "Input Data Elements:" / "Parameters:" item: the attribute bullets one level
+    deeper (indentation read from the source) up to *end*. Attributes
+    beyond PARAM_ATTR_KEYS are kept in extra_attrs. Returns (definition or
+    None, errors).
     """
-    params: list[ParamDef] = []
-    i = start
-    while i < end:
-        raw = lines[i]
-        m_param = re.match(r"^\* (.+)$", raw)
-        if m_param:
-            param_name_raw = m_param.group(1).strip()
-            # Skip bullet lines that are not parameter headers
-            if _OP_FIELD_BULLET_RE.match(raw) or _is_attr_bullet(raw):
-                i += 1
-                continue
-            param_line = i + 1
-            # Find end of this param's block (next 0-indent bullet or end)
-            param_end = end
-            for k in range(i + 1, end):
-                if re.match(r"^\* \S", lines[k]):
-                    param_end = k
-                    break
-            # Try 2-space indent first, then 4-space
-            attr_indent = 2
-            attrs = _collect_element_attrs(lines, i + 1, end, indent=attr_indent)
-            if not attrs.get("identifier"):
-                attr_indent = 4
-                attrs = _collect_element_attrs(lines, i + 1, end, indent=attr_indent)
-            param_id = attrs.get("identifier",  ("", 0))[0]
-            card     = attrs.get("cardinality", ("", 0))[0]
-            dtype    = attrs.get("data type",   ("", 0))[0]
-            desc     = attrs.get("description", ("", 0))[0]
-            cons, cons_range = _collect_constraints_list(
-                lines, param_end, attrs, attr_indent=attr_indent)
-            id_line  = attrs.get("identifier",  ("", param_line))[1]
-            extra = {k: v for k, (v, _) in attrs.items()
-                     if k not in PARAM_ATTR_KEYS}
-            if param_id:
-                if ranges_out is not None:
-                    ranges_out.append((i, param_end))
-                notes = extract_orphan_prose(
-                    lines, i + 1, param_end,
-                    label=f"parameter '{param_id}'",
-                    source_ref=f"line {param_line}",
-                    skip_ranges=[cons_range] if cons_range else None)
-                params.append(ParamDef(
-                    identifier=param_id,
-                    name=param_name_raw,
-                    cardinality=card,
-                    data_type=dtype,
-                    line=id_line,
-                    description=desc,
-                    constraints=cons,
-                    notes=notes,
-                    extra_attrs=extra,
-                ))
-        i += 1
-    return params
+    k = header + 1
+    while k < end and lines[k].strip() == "":
+        k += 1
+    if k >= end:
+        return None, [f"definition '{name}' has no attributes."]
+    indent = len(lines[k]) - len(lines[k].lstrip(" "))
+    attrs = _collect_element_attrs(lines, header + 1, end, indent=indent)
+    param_id = attrs.get("identifier", ("", 0))[0]
+    if not param_id:
+        return None, [f"definition '{name}' has no Identifier."]
+    cons, cons_range = _collect_constraints_list(lines, end, attrs, attr_indent=indent)
+    notes = extract_orphan_prose(
+        lines, header + 1, end,
+        label=f"input item '{param_id}'",
+        source_ref=f"line {header + 1}",
+        skip_ranges=[cons_range] if cons_range else None)
+    return ParamDef(
+        identifier=param_id,
+        name=name,
+        cardinality=attrs.get("cardinality", ("", 0))[0],
+        data_type=attrs.get("data type", ("", 0))[0],
+        line=attrs["identifier"][1],
+        description=attrs.get("description", ("", 0))[0],
+        constraints=cons,
+        notes=notes,
+        extra_attrs={k: v for k, (v, _) in attrs.items() if k not in PARAM_ATTR_KEYS},
+    ), []
 
 
 _OP_FIELD_BULLET_RE = re.compile(r"^\* (Authorisation|Input|Output):\s*(.*)$")
-
-# A lead-in line introducing a list of Input Data Elements or Parameters for
-# an operation, e.g. "The following parameters are defined for this
-# operation:". It is any non-bullet prose line that ends with ":" and names
-# exactly one of the two kinds; a line naming both is ambiguous and is left
-# as orphan prose.
-_OP_INPUTS_MARKER_RE = re.compile(r"\binput data elements?\b", re.IGNORECASE)
-_OP_PARAMS_MARKER_RE = re.compile(r"\bparameters?\b", re.IGNORECASE)
-
-
-def _op_section_marker_kind(raw: str) -> str | None:
-    """Return "inputs", "params" or None for an operation body line."""
-    stripped = raw.strip()
-    if (not stripped.endswith(":") or stripped.startswith(("*", "#", "|"))
-            or _ASIDE_RE.match(raw)):
-        return None
-    has_inputs = bool(_OP_INPUTS_MARKER_RE.search(stripped))
-    has_params = bool(_OP_PARAMS_MARKER_RE.search(stripped))
-    if has_inputs == has_params:
-        return None
-    return "inputs" if has_inputs else "params"
-
 
 def _parse_operation_body_fields(
         lines: list[str], body_start: int, body_end: int,
@@ -948,20 +917,20 @@ def _parse_operation_body_fields(
     plain prose (never a "* Description:" bullet, which is element/object-
     only) immediately following "* Identifier:", ending at the first
     recognised field bullet - "* Authorisation:", "* Input:", or
-    "* Output:" - or the first Input Data Elements / Parameters lead-in
-    line, whichever comes first. That prose is collected via
+    "* Output:". That prose is collected via
     _parse_subsection_body (so paragraph breaks are preserved as separate
     description lines, joined with "\\n") rather than extract_orphan_prose's
     space-joining, matching the newline-preserving convention chosen for
     multi-paragraph descriptions.
 
     Field bullets are recognised anywhere in the rest of the body, in any
-    order (e.g. "* Output:" after a list of input data elements). Each field
+    order. Each field
     takes either an inline value or, when the inline value is blank, a
     nested bullet list:
     - "* Authorisation:" becomes a list of strings (one per top-level item).
-    - "* Input:"/"* Output:" stay plain strings; nested list items are
-      newline-joined.
+    - "* Input:"/"* Output:" become lists of IOItemDef (_parse_io_items),
+      including the Input Data Element / Parameter definitions; notation
+      problems are returned in io_errors.
 
     field_ranges are the 0-based half-open line ranges consumed by field
     bullets (including any nested list), for the caller to exclude from
@@ -969,7 +938,7 @@ def _parse_operation_body_fields(
     """
     desc_end = body_end
     for j in range(body_start, body_end):
-        if _OP_FIELD_BULLET_RE.match(lines[j]) or _op_section_marker_kind(lines[j]):
+        if _OP_FIELD_BULLET_RE.match(lines[j]):
             desc_end = j
             break
 
@@ -977,8 +946,9 @@ def _parse_operation_body_fields(
     description = "\n".join(desc_paragraphs)
 
     authorisation: list[str] = []
-    op_input = ""
-    op_output = ""
+    op_input: list[IOItemDef] | None = None
+    op_output: list[IOItemDef] | None = None
+    io_errors: list[str] = []
     field_ranges: list[tuple[int, int]] = []
     j = desc_end
     while j < body_end:
@@ -990,6 +960,7 @@ def _parse_operation_body_fields(
         inline_val = m.group(2).strip()
         items: list[str] = [inline_val] if inline_val else []
         consumed_end = j + 1
+        list_start = consumed_end
         if not inline_val:
             # Blank inline value: the nested bullet list's indentation is
             # read from the source (not assumed) - same approach as
@@ -999,17 +970,120 @@ def _parse_operation_body_fields(
                 k += 1
             if k < body_end and re.match(r"^ +\* \S", lines[k]):
                 actual_indent = len(lines[k]) - len(lines[k].lstrip(" "))
+                list_start = k
                 items, consumed_end = _parse_nested_bullet_list(
                     lines, k, body_end, indent=actual_indent)
         field_ranges.append((j, consumed_end))
         if field_name == "Authorisation":
             authorisation = items
-        elif field_name == "Input":
-            op_input = "\n".join(items)
-        else:  # Output
-            op_output = "\n".join(items)
+        else:  # Input / Output
+            io_items, errs = _parse_io_items(lines, list_start, consumed_end,
+                                             inline_val, field_name)
+            io_errors.extend(f"{field_name} (line {j + 1}): {e}" for e in errs)
+            if field_name == "Input":
+                op_input = io_items
+            else:
+                op_output = io_items
         j = consumed_end
-    return description, authorisation, op_input, op_output, desc_end, field_ranges
+    return (description, authorisation, op_input, op_output, io_errors,
+            desc_end, field_ranges)
+
+
+IO_KINDS = ("Reference", "Object", "Changes")
+# Item kinds holding a list of definitions, laid out like an object's
+# "* Data Elements:"; allowed in Input only, at most once each.
+IO_DEFINITION_KINDS = ("Input Data Elements", "Parameters")
+IO_KEYWORD_TARGETS = ("This Object", "Owner Data Object")
+MUTABILITY_VALUES = ("create-only", "read-only", "read-write")
+CARDINALITY_VALUES = ("1", "0-1", "0+", "1+")
+_IO_ITEM_RE = re.compile(r"^( *)\* ([\w ]+?):\s*(.*?)\s*$")
+
+
+def _parse_io_items(lines: list[str], start: int, end: int, inline_val: str,
+                    field_name: str) -> tuple[list[IOItemDef], list[str]]:
+    """
+    Parse an "* Input:"/"* Output:" value: inline "(None)" gives [], any
+    other inline value is not the notation. Otherwise lines[start:end] is
+    the nested item list; each bullet at its first line's indentation is
+    one item "<Kind>: <target>":
+    - Reference / Object / Changes: sub-bullets "* Elements: ..." and
+      (Object only) "* Cardinality: ...".
+    - Input Data Elements / Parameters (Input only, at most once each): a
+      blank value, then one "* <Name>" entry per definition one level deeper,
+      each parsed by _parse_io_definition.
+    Returns (items, errors); target names are resolved later by
+    check_operation_io, which knows every object.
+    """
+    if inline_val:
+        if inline_val == "(None)":
+            return [], []
+        return [], [f"inline value '{inline_val}' is neither '(None)' nor a "
+                    f"nested list of items."]
+    if start >= end:
+        return [], ["blank value without a nested list of items."]
+    indent = len(lines[start]) - len(lines[start].lstrip(" "))
+    headers = [h for h in range(start, end)
+               if lines[h].startswith(" " * indent + "* ")]
+    result: list[IOItemDef] = []
+    errors: list[str] = []
+    for n, h in enumerate(headers):
+        h_end = headers[n + 1] if n + 1 < len(headers) else end
+        m = _IO_ITEM_RE.match(lines[h])
+        kind = m.group(2) if m else ""
+        if kind not in IO_KINDS + IO_DEFINITION_KINDS:
+            errors.append(f"item '{lines[h].strip()}' is not one of: "
+                          f"{', '.join(k + ': ...' for k in IO_KINDS + IO_DEFINITION_KINDS)}.")
+            continue
+        if kind in IO_DEFINITION_KINDS:
+            if field_name != "Input":
+                errors.append(f"{kind} item is allowed in Input only.")
+            if any(r.kind == kind for r in result):
+                errors.append(f"{kind} item is given more than once.")
+            if m.group(3):
+                errors.append(f"{kind} item has an inline value "
+                              f"'{m.group(3)}' instead of a nested list.")
+            io = IOItemDef(kind=kind)
+            entries = [e for e in range(h + 1, h_end)
+                       if re.match(r"^ *\* ", lines[e])]
+            entry_indent = (len(lines[entries[0]]) - len(lines[entries[0]].lstrip(" "))
+                            if entries else 0)
+            entries = [e for e in entries if lines[e].startswith(" " * entry_indent + "* ")
+                       and not lines[e].startswith(" " * (entry_indent + 1))]
+            if not entries or entry_indent <= indent:
+                errors.append(f"{kind} item has no definitions.")
+            for n_e, e in enumerate(entries):
+                e_end = entries[n_e + 1] if n_e + 1 < len(entries) else h_end
+                name = lines[e].strip()[2:].strip()
+                definition, errs = _parse_io_definition(lines, e, e_end, name)
+                errors.extend(errs)
+                if definition is not None:
+                    io.definitions.append(definition)
+            result.append(io)
+            continue
+        io = IOItemDef(kind=kind, target=m.group(3))
+        for sub in lines[h + 1:h_end]:
+            if sub.strip() == "":
+                continue
+            m_sub = _IO_ITEM_RE.match(sub)
+            key = m_sub.group(2) if m_sub and len(m_sub.group(1)) > indent else ""
+            if key == "Elements" and kind != "Reference":
+                io.elements = [v.strip() for v in m_sub.group(3).split(",") if v.strip()]
+            elif key == "Cardinality" and kind == "Object":
+                io.cardinality = m_sub.group(3)
+            else:
+                errors.append(f"'{sub.strip()}' is not a sub-attribute of a {kind} item.")
+        if kind != "Reference" and not io.elements:
+            errors.append(f"{kind} item '{io.target}' has no Elements.")
+        bad = [e for e in io.elements if e not in MUTABILITY_VALUES]
+        if bad:
+            errors.append(f"{kind} item '{io.target}': Elements {bad} are "
+                          f"not Mutability values.")
+        if io.cardinality not in CARDINALITY_VALUES:
+            errors.append(f"{kind} item '{io.target}': Cardinality "
+                          f"'{io.cardinality}' is not one of: "
+                          f"{', '.join(CARDINALITY_VALUES)}.")
+        result.append(io)
+    return result, errors
 
 
 def _parse_normative_operations_nested(lines: list[str],
@@ -1025,9 +1099,9 @@ def _parse_normative_operations_nested(lines: list[str],
     Within each operation block, `* Identifier: <id>` provides the machine id.
     Operations without a `* Identifier:` bullet are recorded with identifier=""
     so that callers can report them as [OP MISSING IDENTIFIER].
-    Input Data Elements and Parameters are the bullet definitions following a
-    lead-in line (see _op_section_marker_kind), up to the next lead-in line
-    or the end of the operation block.
+    Input Data Elements and Parameters are the definitions in the
+    "Input Data Elements:" / "Parameters:" items of the operation's Input
+    (see _parse_io_items).
     """
     operations: list[OperationDef] = []
     i = ops_start
@@ -1062,33 +1136,23 @@ def _parse_normative_operations_nested(lines: list[str],
                 break
 
         body_start = id_line + 1
-        (op_desc, authorisation, op_input, op_output,
+        (op_desc, authorisation, op_input, op_output, io_errors,
          desc_end, field_ranges) = _parse_operation_body_fields(
             lines, body_start, block_end)
 
-        # Split the rest of the body into Input Data Elements / Parameters
-        # sections, each running from its lead-in line to the next lead-in
-        # line or the end of the block.
-        markers = [(j, kind) for j in range(desc_end, block_end)
-                   if (kind := _op_section_marker_kind(lines[j]))]
-        inputs: list[ParamDef] = []
-        params: list[ParamDef] = []
-        def_ranges: list[tuple[int, int]] = []
-        for idx, (m_line, kind) in enumerate(markers):
-            sec_end = markers[idx + 1][0] if idx + 1 < len(markers) else block_end
-            parsed = _parse_normative_params_from_bullets(
-                lines, m_line + 1, sec_end, ranges_out=def_ranges)
-            (inputs if kind == "inputs" else params).extend(parsed)
+        inputs = [d for io in op_input or [] if io.kind == "Input Data Elements"
+                  for d in io.definitions]
+        params = [d for io in op_input or [] if io.kind == "Parameters"
+                  for d in io.definitions]
 
         # Orphan prose covers whatever remains of the operation body after
-        # the description, excluding field bullets, lead-in lines and the
-        # parsed definitions (whose own prose lands in their notes).
-        skip = field_ranges + def_ranges + [(m, m + 1) for m, _ in markers]
+        # the description, excluding field bullets with their nested lists
+        # (a definition's own prose lands in its notes).
         notes = extract_orphan_prose(
             lines, desc_end, block_end,
             label=f"operation '{op_id or op_name}'",
             source_ref=f"line {op_line}",
-            skip_ranges=skip)
+            skip_ranges=field_ranges)
 
         # Always record the operation; identifier="" signals missing identifier
         operations.append(OperationDef(
@@ -1099,6 +1163,7 @@ def _parse_normative_operations_nested(lines: list[str],
             authorisation=authorisation,
             input=op_input,
             output=op_output,
+            io_errors=io_errors,
             inputs=inputs,
             params=params,
             notes=notes,
@@ -2446,6 +2511,40 @@ def check_element_attrs(norm_obj: ObjectDef, norm_names: set[str]) -> list[str]:
     return errors
 
 
+def check_operation_io(norm_obj: ObjectDef, norm_names: set[str]) -> list[str]:
+    """
+    Normative-only check of operation Input/Output (after the Uniform
+    interface defaults are applied): notation problems found while parsing
+    ([OP IO INVALID]), an item target that is neither a normative object's
+    Name nor a keyword, "Owner Data Object" outside a Process Object, and an
+    operation left without Input or Output ([OP IO MISSING]).
+    """
+    errors: list[str] = []
+    for op in norm_obj.operations:
+        where = (f"object '{norm_obj.identifier}', op '{op.identifier or op.name}' "
+                 f"(normative line {op.line})")
+        for e in op.io_errors:
+            errors.append(f"[OP IO INVALID] {where}: {e}")
+        for field_name, items in (("Input", op.input), ("Output", op.output)):
+            if items is None:
+                errors.append(f"[OP IO MISSING] {where}: no {field_name} declared "
+                              f"and no Uniform interface default applies.")
+                continue
+            for io in items:
+                if io.kind in IO_DEFINITION_KINDS:
+                    continue
+                if io.target == "Owner Data Object" and norm_obj.obj_type != "Process":
+                    errors.append(f"[OP IO INVALID] {where}: {field_name} item "
+                                  f"'{io.kind}: Owner Data Object' outside a "
+                                  f"Process Object.")
+                elif (io.target not in IO_KEYWORD_TARGETS
+                        and _norm(io.target) not in norm_names):
+                    errors.append(f"[OP IO INVALID] {where}: {field_name} item "
+                                  f"'{io.kind}: {io.target}' names no normative "
+                                  f"object.")
+    return errors
+
+
 def check_operations(norm_obj: ObjectDef, iana_obj: ObjectDef) -> list[str]:
     errors: list[str] = []
     prefix = f"object '{norm_obj.identifier}'"
@@ -2672,17 +2771,26 @@ def _element_to_dict(e: ElementDef) -> dict:
     }
 
 
+def _io_to_list(items: list[IOItemDef] | None) -> list[dict] | None:
+    if items is None:
+        return None
+    return [{"kind": i.kind,
+             "definitions": [_param_to_dict(d) for d in i.definitions]}
+            if i.kind in IO_DEFINITION_KINDS
+            else {"kind": i.kind, "target": i.target, "elements": list(i.elements),
+                  "cardinality": i.cardinality}
+            for i in items]
+
+
 def _operation_to_dict(op: OperationDef) -> dict:
     return {
         "identifier": op.identifier,
         "name": op.name,
         "description": op.description,
         "authorisation": list(op.authorisation),
-        "input": op.input,
-        "output": op.output,
+        "input": _io_to_list(op.input),
+        "output": _io_to_list(op.output),
         "notes": list(op.notes),
-        "inputs": [_param_to_dict(p) for p in op.inputs],
-        "params": [_param_to_dict(p) for p in op.params],
     }
 
 
@@ -2799,6 +2907,60 @@ def render_yaml(normative: list[ObjectDef],
 # Entry point
 # ---------------------------------------------------------------------------
 
+UNIFORM_INTERFACE_HEADING = "### Uniform interface"
+
+
+def parse_uniform_interface(lines: list[str],
+                            iana_start: int) -> dict[str, OperationDef]:
+    """
+    The Uniform interface defaults: every heading one level below
+    "### Uniform interface" (e.g. "#### Create") is one default, keyed by
+    the lower-cased heading text (the operation Identifier it applies to,
+    the same derivation IANA operations without an "Operation Identifier"
+    use). Its body is parsed like any operation body.
+    """
+    defaults: dict[str, OperationDef] = {}
+    for i in range(iana_start):
+        if lines[i].rstrip() != UNIFORM_INTERFACE_HEADING:
+            continue
+        section_end = iana_start
+        for k in range(i + 1, iana_start):
+            if re.match(r"^#{1,3} [^#]", lines[k]):
+                section_end = k
+                break
+        for h_line, h_end, h_text, _anchor in _find_sibling_headings(
+                lines, i + 1, section_end, level=4):
+            (_desc, _auth, op_input, op_output, io_errors,
+             _desc_end, _ranges) = _parse_operation_body_fields(lines, h_line + 1, h_end)
+            defaults[h_text.lower()] = OperationDef(
+                name=h_text, identifier=h_text.lower(), line=h_line + 1,
+                input=op_input, output=op_output, io_errors=io_errors)
+        break
+    return defaults
+
+
+def apply_uniform_interface(normative: list[ObjectDef],
+                            defaults: dict[str, OperationDef]) -> None:
+    """
+    Give each Data Object (Resource) operation the Uniform interface default
+    Input/Output for its Identifier where it declares none. Notation
+    problems of a default are attached to the operations that use it.
+    """
+    for obj in normative:
+        if obj.obj_type != "Resource":
+            continue
+        for op in obj.operations:
+            default = defaults.get(op.identifier)
+            if default is None:
+                continue
+            for field_name in ("input", "output"):
+                if getattr(op, field_name) is None:
+                    setattr(op, field_name, copy.deepcopy(getattr(default, field_name)))
+                    op.io_errors.extend(f"Uniform interface default: {e}"
+                                        for e in default.io_errors
+                                        if e.lower().startswith(field_name))
+
+
 def parse_document(
     path: Path,
 ) -> tuple[list[ObjectDef], list[ObjectDef], dict[str, list[str]]]:
@@ -2819,6 +2981,7 @@ def parse_document(
 
     group_notes: dict[str, list[str]] = {}
     normative     = parse_normative_objects(lines, iana_start, group_notes)
+    apply_uniform_interface(normative, parse_uniform_interface(lines, iana_start))
     iana          = parse_iana_objects(lines, iana_start)
     section_notes = parse_section_notes(lines, iana_start)
     section_notes.update(group_notes)
@@ -2866,6 +3029,7 @@ def run_consistency_check(normative: list[ObjectDef], iana: list[ObjectDef],
         errors.extend(check_supported_processes(norm_obj, norm_names))
         errors.extend(check_operation_item_attrs(norm_obj))
         errors.extend(check_element_attrs(norm_obj, norm_names))
+        errors.extend(check_operation_io(norm_obj, norm_names))
 
     iana_by_id  = {o.identifier: o for o in iana}
     elem_errors: list[tuple[ObjectDef, list[str]]] = []
@@ -3258,19 +3422,19 @@ def _test_param_attrs_tolerate_blank_lines_and_asides_between_bullets():
     attributes - must not break or misattribute parameter parsing.
     """
     lines = [
-        "* Hosts Filter",
-        "  * Identifier: hostsFilter",
+        "    * Hosts Filter",
+        "      * Identifier: hostsFilter",
         "",
         "A> TODO: reconsider default value",
         "",
-        "  * Cardinality: 0-1",
-        "  A> TBD: data type still under review",
-        "  * Data Type: String",
-        "  * Description: Controls which host information is returned.",
+        "      * Cardinality: 0-1",
+        "      A> TBD: data type still under review",
+        "      * Data Type: String",
+        "      * Description: Controls which host information is returned.",
     ]
-    params = _parse_normative_params_from_bullets(lines, 0, len(lines))
-    assert len(params) == 1, params
-    p = params[0]
+    p, errors = _parse_io_definition(lines, 0, len(lines), "Hosts Filter")
+    assert errors == [] and p is not None, errors
+    assert p.name == "Hosts Filter"
     assert p.identifier == "hostsFilter"
     assert p.cardinality == "0-1", p.cardinality
     assert p.data_type == "String", p.data_type
@@ -3283,7 +3447,7 @@ def _test_operation_description_authorisation_input_output():
     Regression test based on the Transfer Process Object's Read/Delete/
     Approve operations: description is plain prose after "* Identifier:"
     (never a "* Description:" bullet), Authorisation is a nested bullet
-    list, Input/Output are single-line values.
+    list, Input/Output use the item notation ("(None)" or nested items).
     """
     lines = [
         "#### Read (Transfer Query) {#transfer-read}",
@@ -3297,8 +3461,10 @@ def _test_operation_description_authorisation_input_output():
         "  * This operation MUST be accessible to both the sponsoring client and the gaining client.",
         "  * Server policy determines whether other clients may query transfer status and what information is returned.",
         "",
-        "* Input: None",
-        "* Output: Transfer Process Object",
+        "* Input: (None)",
+        "* Output:",
+        "  * Object: Transfer Process Object",
+        "    * Elements: read-write, read-only",
         "",
         "#### Delete (Transfer Cancel) {#transfer-delete}",
     ]
@@ -3318,8 +3484,10 @@ def _test_operation_description_authorisation_input_output():
         "This operation MUST be accessible to both the sponsoring client and the gaining client.",
         "Server policy determines whether other clients may query transfer status and what information is returned.",
     ], op.authorisation
-    assert op.input == "None"
-    assert op.output == "Transfer Process Object"
+    assert op.input == []
+    assert op.output == [IOItemDef(kind="Object", target="Transfer Process Object",
+                                   elements=["read-write", "read-only"])], op.output
+    assert op.io_errors == []
     assert op.notes == []
 
 
@@ -3906,11 +4074,12 @@ def _test_parse_document_covers_organisation_and_user():
 
 def _test_operation_inputs_and_params_sections():
     """
-    Input Data Elements and Parameters are each introduced by a lead-in line
-    naming the kind; field bullets are recognised in any order (here
-    "* Output:" after the inputs), a blank "* Input:" takes a nested list,
-    lead-in lines are not orphan prose, and attributes beyond PARAM_ATTR_KEYS
-    are kept in extra_attrs.
+    Input Data Elements and Parameters are listed under "Input Data
+    Elements:" / "Parameters:" items of "* Input:", laid out like an
+    object's Data Elements (nested constraint lists included); they fill
+    op.inputs / op.params, attributes beyond PARAM_ATTR_KEYS are kept in
+    extra_attrs, a former lead-in sentence is plain orphan prose (never a
+    marker), and a definition item in Output is reported.
     """
     lines = [
         "#### Reject {#x-reject}",
@@ -3920,47 +4089,53 @@ def _test_operation_inputs_and_params_sections():
         "The Reject operation declines a pending request.",
         "",
         "* Input:",
-        "  * Process Object reference",
+        "  * Reference: Owner Data Object",
+        "  * Input Data Elements:",
+        "    * Reason",
+        "      * Identifier: reason",
+        "      * Cardinality: 0-1",
+        "      * Data Type: String",
+        "      * Constraints:",
+        "        * MUST NOT be empty.",
+        "        * At most 255 characters.",
+        "    * Note",
+        "      * Identifier: note",
+        "      * Cardinality: 0-1",
+        "      * Data Type: String",
+        "  * Parameters:",
+        "    * Verbosity",
+        "      * Identifier: verbosity",
+        "      * Cardinality: 0-1",
+        "      * Mutability: create-only",
+        "      * Data Type: String",
         "",
-        "The following additional input data elements are defined for this operation:",
+        "The following parameters are defined for this operation:",
         "",
-        "* Reason",
-        "  * Identifier: reason",
-        "  * Cardinality: 0-1",
-        "  * Data Type: String",
-        "",
-        "In addition, the following parameters are defined for this operation:",
-        "",
-        "* Verbosity",
-        "  * Identifier: verbosity",
-        "  * Cardinality: 0-1",
-        "  * Mutability: create-only",
-        "  * Data Type: String",
-        "",
-        "* Output: Process Object",
+        "* Output:",
+        "  * Object: Widget Process Object",
+        "    * Elements: read-write, read-only",
+        "    * Cardinality: 0-1",
+        "  * Parameters:",
+        "    * Stray",
+        "      * Identifier: stray",
         "",
     ]
     heading_re = re.compile(r"^#### (.+?)(?:\s*\{[^}]*\})?\s*$")
     op = _parse_normative_operations_nested(lines, 0, len(lines), heading_re)[0]
     assert op.description == "The Reject operation declines a pending request.", op.description
-    assert op.input == "Process Object reference", op.input
-    assert op.output == "Process Object", op.output
-    assert [p.identifier for p in op.inputs] == ["reason"], op.inputs
+    assert [io.kind for io in op.input] == [
+        "Reference", "Input Data Elements", "Parameters"], op.input
+    assert op.output[0] == IOItemDef(kind="Object", target="Widget Process Object",
+                                     elements=["read-write", "read-only"],
+                                     cardinality="0-1"), op.output
+    assert len(op.io_errors) == 1 and "Input only" in op.io_errors[0], op.io_errors
+    assert [p.identifier for p in op.inputs] == ["reason", "note"], op.inputs
+    assert op.inputs[0].name == "Reason"
     assert [p.identifier for p in op.params] == ["verbosity"], op.params
+    assert op.inputs[0].constraints == ["MUST NOT be empty.", "At most 255 characters."]
     assert op.inputs[0].extra_attrs == {}
     assert op.params[0].extra_attrs == {"mutability": "create-only"}
-    assert op.notes == [], op.notes
-
-
-def _test_op_section_marker_requires_single_kind_and_colon():
-    assert _op_section_marker_kind("The following parameters are defined:") == "params"
-    assert _op_section_marker_kind("The following input data element is defined:") == "inputs"
-    # Prose mentioning a kind without introducing a list is not a lead-in.
-    assert _op_section_marker_kind("The parameters are optional.") is None
-    # Naming both kinds is ambiguous.
-    assert _op_section_marker_kind(
-        "The following input data elements and parameters are defined:") is None
-    assert _op_section_marker_kind("* Parameters:") is None
+    assert op.notes == ["The following parameters are defined for this operation:"], op.notes
 
 
 def _test_iana_operation_sections_parsed_and_absence_recorded():
@@ -4098,20 +4273,27 @@ def _test_build_yaml_model_structure():
                               notes=["Extra note."])],
         operations=[OperationDef(identifier="create", name="Create", line=3,
                                   description="Creates it.", notes=[],
-                                  params=[ParamDef(identifier="p1", name="P1",
-                                                    cardinality="0-1", data_type="String",
-                                                    line=4, description="", constraints=[],
-                                                    notes=[])])],
+                                  input=[IOItemDef(kind="Reference", target="This Object"),
+                                         IOItemDef(kind="Parameters",
+                                                   definitions=[ParamDef(
+                                                       identifier="p1", name="P1",
+                                                       cardinality="0-1", data_type="String",
+                                                       line=4)])])],
         preamble=["Intro sentence."],
     )
     model = build_yaml_model([obj], {"# Component Objects": ["Section intro."]})
     assert model["components"][0]["identifier"] == "widget"
     assert model["components"][0]["elements"][0]["constraints"] == ["MUST be positive."]
     assert model["components"][0]["elements"][0]["notes"] == ["Extra note."]
-    assert model["components"][0]["operations"][0]["params"][0]["identifier"] == "p1"
-    assert "extra_attributes" not in model["components"][0]["operations"][0]["params"][0]
+    op = model["components"][0]["operations"][0]
+    assert op["input"][0] == {"kind": "Reference", "target": "This Object",
+                              "elements": [], "cardinality": "1"}, op["input"]
+    assert op["input"][1]["kind"] == "Parameters", op["input"]
+    assert op["input"][1]["definitions"][0]["identifier"] == "p1"
+    assert "extra_attributes" not in op["input"][1]["definitions"][0]
     assert "extra_attributes" not in model["components"][0]["elements"][0]
-    assert model["components"][0]["operations"][0]["inputs"] == []
+    assert "inputs" not in op and "params" not in op, op
+    assert op["output"] is None
     assert model["components"][0]["supported_processes"] == []
     assert model["section_notes"]["# Component Objects"] == ["Section intro."]
     assert model["processes"] == []
@@ -4297,6 +4479,92 @@ def _test_orphan_prose_skips_fenced_block():
     assert notes == ["Before."], notes
 
 
+def _test_parse_io_items_reports_notation_errors():
+    """
+    Input/Output items outside the notation are reported, never guessed:
+    free-text inline values, unknown kinds, missing or invalid Elements,
+    Elements on a Reference, Cardinality on Changes, bad Cardinality, a
+    definition without an Identifier, a repeated or inline-valued or empty
+    Parameters item.
+    """
+    assert _parse_io_items([], 0, 0, "(None)", "Input") == ([], [])
+    _items, errs = _parse_io_items([], 0, 0, "Object identifier", "Input")
+    assert len(errs) == 1 and "inline value" in errs[0], errs
+    lines = [
+        "  * Owner Data Object reference",
+        "  * Reference: Widget Object",
+        "    * Elements: read-only",
+        "  * Object: Widget Object",
+        "  * Object: Widget Object",
+        "    * Elements: read-write, writable",
+        "    * Cardinality: 2",
+        "  * Changes: Widget Object",
+        "    * Elements: read-write",
+        "    * Cardinality: 0+",
+        "  * Parameters:",
+        "    * Nameless",
+        "      * Cardinality: 0-1",
+        "  * Parameters: Inline",
+    ]
+    items, errs = _parse_io_items(lines, 0, len(lines), "", "Input")
+    assert [i.kind for i in items] == ["Reference", "Object", "Object", "Changes",
+                                       "Parameters", "Parameters"], items
+    assert len(errs) == 10, errs
+    assert "has no Identifier" in errs[6], errs
+    assert "more than once" in errs[7] and "inline value" in errs[8], errs
+    assert "no definitions" in errs[9], errs
+    _items, errs = _parse_io_items(lines, 0, 0, "", "Input")
+    assert errs == ["blank value without a nested list of items."], errs
+
+
+def _test_uniform_interface_defaults_and_io_check():
+    """
+    The Uniform interface defaults are parsed from the headings under
+    "### Uniform interface" and applied to Data Object operations that
+    declare no Input/Output; an explicit attribute wins; targets are
+    resolved by object Name or keyword; an operation left without Input or
+    Output is reported.
+    """
+    lines = [
+        "### Uniform interface",
+        "",
+        "#### Read",
+        "",
+        "* Input:",
+        "  * Reference: This Object",
+        "* Output:",
+        "  * Object: This Object",
+        "    * Elements: read-write, read-only",
+        "",
+        "### Offline Review",
+        "",
+        "* Input: (None)",
+    ]
+    defaults = parse_uniform_interface(lines, len(lines))
+    assert set(defaults) == {"read"}, defaults
+    obj = ObjectDef(name="Widget Data Object", identifier="widget",
+                    source="normative", line=1, obj_type="Resource",
+                    operations=[OperationDef(name="Read", identifier="read", line=2,
+                                             input=[]),
+                                OperationDef(name="Poke", identifier="poke", line=3,
+                                             input=[IOItemDef(kind="Reference",
+                                                              target="Gadget Object")],
+                                             output=[IOItemDef(kind="Reference",
+                                                               target="Owner Data Object")])])
+    apply_uniform_interface([obj], defaults)
+    read, poke = obj.operations
+    assert read.input == [], read.input  # explicit "(None)" kept
+    assert read.output == defaults["read"].output, read.output
+    assert poke.output[0].target == "Owner Data Object"  # no default for "poke"
+    errors = check_operation_io(obj, {"Widget Data Object"})
+    assert len(errors) == 2, errors
+    assert "names no normative object" in errors[0], errors
+    assert "outside a Process Object" in errors[1], errors
+    obj.operations.append(OperationDef(name="Zap", identifier="zap", line=4))
+    errors = check_operation_io(obj, {"Widget Data Object", "Gadget Object"})
+    assert sum("[OP IO MISSING]" in e for e in errors) == 2, errors
+
+
 _SELF_TESTS = [
     _test_element_constraints_and_notes_nested,
     _test_element_attrs_tolerate_blank_lines_and_asides_between_bullets,
@@ -4308,7 +4576,6 @@ _SELF_TESTS = [
     _test_operation_description_authorisation_input_output,
     _test_operation_description_multi_paragraph_and_trailing_notes,
     _test_operation_inputs_and_params_sections,
-    _test_op_section_marker_requires_single_kind_and_colon,
     _test_iana_operation_sections_parsed_and_absence_recorded,
     _test_check_operations_inputs_params_kind_and_sections,
     _test_check_operation_item_attrs_reports_inapplicable_attrs,
@@ -4343,6 +4610,8 @@ _SELF_TESTS = [
     _test_nested_elements_stop_at_heading,
     _test_subsection_tables_and_nesting,
     _test_orphan_prose_skips_fenced_block,
+    _test_parse_io_items_reports_notation_errors,
+    _test_uniform_interface_defaults_and_io_check,
 ]
 
 
