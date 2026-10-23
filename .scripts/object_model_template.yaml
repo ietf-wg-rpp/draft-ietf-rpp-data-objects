@@ -14,7 +14,10 @@
 #   Free-form intro prose that precedes the first object in a normative H1
 #   section and is not attached to any single object (e.g. the paragraph
 #   directly under "# Process Objects" before the first "## ... Object"
-#   heading). Keyed by the literal H1 heading text. Absent for sections with
+#   heading). Keyed by the literal H1 heading text. Intro prose of a group
+#   heading inside an envelope section (e.g. "## Messages", whose children
+#   are the message objects) is also listed here, keyed by the group's
+#   literal heading text. Absent for sections with
 #   no such intro (most Resource/Data Object sections start immediately with
 #   the object's own header bullets, so they have no entry here).
 #
@@ -96,7 +99,8 @@
 #                   prose written directly after its "* Identifier:" bullet).
 #                   Covers every prose paragraph between "* Identifier:" and
 #                   the first "* Authorisation:"/"* Input:"/"* Output:"
-#                   bullet (or the transient-params marker), newline-joined
+#                   bullet (or the first Input Data Elements / Parameters
+#                   lead-in line), newline-joined
 #                   if there is more than one paragraph.
 #     authorisation: the operation's "* Authorisation:" bullet as a LIST of
 #                   strings, one per top-level sub-bullet (same
@@ -104,19 +108,32 @@
 #                   deeper nesting, e.g. "Pull transfer:"/"Push transfer:"
 #                   sub-cases, is newline-joined into that entry). Empty
 #                   list if the operation has no Authorisation bullet.
-#     input:        the operation's "* Input:" bullet value (a single
-#                   string, e.g. "Object identifier"). Empty string if absent.
-#     output:       the operation's "* Output:" bullet value (a single
-#                   string). Empty string if absent.
+#     input:        the operation's "* Input:" bullet value as a single
+#                   string, e.g. "Object identifier"; a nested bullet list
+#                   under a blank "* Input:" is newline-joined. Empty string
+#                   if absent.
+#     output:       the operation's "* Output:" bullet value, same rules as
+#                   input. Empty string if absent.
 #     notes:        orphan prose in the operation's body beyond description/
 #                   authorisation/input/output (e.g. a further explanatory
-#                   paragraph after the Authorisation bullet, or the
-#                   "the following transient data elements..." lead-in
-#                   sentence). Empty list if none.
-#     params:       transient (non-persisted) operation parameters, each
-#                   with identifier, name, cardinality, data_type,
-#                   description, constraints, notes — same meaning as for
-#                   elements.
+#                   paragraph after the Authorisation bullet). The lead-in
+#                   lines introducing inputs/params are structure, not
+#                   notes. Empty list if none.
+#     inputs:       Input Data Elements of the operation (content the
+#                   operation acts upon, not part of the object's state),
+#                   from the bullets after a lead-in line such as "The
+#                   following input data elements are defined for this
+#                   operation:". Each with identifier, name, cardinality,
+#                   data_type, description, constraints, notes — same
+#                   meaning as for elements — plus extra_attributes: any
+#                   further "* Key: value" bullets (e.g. a Mutability, which
+#                   does not apply to operation inputs), as {key: value}
+#                   with lower-cased keys; {} if none.
+#     params:       Parameters of the operation (control processing or
+#                   output, not part of the object's state), from the
+#                   bullets after a lead-in line such as "The following
+#                   parameters are defined for this operation:". Same
+#                   fields as inputs.
 #
 # Nothing here duplicates content already captured in a structured field:
 # "notes"/"preamble"/"section_notes" contain ONLY the leftover prose the
