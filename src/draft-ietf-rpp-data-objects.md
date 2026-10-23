@@ -85,6 +85,12 @@ Owner Data Object
 Unique Identifier
 : The data element of an object whose value uniquely identifies an instance of that object within its applicable scope. The scope is defined by the object: for a Data Object it is typically the server, whereas for a Process Object it is the Owner Data Object. An object definition names its Unique Identifier explicitly in the object preamble. Objects that have no independent identity, such as component objects embedded within another object, have no Unique Identifier.
 
+Input Data Element
+: A data element that a client provides as input to a specific operation, in addition to the identifier or data elements of the object the operation targets, and that carries content the operation acts upon. An input data element is defined as part of the operation definition and is not part of the state of the object. An input data element is described using the attributes defined in (#data-element-semantics), except Direct Access, and Visibility, which do not apply.
+
+Parameter
+: A data element that a client provides as input to an operation to control how the server processes the operation or which data it returns, without itself carrying content that the operation acts upon. A parameter is not part of the state of the object and is not returned as part of the object. A parameter is described using the same attributes as an Input Data Element, and its definition specifies the behaviour of the operation when the parameter is absent.
+
 Label Generation Ruleset (LGR)
 : A set of rules defining the valid labels for a registry, including the permitted repertoire, contextual rules, and, where applicable, variant mappings. Also historically known as IDN tables.
 
@@ -152,7 +158,7 @@ The data type of a data element may also be a reference to another data object, 
 
 ## Extensibility
 
-The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional transient data elements.
+The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional data elements.
 
 ### Standardised and Private Extensions
 
@@ -170,9 +176,9 @@ The following aspects of the data model are extensible:
 * New data elements: Extensions MAY add new data elements to existing data objects. Such elements follow the same Data Element Semantics as core data elements.
 * New associations: Extensions MAY introduce new associations between existing or new objects.
 * New operations: Extensions MAY define entirely new operations on existing or new data objects.
-* Extended operation inputs and outputs: Extensions MAY add new transient data elements to the inputs or outputs of existing operations.
+* Extended operation inputs and outputs: Extensions MAY add new data elements to the inputs or outputs of existing operations.
 
-When an extension adds data elements or transient parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
+When an extension adds data elements, input data elements, or parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
 
 ## Data Element Semantics {#data-element-semantics}
 
@@ -197,7 +203,7 @@ The definition of each data element within an object consists of the following a
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
 * Visibility: An optional attribute indicating whether the data element is included in operation output by default. It MUST be one of the following:
   * default: The element is included in the output of any operation returning the containing object, subject to authorisation and server policy. This value applies when the attribute is absent.
-  * onDemand: The element is included in the output only when the client explicitly requests it using the Include Elements transient data element (see (#include-elements)), subject to authorisation and server policy.
+  * onDemand: The element is included in the output only when the client explicitly requests it using the Include Elements parameter (see (#include-elements)), subject to authorisation and server policy.
 
 The Visibility attribute affects operation output only. It does not affect whether a client can provide the element as input.
 
@@ -258,7 +264,7 @@ Listing a data element that is already included in the output by default has no 
 
 ### Uniform interface
 
-For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified on top of additional transient input data, unless an operation for the specific object tells otherwise.
+For the typical set of Create, Read, Query, Update and Delete operations the following set of input and output data model is specified, unless an operation for the specific object tells otherwise.
 
 #### Create
 
@@ -525,7 +531,7 @@ Example aggregation having cardinality >1:
 
 ## Composition
 
-Notation: Composition[Type] or Type
+Notation: Type
 
 A relation between an independent parent object and 1 or more dependent child object(s).
 
@@ -1186,7 +1192,7 @@ The following diagram describes the allowed status transitions for a contact obj
                        |              (9) |
                        +------------------+
 ```
-Figure: Contact Object State Diagram
+Figure: Contact Data Object State Diagram
 {#fig-contact-state-diagram}
 
 State descriptions:
@@ -1528,7 +1534,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
     * Identifier: records
     * Cardinality: 0+
     * Mutability: read-write
-    * Data Type: Composition[DNS Resource Record Object]
+    * Data Type: DNS Resource Record Object
     * Description: An array of DNS resource records associated with the provisioned object.
     * Constraints:
       * Allowed record types MAY be constrained by server policy.
@@ -1959,6 +1965,43 @@ The Service Notice Message Object is not linked to a specific object or process 
     * Description: The operational status of the RPP server, for example "production", "test", or "development".
     * Constraints: (None)
 
+### Extension Object
+
+* Name: Extension Object
+* Identifier: extension
+* Description: Describes an extension supported by the server.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A short name for the extension, for example "registry fee extension".
+    * Constraints: (None)
+  * Extension ID
+    * Identifier: id
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: A unique URN identifier for the extension, for example "urn:ietf:params:rpp:extension:registry-fee".
+    * Constraints: (None)
+  * Version
+    * Identifier: version
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The version of the extension that is supported or required for the profile, for example "1.0".
+    * Constraints: (None)
+  * URL
+    * Identifier: url
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: URL
+    * Description: The location of the extension specification.
+    * Constraints:
+      * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
+      * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
+
 ### IDN LGR Object
 
 * Name: Discovery IDN LGR Object
@@ -2108,7 +2151,8 @@ The Read operation allows a client to determine the real-time status of a pendin
   * This operation MUST be accessible to both the sponsoring client and the gaining client.
   * Server policy determines whether other clients may query transfer status and what information is returned.
 
-* Input: None
+* Input:
+  * Transfer Process Object reference
 * Output: Transfer Process Object
 
 #### Delete (Transfer Cancel) {#transfer-delete}
@@ -2120,7 +2164,8 @@ The Delete operation allows the initiating client to cancel its own pending tran
 * Authorisation:
   * Only the initiating client (the client that originally requested the transfer).
 
-* Input: None
+* Input:
+  * Transfer Process Object reference
 * Output: Transfer Process Object or nothing
 
 #### Approve {#transfer-approve}
@@ -2135,7 +2180,8 @@ The Approve operation allows the appropriate client to accept a pending transfer
   * Push transfer:
     * only the designated gaining client
 
-* Input: None
+* Input:
+  * Transfer Process Object reference
 * Output: Transfer Process Object
 
 #### Reject {#transfer-reject}
@@ -2150,7 +2196,10 @@ The Reject operation allows the appropriate client to decline a pending transfer
   * Push transfer:
     * only the designated gaining client
 
-The following transient data elements are defined for this operation:
+* Input:
+  * Transfer Process Object reference
+
+The following additional input data elements are defined for this operation:
 
 * Reason
   * Identifier: reason
@@ -2206,13 +2255,12 @@ The following transient data elements are defined for this operation:
 
 The Create operation initiates the recovery of an object in the `redemptionPeriod` state by creating a Restore Process Object. The server MUST reject this operation if the owning object is not in the `redemptionPeriod` state.
 
-* Input: Restore Process Object (create-only and read-write elements)
-* Output: Restore Process Object
-
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
 
-The following transient data elements are defined for this operation:
+* Input: Restore Process Object (create-only and read-write elements)
+
+The following additional input data elements are defined for this operation:
 
 * Restore Report
   * Identifier: restoreReport
@@ -2222,6 +2270,8 @@ The following transient data elements are defined for this operation:
   * Constraints:
     * MUST NOT be provided if the server does not require a restore report.
     * In EPP Compatibility Profile, corresponds to `op="request"` (without report) or a combined `op="request"` followed immediately by `op="report"` as defined in [@!RFC3915].
+
+* Output: Restore Process Object
 
 #### Read (Restore Query) {#restore-read}
 
@@ -2245,13 +2295,12 @@ This operation is OPTIONAL, only for servers which support or require submission
 
 The Report operation submits the restore report required by the RGP process for an object in the `pendingRestore` state. A report MAY be submitted more than once if corrections are required. The server MUST reject this operation if the object is not in the `pendingRestore` state.
 
-* Input: Object Identifier, Restore Report Object
-* Output: Restore Process Object
-
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
 
-The following transient data elements are defined for this operation:
+* Input: Object Identifier
+
+The following input data elements are defined for this operation:
 
 * Restore Report
   * Identifier: restoreReport
@@ -2260,6 +2309,8 @@ The following transient data elements are defined for this operation:
   * Description: The restore report to be submitted as part of the RGP process.
   * Constraints:
     * In EPP Compatibility Profile, corresponds to `op="report"` as defined in [@!RFC3915].
+
+* Output: Restore Process Object
 
 ## Renew Process Object
 
@@ -2403,11 +2454,11 @@ The following data elements are defined for the Domain Name Data Object.
   * Identifier: registrant
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Contact Object
+  * Data Type: Aggregation[Contact Data Object]
   * Description: The contact object associated with the domain as the registrant.
   * Constraints:
     * The relation MUST correspond to a valid Contact Data Object known to the server.
-    * Servers MAY restrict association of a Contact Object of a different sponsoring client.
+    * Servers MAY restrict association of a Contact Data Object of a different sponsoring client.
 
 A> TBC: leave registrant here or move it to contacts with a type?
 
@@ -2415,7 +2466,7 @@ A> TBC: leave registrant here or move it to contacts with a type?
   * Identifier: contacts
   * Cardinality: 0+
   * Mutability: read-write
-  * Data Type: LabelledAggregation[Contact Object]
+  * Data Type: LabelledAggregation[Contact Data Object]
     * Label Description: The role of the associated contact.
     * Label Constraints:
       * List of supported roles is defined by server policy
@@ -2515,7 +2566,7 @@ The Read operation allows a client to retrieve the data elements of a Domain Nam
     * With Object Authorisation:
       * Full object, however some properties only authorised to the sponsoring client MAY be redacted according to server policy
 
-The following transient data elements are defined for this operation:
+The following parameters are defined for this operation:
 
 * Hosts Filter
   * Identifier: hostsFilter
@@ -2623,6 +2674,14 @@ The Read operation retrieves the result or status of the domain creation, if the
     * Data Type: Timestamp
     * Description: The end of the domain object's registration period if the transfer caused or causes a change in the validity period.
     * Constraints: (None)
+  * Transfer Period
+    * Identifier: transferPeriod
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: Period Object
+    * Description: The number of units to be added to the registration period of the domain object upon successful completion of the transfer. The number of units available MAY be subject to limits imposed by the server.
+    * Constraints:
+      * In EPP Compatibility Profile, Transfer Period cannot be read from the Transfer Process Object 
 
 Transfer of a Domain Name Data Object MUST implicitly transfer all Host Data Objects that are subordinate to the domain object. For example, if domain object "example.com" is transferred and host object "ns1.example.com" exists, the host object MUST be transferred as part of the "example.com" transfer process. Actions that do not preserve the relationship between a domain object and its subordinate host objects MUST be disallowed.
 
@@ -2641,16 +2700,6 @@ The Create operation initiates a transfer of the Domain Name Data Object by crea
 
 * Authorisation: as defined in (#transfer-create).
 
-The following transient data element is defined for this operation:
-
-* Transfer Period
-  * Identifier: transferPeriod
-  * Cardinality: 0-1
-  * Mutability: create-only
-  * Data Type: Period Object
-  * Description: The number of units to be added to the registration period of the domain object upon successful completion of the transfer. The number of units available MAY be subject to limits imposed by the server.
-  * Constraints: (None)
-
 # Contact Data Object
 
 ## Object Description
@@ -2668,7 +2717,7 @@ The following data elements are defined for the Contact Data Object.
   * Identifier: id
   * Cardinality: 1
   * Mutability: create-only
-  * Data Type: Identifier.
+  * Data Type: Identifier
   * Description: External unique identifier of the contact object.
   * Constraints:
     * This value MUST be supported to be provided by the client.
@@ -2706,7 +2755,7 @@ The following data elements are defined for the Contact Data Object.
   * Identifier: authInfo
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Authorisation Information
+  * Data Type: Authorisation Information Object
   * Visibility: onDemand
   * Description: Authorisation information associated with the contact object.
   * Constraints: (None)
@@ -2715,7 +2764,7 @@ The following data elements are defined for the Contact Data Object.
   * Identifier: disclose
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Disclose Object.
+  * Data Type: Disclose Object
   * Description: Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties.
   * Constraints:
     * A server MUST reject any transaction that requests disclosure practices that do not conform to the server's announced data-collection policy.
@@ -2985,7 +3034,7 @@ The following data elements are defined for the Organisation Data Object.
   * Identifier: parent
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Organisation Data Object
+  * Data Type: Aggregation[Organisation Data Object]
   * Description: The parent organisation in a hierarchical organisation structure (e.g., a reseller's parent registrar).
   * Constraints:
     * Loops MUST be prohibited. If organisation A has organisation B as its parent, organisation B MUST NOT have organisation A as its parent, directly or transitively.
@@ -3001,7 +3050,7 @@ The following data elements are defined for the Organisation Data Object.
   * Identifier: contacts
   * Cardinality: 0+
   * Mutability: read-write
-  * Data Type: LabelledAggregation[Contact Object]
+  * Data Type: LabelledAggregation[Contact Data Object]
     * Label Description: type of contact
     * Label Constraints: The value MUST be one of the contact types registered in the IANA "EPP Organisation Contact Types" registry as defined in [@!RFC8543, section 7.4]. Initial values include `admin`, `tech`, `billing`, `abuse`, and `custom`.  
   * Description: Identifiers of contact objects associated with the organisation.
@@ -3014,7 +3063,7 @@ A> TODO: how handle the "custom" contact type?
   * Identifier: users
   * Cardinality: 0+
   * Mutability: read-write
-  * Data Type: LabelledAggregation[User Object]
+  * Data Type: LabelledAggregation[User Data Object]
     * Label Description: RBAC role of the user
     * Label Constraints: The value MUST be one of the role types registered in the IANA "RPP User Role Values" registry.
   * Direct Access: true
@@ -3165,14 +3214,12 @@ The Query operation allows a client to retrieve a collection of Message Data Obj
 * Authorisation:
   * Any client is authorised to retrieve message object information. The server MAY restrict the information returned based on client identity and server policy.
 
-In addition, the following transient data elements are defined for this operation:
+In addition, the following parameters are defined for this operation:
 
 * Message Type
   * Identifier: type
   * Cardinality: 0-1
-  * Mutability: create-only
   * Data Type: String
-  * Location: selector
   * Description: The type of the message to use as a filter when retrieving message objects.
   * Constraints:
     * The type value MUST be a valid identifier for an RPP message component (e.g. reviewResponse).
@@ -3233,7 +3280,7 @@ The following data elements are defined for the User Data Object.
   * Identifier: organisationId
   * Cardinality: 1
   * Mutability: read-only
-  * Data Type: Organisation Data Object Reference
+  * Data Type: Aggregation[Organisation Data Object]
   * Description: A reference to the owner organisation object.
   * Constraints: -
 * Processes
@@ -3469,7 +3516,7 @@ The following data elements are defined for the Profile Data Object. All data el
   * Identifier: baseProfile
   * Cardinality: 0-1
   * Mutability: read-only
-  * Data Type: Profile Data Object
+  * Data Type: Aggregation[Profile Data Object]
   * Description: A base profile that is extended by this profile. The features and versions of the base profile are included in this profile, which MAY add to them or override them, for example the version of an extension.
   * Constraints:
     * The base profile MUST be published in the IANA registry for RPP profiles, or be made available to the client using other means.
@@ -3523,7 +3570,7 @@ This document establishes the "RESTful Provisioning Protocol (RPP) Data Object R
 
 The policy for adding new objects, data elements, or operations to this registry is "Specification Required" [@!RFC8126].
 
-Standardised RPP extensions that introduce new data objects, add data elements to existing objects, or define new operations or operation parameters MUST register these additions in this registry. Each such registration MUST reference the specification that defines the extension.
+Standardised RPP extensions that introduce new data objects, add data elements to existing objects, or define new operations, operation input data elements, or operation parameters MUST register these additions in this registry. Each such registration MUST reference the specification that defines the extension.
 
 Private (non-standardised) extensions are not required to register in this registry.
 
@@ -3538,9 +3585,10 @@ The registry is organised as a collection of Object definitions. Each Object def
 * An "Operations" section (applicable only for Object Types Resource or Process). For each operation, the
 registry MUST provide:
   * The Operation's Name, a description, and a reference to the specification that defines it.
-  * A "Parameters" table listing all data elements that are provided as input to the operation but are not persisted as part of the object's state. Each entry MUST specify the parameter's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
+  * An "Input Data Elements" table listing all input data elements of the operation. Each entry MUST specify the input data element's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
+  * A "Parameters" table listing all parameters of the operation. Each entry MUST specify the parameter's Identifier, Name, Cardinality, Data Type, description, and a reference to the specification that defines it.
 
-Extensions MAY add new data elements, operations, or operation parameters to existing Object definitions in the registry. Each such addition MUST reference the extension specification that introduces it, allowing implementations to distinguish core protocol elements from extension-defined elements.
+Extensions MAY add new data elements, operations, operation input data elements, or operation parameters to existing Object definitions in the registry. Each such addition MUST reference the extension specification that introduces it, allowing implementations to distinguish core protocol elements from extension-defined elements.
 
 ### Initial Registrations
 
@@ -3609,7 +3657,7 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name | Card. | Mutability | Data Type                                | Description                                                              |
 | ------------------ | ------------ | ----- | ---------- | ---------------------------------------- | ------------------------------------------------------------------------ |
-| records            | Records      | 0+    | read-write | Composition [DNS Resource Record Object] | An array of DNS resource records associated with the provisioned object. |
+| records            | Records      | 0+    | read-write | DNS Resource Record Object | An array of DNS resource records associated with the provisioned object. |
 | controls           | Controls     | 0-1   | read-write | DNS Operational Controls Object          | Operational control parameters for the DNS records.                      |
 
 Object: authInfo
@@ -3628,23 +3676,86 @@ Data Elements
 | method             | Method                    | 1     | create-only | String    | The identifier of the RPP authorisation method.                                                                                                                                           |
 | authdata           | Authorisation Information | 1     | create-only | String    | The value of the authorisation information. It might be as simple as a password string, but also more complex values like public key certificates or tokens encoded as string are possible. |
 
+Object: domainStatus
 
-Object: status
-
-Object Name: Status Object
+Object Name: Domain Name Status Object
 
 Object Type: Component
 
-Description: Represents one of the status values associated with the provisioning object.
+Description: Represents one of the status values associated with a Domain Name Data Object
 
 Reference: [This-ID]
 
 Data Elements
-| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                                                                                                     |
-| ------------------ | ------------ | ----- | ----------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                                                                                         |
-| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the object.                                                                        |
-| due                | Due          | 0-1   | read-write  | Timestamp | a timestamp, when this status is going to be removed automatically, or changed to other status. This field can be used to express lifecycle related information |
+| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                                                                                                      |
+| ------------------ | ------------ | ----- | ----------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                                                                                          |
+| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the object.                                                                         |
+| due                | Due          | 0-1   | read-write  | Timestamp | a timestamp, when this status is going to be removed automatically, or changed to other status. This field can be used to express lifecycle related information. |
+
+Object: hostStatus
+
+Object Name: Host Status Object
+
+Object Type: Component
+
+Description: Represents one of the status values associated with a Host Data Object
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                              |
+| ------------------ | ------------ | ----- | ----------- | --------- | ---------------------------------------------------------------------------------------- |
+| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                  |
+| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the object. |
+
+Object: contactStatus
+
+Object Name: Contact Status Object
+
+Object Type: Component
+
+Description: Represents one of the status values associated with a Contact Data Object
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                              |
+| ------------------ | ------------ | ----- | ----------- | --------- | ---------------------------------------------------------------------------------------- |
+| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                  |
+| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the object. |
+
+Object: organisationRoleStatus
+
+Object Name: Organisation Role Status Object
+
+Object Type: Component
+
+Description: Represents one of the status values associated with an Organisation Role Object. A role SHOULD have at least one associated status value.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                            |
+| ------------------ | ------------ | ----- | ----------- | --------- | -------------------------------------------------------------------------------------- |
+| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                |
+| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the role. |
+
+Object: organisationStatus
+
+Object Name: Organisation Status Object
+
+Object Type: Component
+
+Description: Represents one of the status values associated with an Organisation Data Object, as defined in [@!RFC8543, section 3.4]. An Organisation Data Object MUST always have at least one associated status value.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                              |
+| ------------------ | ------------ | ----- | ----------- | --------- | ---------------------------------------------------------------------------------------- |
+| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                  |
+| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the object. |
 
 
 Object: provMetadata
@@ -3749,6 +3860,8 @@ Operation Identifier: transferCreate
 
 Description: Initiates a transfer of a provisioned object by creating a Transfer Process Object. 
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Transfer Read
@@ -3756,6 +3869,8 @@ Operation: Transfer Read
 Operation Identifier: transferRead
 
 Description: Queries the status of a transfer of a provisioned object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3765,6 +3880,8 @@ Operation Identifier: transferDelete
 
 Description: Cancels a pending transfer of a provisioned object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Transfer Approve
@@ -3772,6 +3889,8 @@ Operation: Transfer Approve
 Operation Identifier: transferApprove
 
 Description: Approves a pending transfer of a provisioned object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3781,10 +3900,12 @@ Operation Identifier: transferReject (on Transfer Process Object)
 
 Description: Rejects a pending transfer of a provisioned object.
 
-Parameters
+Input Data Elements
 | Identifier | Name   | Card. | Data Type | Description                                                   |
 | ---------- | ------ | ----- | --------- | ------------------------------------------------------------- |
 | reason     | Reason | 0-1   | String    | A human-readable text describing the rationale for rejection. |
+
+Parameters: (None)
 
 
 Object: renewProcess
@@ -3802,7 +3923,7 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name         | Card. | Mutability  | Data Type         | Description                                                                                     |
 | ------------------ | -------------------- | ----- | ----------- | ----------------- | ----------------------------------------------------------------------------------------------- |
-| expiryDate        | Expiry Date          | 0-1   | read-only | Timestamp            | The expiry date of the object after the renewal is completed. |
+| expiryDate        | Expiry Date          | 0-1   | create-only | Timestamp            | The expiry date of the object after the renewal is completed. |
 | renewalPeriod | Renewal Period | 0-1 | create-only | Period Object | The duration to be added to the object's registration period. This value is used by the server to calculate the new `expiryDate`. The default value MAY be defined by server policy. The number of units available MAY be subject to limits imposed by the server. |
 
 Operations
@@ -3812,6 +3933,8 @@ Operation: Create
 Operation Identifier: renewCreate
 
 Description: Initiates a renewal of a provisioned object by creating a Renew Process Object. 
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3837,6 +3960,8 @@ Operation Identifier: create
 
 Description: Invoked implicitly as a side effect of the resource object create operation; never invoked directly. Carries creation-specific inputs consumed during creation of the owning resource object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -3844,6 +3969,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the result or status of the creation, if the server exposes the process resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3872,6 +3999,8 @@ Operation Identifier: create
 
 Description: Invoked implicitly as a side effect of the Domain Name Data Object create operation; never invoked directly. Carries the registration period consumed during domain creation.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -3879,6 +4008,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the result or status of the domain creation, if the server exposes the process resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3893,10 +4024,11 @@ Description: The Transfer Process Object specific to the Domain Name Data Object
 Reference: [This-ID]
 
 Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                                                          |
-| ------------------ | ------------ | ----- | ---------- | --------- | ---------------------------------------------------------------------------------------------------------------------- |
-| processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object.              |
-| expiryDate         | Expiry Date  | 0-1   | read-only  | Timestamp | The end of the domain object's registration period if the transfer caused or causes a change in the validity period. |
+| Element Identifier | Element Name    | Card. | Mutability  | Data Type     | Description                                                                                                                                                                                               |
+|--------------------|-----------------|-------|-------------|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| processId          | Process ID      | 0-1   | read-only   | String        | A server-assigned identifier of the process instance, unique within the Owner Data Object.                                                                                                                |
+| expiryDate         | Expiry Date     | 0-1   | read-only   | Timestamp     | The end of the domain object's registration period if the transfer caused or causes a change in the validity period.                                                                                      |
+| transferPeriod     | Transfer Period | 0-1   | create-only | Period Object | The number of units to be added to the registration period of the domain object upon successful completion of the transfer. The number of units available MAY be subject to limits imposed by the server. |
 
 Operations
 
@@ -3906,10 +4038,9 @@ Operation Identifier: transferCreate
 
 Description: Initiates a transfer of a Domain Name Data Object by creating a Domain Transfer Process Object.
 
-Parameters
-| Identifier     | Name            | Card. | Data Type     | Description                                                                                            |
-| -------------- | --------------- | ----- | ------------- | ------------------------------------------------------------------------------------------------------- |
-| transferPeriod | Transfer Period | 0-1   | Period Object | The number of units to be added to the registration period of the domain object upon successful completion of the transfer. |
+Input Data Elements: (None)
+
+Parameters: (None)
 
 Object: disclose
 
@@ -3954,16 +4085,20 @@ Operation Identifier: create
 
 Description: Initiates recovery of a domain name in the redemptionPeriod state by creating a Restore Process Object. This operation is OPTIONAL and is only available when the RGP feature is supported.
 
-Parameters
+Input Data Elements
 | Identifier    | Name           | Card. | Data Type             | Description               |
 | ------------- | -------------- | ----- | --------------------- | ------------------------- |
 | restoreReport | Restore Report | 0-1   | Restore Report Object | An inline restore report. |
+
+Parameters: (None)
 
 Operation: Restore Read
 
 Operation Identifier: read (on Restore Process Object)
 
 Description: Retrieves the current state of the RGP restore process for a domain name. This operation is OPTIONAL and is only available when the RGP feature is supported.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -3973,10 +4108,12 @@ Operation Identifier: report
 
 Description: Submits the restore report for a domain name in the pendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
 
-Parameters
+Input Data Elements
 | Identifier    | Name           | Card. | Data Type             | Description                         |
 | ------------- | -------------- | ----- | --------------------- | ----------------------------------- |
 | restoreReport | Restore Report | 1     | Restore Report Object | The restore report to be submitted. |
+
+Parameters: (None)
 
 
 Object: restoreReport
@@ -4012,19 +4149,21 @@ Description: Represents a domain name and its associated data.
 Reference: [This-ID]
 
 Data Elements
-| Identifier       | Name                      | Card. | Mutability  | Data Type                            | Description                                                               |
-| ---------------- | ------------------------- | ----- | ----------- | ------------------------------------ | ------------------------------------------------------------------------- |
-| name             | Name                      | 1     | create-only | String                               | The fully qualified name of the domain object.                            |
-| provMetadata     | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object         | Standard metadata about object lifecycle and ownership.                   |
-| status           | Status                    | 0+    | read-only   | Status Object                        | The current status descriptors for the domain.                            |
-| registrant       | Registrant                | 0-1   | read-write  | Contact Object                       | The registrant contact ID.                                                |
-| contacts         | Contacts                  | 0+    | read-write  | LabelledAggregation [Contact Object] | Associated contact objects.                                               |
-| nameservers      | Nameservers               | 0+    | read-write  | Aggregation [Host Data Object]       | A collection of nameservers associated with the domain.                   |
-| dns              | DNS Data                  | 0-1   | read-write  | DNS Data Object                      | DNS resource records and operational controls related to the domain name. |
-| subordinateHosts | Subordinate Hosts         | 0+    | read-only   | Aggregation [Host Data Object]       | Subordinate host names.                                                   |
-| expiryDate       | Expiry Date               | 0-1   | read-only   | Timestamp                            | Expiry timestamp.                                                         |
-| authInfo         | Authorisation Information | 0-1   | read-write  | Authorisation Information Object     | Authorisation information for the object.                                 |
-| processes        | Processes                 | 0-1   | read-only   | Processes Object                     | Process Objects initiated on the domain object.  |
+| Identifier       | Name                      | Card. | Mutability  | Data Type                                 | Description                                                                                                        |
+|------------------|---------------------------|-------|-------------|-------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| name             | Name                      | 1     | create-only | Fully Qualified Domain Name               | The fully qualified name of the domain object.                                                                     |
+| uName            | Unicode Name              | 0-1   | create-only | String                                    | The fully qualified name of the domain using the Unicode character set.                                            |
+| lgr              | LGR                       | 0-1   | create-only | String                                    | The name of the Label Generation Ruleset (LGR) containing the valid code points used for the Unicode Name (uName). |
+| provMetadata     | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object              | Standard metadata about object lifecycle and ownership.                                                            |
+| status           | Status                    | 1+    | read-write  | Domain Name Status Object                 | The current status descriptors for the domain.                                                                     |
+| registrant       | Registrant                | 0-1   | read-write  | Aggregation[Contact Data Object]          | The registrant contact ID.                                                                                         |
+| contacts         | Contacts                  | 0+    | read-write  | LabelledAggregation [Contact Data Object] | Associated contact objects.                                                                                        |
+| nameservers      | Nameservers               | 0+    | read-write  | Aggregation [Host Data Object]            | A collection of nameservers associated with the domain.                                                            |
+| dns              | DNS Data                  | 0-1   | read-write  | DNS Data Object                           | DNS resource records and operational controls related to the domain name.                                          |
+| subordinateHosts | Subordinate Hosts         | 0+    | read-only   | Aggregation [Host Data Object]            | Subordinate host names.                                                                                            |
+| expiryDate       | Expiry Date               | 0-1   | read-only   | Timestamp                                 | Expiry timestamp.                                                                                                  |
+| authInfo         | Authorisation Information | 0-1   | read-write  | Authorisation Information Object          | Authorisation information for the object.                                                                          |
+| processes        | Processes                 | 0-1   | read-only   | Processes Object                          | Process Objects initiated on the domain object.                                                                    |
 
 Operations
 
@@ -4034,6 +4173,8 @@ Operation Identifier: create
 
 Description: Provisions a new Domain Name resource.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4041,6 +4182,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of a Domain Name resource.
+
+Input Data Elements: (None)
 
 Parameters
 | Identifier  | Name         | Card. | Data Type | Description                                  |
@@ -4051,16 +4194,17 @@ Operation: Update
 
 Description: Modifies the read-write data elements of a Domain Name resource.
 
-Parameters
-| Identifier | Name   | Card. | Data Type | Description                                                    |
-| ---------- | ------ | ----- | --------- | -------------------------------------------------------------- |
-| urgent     | Urgent | 0-1   | Boolean   | Requests high-priority processing of the update by the server. |
+Input Data Elements: (None)
+
+Parameters: (None)
 
 Operation: Delete
 
 Operation Identifier: delete
 
 Description: Removes an existing Domain Name resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4075,22 +4219,25 @@ Description: A Contact Data Object represents the contact information for an ind
 Reference: [This-ID]
 
 Data Elements
-| Identifier   | Name                      | Card. | Mutability  | Data Type                                  | Description                                                                                                             |
-| ------------ | ------------------------- | ----- | ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| id           | Handle ID                 | 1     | create-only | Identifier.                                | External unique identifier of the contact object.                                                                       |
-| provMetadata | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object               | Standard metadata about the object's lifecycle and ownership.                                                           |
-| status       | Status                    | 0+    | read-only   | Status Object                              | Status descriptors associated with the contact.                                                             |
-| contactInfo  | Contact Information       | 1-2   | read-write  | External:RPP-JSContact-Profile:Card       | JSContact Card information.                                                                                    |
-| authInfo     | Authorisation Information | 0-1   | read-write  | Authorisation Information                  | Authorisation information associated with the contact object.                                                           |
-| disclose     | Disclose                  | 0-1   | read-write  | Disclose Object.                           | Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties. |
-| processes    | Processes                 | 0-1   | read-only   | Processes Object                           | Process Objects initiated on the contact object. |
+| Identifier   | Name                      | Card. | Mutability  | Data Type                           | Description                                                                                                             |
+|--------------|---------------------------|-------|-------------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| id           | Handle ID                 | 1     | create-only | Identifier                          | External unique identifier of the contact object.                                                                       |
+| provMetadata | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object        | Standard metadata about the object's lifecycle and ownership.                                                           |
+| status       | Status                    | 1+    | read-write  | Contact Status Object               | Status descriptors associated with the contact.                                                                         |
+| contactInfo  | Contact Information       | 1-2   | read-write  | External:RPP-JSContact-Profile:Card | JSContact Card information.                                                                                             |
+| authInfo     | Authorisation Information | 0-1   | read-write  | Authorisation Information Object    | Authorisation information associated with the contact object.                                                           |
+| disclose     | Disclose                  | 0-1   | read-write  | Disclose Object                     | Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties. |
+| processes    | Processes                 | 0-1   | read-only   | Processes Object                    | Process Objects initiated on the contact object.                                                                        |
+
 Operations
 
 Operation: Create Operation
 
 Operation Identifier: create
 
-Description: 
+Description: The Create operation allows a client to provision a new Contact resource. The operation accepts as input all create-only and read-write data elements defined for the Contact Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4098,7 +4245,9 @@ Operation: Read Operation
 
 Operation Identifier: read
 
-Description: 
+Description: The Read operation allows a client to retrieve the data elements of a Contact resource. The server's response MAY vary depending on client authorisation and server policy.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4106,7 +4255,9 @@ Operation: Update Operation
 
 Operation Identifier: update
 
-Description: 
+Description: The Update operation allows a client to modify the attributes of an existing Contact resource.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4114,10 +4265,11 @@ Operation: Delete Operation
 
 Operation Identifier: delete
 
-Description: 
+Description: The Delete operation allows a client to remove an existing Contact resource. The operation targets a specific data object identified by its Handle ID.
+
+Input Data Elements: (None)
 
 Parameters: (None)
-
 
 Object: host
 
@@ -4132,9 +4284,9 @@ Reference: [This-ID]
 Data Elements
 | Identifier   | Name                  | Card. | Mutability | Data Type                    | Description                                                        |
 | ------------ | --------------------- | ----- | ---------- | ---------------------------- | ------------------------------------------------------------------ |
-| hostName     | Host Name             | 1     | read-write | String                       | Fully qualified name of a host.                                    |
+| hostName     | Host Name             | 1     | read-write | Fully Qualified Domain Name  | Fully qualified name of a host.                                    |
 | provMetadata | Provisioning Metadata | 1     | read-only  | Provisioning Metadata Object | Standard metadata about object lifecycle and ownership.            |
-| status       | Status                | 0+    | read-only  | Status Object                | The current status descriptors for the host.                       |
+| status       | Status                | 1+    | read-write | Host Status Object           | The current status descriptors for the host.                       |
 | dns          | DNS Data              | 0-1   | read-write | DNS Data Object              | DNS resource records and operational controls related to the host. |
 | processes    | Processes             | 0-1   | read-only  | Processes Object             | Process Objects initiated on the host object. |
 
@@ -4144,11 +4296,15 @@ Operation: Create
 
 Description: Provisions a new Host Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
 
 Description: Retrieves the data elements of a Host Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4156,11 +4312,15 @@ Operation: Update
 
 Description: Modifies the attributes of a Host Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete
 
 Description: Removes an existing Host Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4191,17 +4351,17 @@ Description: Represents an entity, such as a registrar, reseller, DNS service op
 Reference: [This-ID]
 
 Data Elements
-| Identifier   | Name                   | Card. | Mutability  | Data Type                                         | Description                                                                                              |
-| ------------ | ---------------------- | ----- | ----------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| id           | Organisation ID        | 1     | create-only | Identifier                                        | A server-unique identifier for the organisation object.                                                  |
-| provMetadata | Provisioning Metadata  | 1     | read-only   | Provisioning Metadata Object                      | Standard metadata about the object's lifecycle and ownership.                                            |
-| status       | Status                 | 1+    | read-write  | Organisation Status Object                        | The current operational status descriptors for the organisation.                                         |
-| roles        | Roles                  | 1+    | read-write  | DictionaryComposition [Organisation Role Object]  | One or more roles describing the organisation's relationship within the registry ecosystem.              |
-| parent     | Parent Organisation ID | 0-1   | read-write  | Identifier                                        | The identifier of the parent organisation in a hierarchical organisation structure.                      |
-| contactInfo   | Contact Information     | 0-1   | read-write  | External:RPP-JSContact-Profile:Card     | Contact information. |
-| contacts     | Contacts               | 0+    | read-write  | LabelledAggregation[Contact Object]       | Identifiers of contact objects associated with the organisation.                                         |
-| users        | Users                  | 0+    | read-write  | LabelledAggregation [User Data Object]          | Identifiers of user objects associated with the organisation.                                         |
-| processes    | Processes              | 0-1   | read-only   | Processes Object                                | Process Objects initiated on the organisation object.                        |
+| Identifier   | Name                   | Card. | Mutability  | Data Type                                        | Description                                                                                 |
+|--------------|------------------------|-------|-------------|--------------------------------------------------|---------------------------------------------------------------------------------------------|
+| id           | Organisation ID        | 1     | create-only | Identifier                                       | A server-unique identifier for the organisation object.                                     |
+| provMetadata | Provisioning Metadata  | 1     | read-only   | Provisioning Metadata Object                     | Standard metadata about the object's lifecycle and ownership.                               |
+| status       | Status                 | 1+    | read-write  | Organisation Status Object                       | The current operational status descriptors for the organisation.                            |
+| roles        | Roles                  | 1+    | read-write  | DictionaryComposition [Organisation Role Object] | One or more roles describing the organisation's relationship within the registry ecosystem. |
+| parent       | Parent Organisation ID | 0-1   | read-write  | Aggregation [Organisation Data Object]           | The parent organisation in a hierarchical organisation structure.                           |
+| contactInfo  | Contact Information    | 0-1   | read-write  | External:RPP-JSContact-Profile:Card              | Contact information.                                                                        |
+| contacts     | Contacts               | 0+    | read-write  | LabelledAggregation[Contact Data Object]         | Identifiers of contact objects associated with the organisation.                            |
+| users        | Users                  | 0+    | read-write  | LabelledAggregation [User Data Object]           | Identifiers of user objects associated with the organisation.                               |
+| processes    | Processes              | 0-1   | read-only   | Processes Object                                 | Process Objects initiated on the organisation object.                                       |
 
 Operations
 
@@ -4211,6 +4371,8 @@ Operation Identifier: create
 
 Description: Provisions a new Organisation Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4218,6 +4380,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of an Organisation Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4227,6 +4391,8 @@ Operation Identifier: update
 
 Description: Modifies the attributes of an existing Organisation Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete
@@ -4234,6 +4400,8 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes an existing Organisation Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4251,10 +4419,8 @@ Data Elements
 | Identifier   | Name            | Card. | Mutability  | Data Type                | Description                                                                         |
 | ------------ | --------------- | ----- | ----------- | ------------------------ | ------------------------------------------------------------------------------------ |
 | id           | Message ID      | 1     | read-only   | Identifier               | A server-unique identifier for the message object.                                   |
-| type         | Type            | 1     | create-only | String                   | The type of the message object. |
 | creationDate | Creation Date   | 1     | read-only   | Timestamp                | The date and time when the message object was created and inserted into the queue.   |
 | status       | Status          | 1     | read-only   | String                   | The current lifecycle status of the message object (`queued`, `delivered`, `removed`). |
-| owner        | Organisation ID | 1     | create-only | Organisation Data Object | The owning organisation for the message object.                                      |
 | data          | Data           | 1     | create-only | Base Message Object      | The data related to a specific message, such as a transfer request or a review response. |
 
 Operations
@@ -4265,6 +4431,8 @@ Operation Identifier: create
 
 Description: Inserts a new message into the queue for an organisation.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4272,6 +4440,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of one or more Message Data Objects.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4281,7 +4451,9 @@ Operation Identifier: query
 
 Description: Retrieves zero or more Message Data Objects, optionally filtered by the specified parameters.
 
-Parameters:
+Input Data Elements: (None)
+
+Parameters
 | Identifier | Name          | Card. | Data Type | Description                                                                 |
 | ---------- | ------------- | ----- | --------- | ---------------------------------------------------------------------------- |
 | type       | Message Type  | 0-1   | String    | The type of the message to use as a filter when retrieving message objects.  |
@@ -4291,6 +4463,8 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes a specific Message Data Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4305,12 +4479,14 @@ Description: Represents a user linked to an Organisation Data Object. Each user 
 Reference: [This-ID]
 
 Data Elements
-| Identifier | Name            | Card. | Mutability  | Data Type | Description                                                  |
-| ---------- | --------------- | ----- | ----------- | --------- | ------------------------------------------------------------ |
-| id         | User Identifier | 1     | create-only | Identifier | A unique identifier for the user. MUST be globally unique in the server scope. |
-| details    | Details         | 0-1   | read-write  | External:RPP-JSContact-Profile:Card  | The details of the user.                                         |
-| status     | Status         | 0+    | read-write   | string    | The status of the user. |
-| processes  | Processes      | 0-1   | read-only    | Processes Object             | Process Objects initiated on the user object. |
+| Identifier     | Name            | Card. | Mutability  | Data Type                           | Description                                                                    |
+|----------------|-----------------|-------|-------------|-------------------------------------|--------------------------------------------------------------------------------|
+| id             | User Identifier | 1     | create-only | Identifier                          | A unique identifier for the user. MUST be globally unique in the server scope. |
+| details        | Details         | 1     | read-write  | External:RPP-JSContact-Profile:Card | The details of the user.                                                       |
+| status         | Status          | 1     | read-write  | String                              | The status of the user.                                                        |
+| processes      | Processes       | 0-1   | read-only   | Processes Object                    | Process Objects initiated on the user object.                                  |
+| description    | Description     | 0-1   | read-write  | String                              | A description of the user                                                      |
+| organisationId | Organisation ID | 1     | read-only   | Aggregation [Organisation Data Object]  | A reference to the owner organisation object.                                  |
 
 Operations
 
@@ -4320,6 +4496,8 @@ Operation Identifier: create
 
 Description: Creates a new User Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Read
@@ -4327,6 +4505,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the data elements of a specific User Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4336,6 +4516,8 @@ Operation Identifier: update
 
 Description: Modifies the read-write data elements (e.g., roles) of a specific User Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
 
 Operation: Delete
@@ -4343,6 +4525,8 @@ Operation: Delete
 Operation Identifier: delete
 
 Description: Removes a specific User Object.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4357,16 +4541,16 @@ Description: Represents a named set of protocol features and versions that defin
 Reference: [This-ID]
 
 Data Elements
-| Identifier | Name | Card. | Mutability | Data Type | Description |
-| ---------- | ---- | ----- | ---------- | --------- | ----------- |
-| name | Name | 1 | read-only | String | A unique name that identifies the profile. |
-| description | Description | 1 | read-only | String | A human-readable description of the profile and its intended use. |
-| version | Version | 1 | read-only | String | The version of the profile. |
-| rppVersion | RPP Version | 1 | read-only | String | The minimum version of the RPP protocol that is supported or required for the profile. |
-| objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
-| extensions | Extensions | 0+ | read-only | Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
-| baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
-| defaultProfile | Default Profile | 1 | read-only | Boolean | Indicates whether this profile is the default profile. |
+| Identifier     | Name            | Card. | Mutability | Data Type                         | Description                                                                                         |
+|----------------|-----------------|-------|------------|-----------------------------------|-----------------------------------------------------------------------------------------------------|
+| name           | Name            | 1     | read-only  | String                            | A unique name that identifies the profile.                                                          |
+| description    | Description     | 1     | read-only  | String                            | A human-readable description of the profile and its intended use.                                   |
+| version        | Version         | 1     | read-only  | String                            | The version of the profile.                                                                         |
+| rppVersion     | RPP Version     | 1     | read-only  | String                            | The minimum version of the RPP protocol that is supported or required for the profile.              |
+| objects        | Objects         | 1+    | read-only  | String                            | The objects allowed for provisioning operations.                                                    |
+| extensions     | Extensions      | 0+    | read-only  | Extension Object                  | The extensions, including their names and versions, that are supported or required for the profile. |
+| baseProfile    | Base Profile    | 0-1   | read-only  | Aggregation [Profile Data Object] | A base profile that is extended by this profile.                                                    |
+| defaultProfile | Default Profile | 1     | read-only  | Boolean                           | Indicates whether this profile is the default profile.                                              |
 
 Operations
 
@@ -4375,6 +4559,8 @@ Operation: Read
 Operation Identifier: read
 
 Description: Retrieves the Profile Data Object identified by its name.
+
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4494,7 +4680,110 @@ Operation Identifier: read
 
 Description: Retrieves the Discovery Data Object.
 
+Input Data Elements: (None)
+
 Parameters: (None)
+
+Object: reviewResponseMessage
+
+Object Name: Review Response Object
+
+Object Type: Component
+
+Description: Notification of the result of an offline-review of a requested operation.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier  | Element Name          | Card. | Mutability  | Data Type | Description                                                               |
+| ------------------- | --------------------- | ----- | ----------- | --------- | ------------------------------------------------------------------------- |
+| approved            | Approval Result       | 1     | read-only   | Boolean   | Whether the requested action was approved and completed.                  |
+| clientTransactionId | Client Transaction ID | 0-1   | read-only   | String    | The client transaction identifier from the original request, if supplied. |
+| serverTransactionId | Server Transaction ID | 1     | read-only   | String    | The server transaction identifier returned for the original request.      |
+| completionDate      | Completion Date       | 1     | read-only   | Timestamp | The date and time when review of the requested action was completed.      |
+| message             | Message               | 1     | create-only | String    | Human-readable message associated with the review response.               |
+
+Object: transferRequestMessage
+
+Object Name: Transfer Request Message Object
+
+Object Type: Component
+
+Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                              |
+| ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------ |
+| status             | Transfer Status | 1     | read-only  | String    | The current state of the transfer request.                               |
+| requestDate        | Request Date    | 1     | read-only  | Timestamp | The date and time the transfer was requested.                            |
+| actionDate         | Action Date     | 0-1   | read-only  | Timestamp | The deadline for responding before the server takes an automated action. |
+
+Object: transferOutcomeMessage
+
+Object Name: Transfer Outcome Message Object
+
+Object Type: Component
+
+Description: Notification for a client affected by the completion of a transfer request.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                                                      |
+| ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------------ |
+| trStatus           | Transfer Status | 1     | read-only  | String    | The final state of the transfer request.                                                         |
+| requestDate        | Request Date    | 1     | read-only  | Timestamp | The date and time the transfer was requested.                                                    |
+| actionDate         | Action Date     | 1     | read-only  | Timestamp | The date and time the transfer request was resolved.                                             |
+| expiryDate         | Expiry Date     | 0-1   | read-only  | Timestamp | The end of the object's validity period if the operation causes a change in the validity period. |
+
+Object: expirationDeletionMessage
+
+Object Name: Expiration Deletion Message Object
+
+Object Type: Component
+
+Description: Notification for the sponsoring client that an object was deleted following expiration.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name  | Card. | Mutability | Data Type | Description                                      |
+| ------------------ | ------------- | ----- | ---------- | --------- | ------------------------------------------------ |
+| deletionDate       | Deletion Date | 1     | read-only  | Timestamp | The date and time the server deleted the object. |
+
+Object: autoRenewalMessage
+
+Object Name: Auto-Renewal Message Object
+
+Object Type: Component
+
+Description: Notification for the sponsoring client that the server automatically renewed an object.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                      |
+| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------ |
+| renewalDate        | Renewal Date | 1     | read-only  | Timestamp | The date and time the server renewed the object. |
+| expiryDate         | Expiry Date  | 1     | read-only  | Timestamp | The new expiration date of the object.           |
+
+Object: serviceNoticeMessage
+
+Object Name: Service Notice Message Object
+
+Object Type: Component
+
+Description: Generic text based message containing information not covered by any other message type.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                        |
+| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------ |
+| message            | Message      | 1     | read-only  | String    | Human-readable service information for the receiving organisation. |
+
 
 ## RPP User Role Values Registry
 
@@ -4779,14 +5068,15 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
 * Added Discovery Data Object (Issue #136)
 * Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
 * Added Profile Data Object (Issue #140)
-* added Visibility data element attribute and generic includeElements transient input data element. Set authInfo of domain and contact to onDemand visibility (Issue #57)
+* added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility (Issue #57)
 * Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
-* Removed the urgent transient parameter from the update operation for Domain Object (Issue #52)
+* Removed the urgent parameter from the update operation for Domain Object (Issue #52)
 * Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)

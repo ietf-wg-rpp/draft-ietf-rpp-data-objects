@@ -14,7 +14,10 @@
 #   Free-form intro prose that precedes the first object in a normative H1
 #   section and is not attached to any single object (e.g. the paragraph
 #   directly under "# Process Objects" before the first "## ... Object"
-#   heading). Keyed by the literal H1 heading text. Absent for sections with
+#   heading). Keyed by the literal H1 heading text. Intro prose of a group
+#   heading inside an envelope section (e.g. "## Messages", whose children
+#   are the message objects) is also listed here, keyed by the group's
+#   literal heading text. Absent for sections with
 #   no such intro (most Resource/Data Object sections start immediately with
 #   the object's own header bullets, so they have no entry here).
 #
@@ -25,6 +28,15 @@
 #     identifier:   camelCase machine-readable Identifier bullet
 #     name:         human-readable Name bullet
 #     object_type:  "Component" | "Process" | "Resource"
+#     unique_identifier: the object's "* Unique Identifier:" header bullet —
+#                   the identifier of the element that identifies an
+#                   instance (e.g. "name", "processId"). Empty string when
+#                   the bullet is absent or "(None)": the object has no
+#                   identity of its own (Component Objects, Discovery).
+#     owner:        for an object-specific Process Object, the identifier of
+#                   its Owner Data Object — the Data Object whose
+#                   "## Processes" section contains its definition (taken
+#                   from the heading nesting only). Empty string otherwise.
 #     description:  the object's own "* Description:" bullet (may cite
 #                   external references, e.g. "[@!RFC8543]")
 #     preamble:     orphan prose found between the object's header bullets
@@ -43,10 +55,21 @@
 #                   the object has none. Each entry:
 #                     heading: the subsection's heading text
 #                     anchor:  its "{#...}" anchor, or "" if none
-#                     notes:   its body, in document order — each prose
-#                              paragraph and each top-level bullet becomes
-#                              one list entry (bullets fold deeper nesting
-#                              into that same entry, same as Constraints)
+#                     notes:   its own body text, in document order — each
+#                              prose paragraph and each top-level bullet
+#                              becomes one list entry (bullets fold deeper
+#                              nesting into that same entry, same as
+#                              Constraints). Tables are not repeated
+#                              here; fenced blocks (diagrams) and their
+#                              "Figure:" captions are not exported.
+#                     tables:  every pipe table in its own body:
+#                                caption: text of the "Table:" line, or ""
+#                                anchor:  its "{#...}" anchor, or ""
+#                                columns: the header cells, in order
+#                                rows:    one {column: cell} map per row
+#                     subsections: headings one level deeper, same shape,
+#                              recursively (e.g. "Allowed Transitions" under
+#                              "Redemption Grace Period")
 #     extends:      the object's "* Extends:" attribute — the NAME (not the
 #                   identifier) of the object this one extends, e.g. a
 #                   Domain Transfer Process Object extends "Transfer Process
@@ -83,9 +106,15 @@
 #                   further nesting under it (a sub-list, a numbered list)
 #                   folded into that same entry as extra newline-joined
 #                   lines, keeping the original markers (e.g. "1.", "2.").
+#     direct_access: the element's "* Direct Access:" bullet as a boolean;
+#                   false when absent (the draft's default)
+#     visibility:   the element's "* Visibility:" bullet, "default" or
+#                   "onDemand"; "default" when absent (the draft's default)
 #     notes:        orphan prose inside the element's own block not captured
 #                   by any of the fields above (e.g. a stray unstructured
-#                   paragraph). Empty list if none.
+#                   paragraph). Empty list if none. A table found in any
+#                   orphan-prose location is kept as one verbatim,
+#                   newline-joined entry; a fenced block is skipped.
 #
 #   Each operation entry:
 #     identifier, name: as defined in the operation heading /
@@ -96,7 +125,8 @@
 #                   prose written directly after its "* Identifier:" bullet).
 #                   Covers every prose paragraph between "* Identifier:" and
 #                   the first "* Authorisation:"/"* Input:"/"* Output:"
-#                   bullet (or the transient-params marker), newline-joined
+#                   bullet (or the first Input Data Elements / Parameters
+#                   lead-in line), newline-joined
 #                   if there is more than one paragraph.
 #     authorisation: the operation's "* Authorisation:" bullet as a LIST of
 #                   strings, one per top-level sub-bullet (same
@@ -104,19 +134,34 @@
 #                   deeper nesting, e.g. "Pull transfer:"/"Push transfer:"
 #                   sub-cases, is newline-joined into that entry). Empty
 #                   list if the operation has no Authorisation bullet.
-#     input:        the operation's "* Input:" bullet value (a single
-#                   string, e.g. "Object identifier"). Empty string if absent.
-#     output:       the operation's "* Output:" bullet value (a single
-#                   string). Empty string if absent.
+#     input:        the operation's "* Input:" bullet value as a single
+#                   string, e.g. "Object identifier"; a nested bullet list
+#                   under a blank "* Input:" is newline-joined. Empty string
+#                   if absent.
+#     output:       the operation's "* Output:" bullet value, same rules as
+#                   input. Empty string if absent.
 #     notes:        orphan prose in the operation's body beyond description/
 #                   authorisation/input/output (e.g. a further explanatory
-#                   paragraph after the Authorisation bullet, or the
-#                   "the following transient data elements..." lead-in
-#                   sentence). Empty list if none.
-#     params:       transient (non-persisted) operation parameters, each
-#                   with identifier, name, cardinality, data_type,
-#                   description, constraints, notes — same meaning as for
-#                   elements.
+#                   paragraph after the Authorisation bullet). The lead-in
+#                   lines introducing inputs/params are structure, not
+#                   notes. Empty list if none.
+#     inputs:       Input Data Elements of the operation (content the
+#                   operation acts upon, not part of the object's state),
+#                   from the bullets after a lead-in line such as "The
+#                   following input data elements are defined for this
+#                   operation:". Each with identifier, name, cardinality,
+#                   data_type, description, constraints, notes — same
+#                   meaning as for elements.
+#     params:       Parameters of the operation (control processing or
+#                   output, not part of the object's state), from the
+#                   bullets after a lead-in line such as "The following
+#                   parameters are defined for this operation:". Same
+#                   fields as inputs.
+#
+# Every attribute bullet in the draft has a field here: an element, input
+# or parameter attribute the export does not cover makes --yaml-out fail
+# instead of writing this file ([ELEM ATTR UNKNOWN],
+# [INPUT|PARAM ATTR NOT APPLICABLE]).
 #
 # Nothing here duplicates content already captured in a structured field:
 # "notes"/"preamble"/"section_notes" contain ONLY the leftover prose the

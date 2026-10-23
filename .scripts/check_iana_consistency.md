@@ -42,6 +42,7 @@ python3 ../.scripts/check_iana_consistency.py [OPTIONS]
 | `--generate` | With `--check`, also include ready-to-paste IANA markup for every `MISSING IN IANA` issue (see [Generated output](#generated-output)). |
 | `--iana-out PATH` | Write the consistency report to `PATH` instead of stdout. |
 | `--yaml-out PATH` | Write the full structured object model to `PATH` as YAML (see [YAML export](#yaml-export)). |
+| `--level {error,warning,info}` | Report verbosity (see [Report levels](#report-levels)). Default: **`error`**. |
 | `--self-test` | Run the in-file test suite and exit; ignores every other flag. |
 
 `--check` and `--yaml-out` are independent: either, both, or neither may be
@@ -49,8 +50,24 @@ requested in a single invocation. Running with no flags reproduces the
 original behaviour (consistency report to stdout, `--check` on by default).
 
 Exit code 0 = no errors (or `--no-check`); exit code 1 = at least one
-consistency error. Orphan-prose warnings (see below) are printed to stderr
-after all requested output and never affect the exit code.
+consistency error, or a `--yaml-out` export refused because of attributes
+it does not cover (see [YAML export](#yaml-export)). Orphan-prose warnings (see below) never affect the exit
+code.
+
+### Report levels
+
+`--level` selects how much the consistency report contains; each level
+includes everything from the levels before it (`REPORT_LEVELS`):
+
+| Level | Report content |
+| ----- | -------------- |
+| `error` (default) | Consistency errors (every `[…]` code below), generated IANA markup when `--generate` is set, or the `OK:` line. |
+| `warning` | Also an `ORPHAN-PROSE WARNINGS (n):` section after the errors/markup. |
+| `info` | Also the `Normative objects found` / `IANA objects found` inventories at the top. |
+
+The report goes to stdout or to the `--iana-out` file, so the warnings are
+captured there too. With `--no-check` there is no report; at `warning` or
+`info` the orphan-prose warnings are then printed to stderr instead.
 
 ---
 
@@ -87,20 +104,42 @@ after all requested output and never affect the exit code.
 | `[OP MISSING IN NORMATIVE]` | IANA operation has no normative entry |
 | `[OP MISSING IDENTIFIER]` | Normative operation heading has no `* Identifier:` bullet |
 | `[OP DESC EMPTY]` | IANA operation Description field is blank; normative has a description |
+| `[OP SECTION MISSING IN IANA]` | IANA operation declares neither a table nor `(None)` for `Input Data Elements` or for `Parameters` |
 
 Note: `[OP MISSING IDENTIFIER]` is reported even when the parent object itself
 is `[MISSING IN IANA]`, so identifier gaps are always surfaced.
 
-### Operation parameter level (per matched operation pair)
+### Operation input level (per matched operation pair)
+
+Input Data Elements (tag `INPUT`) and Parameters (tag `PARAM`) are checked
+identically, each against its own IANA table:
 
 | Code | Meaning |
 | ---- | ------- |
-| `[PARAM MISSING IN IANA]` | Normative parameter absent from IANA Parameters table |
-| `[PARAM MISSING IN NORMATIVE]` | IANA parameter row absent from normative definition |
-| `[PARAM NAME MISMATCH]` | Identifier matches, but Parameter Name differs |
-| `[PARAM CARD MISMATCH]` | Identifier matches, but Cardinality differs |
-| `[PARAM TYPE MISMATCH]` | Identifier matches, but Data Type differs |
-| `[PARAM DESC EMPTY]` | IANA description cell is blank; normative has a description |
+| `[INPUT\|PARAM MISSING IN IANA]` | Normative entry absent from the IANA table of its kind |
+| `[INPUT\|PARAM MISSING IN NORMATIVE]` | IANA row absent from the normative definitions of either kind |
+| `[INPUT\|PARAM KIND MISMATCH]` | Defined as one kind normatively, but registered in the other kind's IANA table (reported once, instead of a missing pair) |
+| `[INPUT\|PARAM NAME MISMATCH]` | Identifier matches, but Name differs |
+| `[INPUT\|PARAM CARD MISMATCH]` | Identifier matches, but Cardinality differs |
+| `[INPUT\|PARAM TYPE MISMATCH]` | Identifier matches, but Data Type differs |
+| `[INPUT\|PARAM DESC EMPTY]` | IANA description cell is blank; normative has a description |
+
+### Operation input attributes (normative-only)
+
+| Code | Meaning |
+| ---- | ------- |
+| `[INPUT\|PARAM ATTR NOT APPLICABLE]` | A normative Input Data Element or Parameter declares an attribute bullet other than Identifier, Cardinality, Data Type, Description, Constraints (`PARAM_ATTR_KEYS`), e.g. Mutability. Reported whether or not the object is in IANA. |
+
+### Data-element attributes (normative-only)
+
+The IANA tables carry no Direct Access or Visibility column, so these are
+checked against the draft's own "Data Element Semantics" definitions only
+(`check_element_attrs()`):
+
+| Code | Meaning |
+| ---- | ------- |
+| `[ELEM ATTR UNKNOWN]` | An element declares an attribute bullet not in `ELEMENT_ATTR_KEYS` (kept in `extra_attrs`) |
+| `[ELEM ATTR INVALID]` | `Direct Access` is not `true`/`false`; `Visibility` is not `default`/`onDemand`; or `Direct Access: true` on an element whose Data Type is not an association (`_is_association_type()`): a bracketed notation from `ASSOCIATION_NOTATIONS` (`Aggregation[Type]`, …), or a Composition — the bare Name of a normative object (`Type`) |
 
 ### Supported-process level (normative-only, no IANA table involved)
 
@@ -155,6 +194,18 @@ itself drive it:
      `Object Description` wrapper); `* Data Elements:` is a *bullet*, not a
      heading, introducing an indented element list; `### Operations` (H3)
      holds the object's operations, one level deeper than its own H2.
+   - **Group headings** inside an envelope H1 (e.g. `## Messages`,
+     `## Discovery`): a heading with no object header of its own but with
+     child headings one level deeper. Its children are walked the same way,
+     recursively (`_walk_envelope_level()`), so `### Base Message Object`
+     is an object at H3 with the envelope's `obj_type`. The group's intro
+     prose (before its first child heading) goes to
+     `section_notes["## Messages"]`. A heading with neither an object header
+     nor child headings is not an object and is skipped.
+   - **Lead-in prose** between an object's heading and its `* Name:` bullet
+     (e.g. "The Review Response Object defines …") does not hide the
+     object (`_skip_to_object_header()`); it is prepended to the object's
+     `preamble` and warned about like other orphan prose.
    - **A Process Object embedded in a Data Object** (via that Data Object's
      own `## Processes` sub-section, e.g. `### Domain Create Process
      Object` under `## Processes` inside `# Domain Name Data Object`) starts
@@ -190,7 +241,15 @@ itself drive it:
 
 * Identifier: create
 
-The following transient data elements are defined for this operation:
+The following input data elements are defined for this operation:
+
+* Input Name
+  * Identifier: inputId
+  * Cardinality: 0-1
+  * Data Type: String
+  * Description: …
+
+The following parameters are defined for this operation:
 
 * Param Name
   * Identifier: paramId
@@ -265,18 +324,18 @@ individual operations are headings one level deeper still (e.g.
 
 * Identifier: transferCreate
 
-In addition, the following transient data element is defined for this operation:
+The following additional input data elements are defined for this operation:
 
-* Transfer Period
-  * Identifier: transferPeriod
+* Reason
+  * Identifier: reason
   * Cardinality: 0-1
-  * Data Type: Period Object
+  * Data Type: String
   * Description: …
 ```
 
 Group-container child operations are parsed identically to direct
-operations — they must have a `* Identifier:` bullet and may have transient
-parameters. Operations missing the identifier bullet are recorded as
+operations — they must have a `* Identifier:` bullet and may have input
+data elements and parameters. Operations missing the identifier bullet are recorded as
 `[OP MISSING IDENTIFIER]`.
 
 A group-container heading with no child headings underneath (pure
@@ -340,10 +399,54 @@ document layouts** above); their `* Extends:` value lands in
 Any sibling heading of an object that is not `Object Description`,
 `Data Elements`, `Operations`, or `Processes` — e.g. `### RDATA Structures
 in EPP Profile {#rdata-structures}` inside the `dnsRecord` Component Object
-— is captured as a `SubsectionDef` (`heading`, `anchor`, `notes`) via
-`_parse_object_subsections()` / `_parse_subsection_body()`, so its content
-(prose paragraphs and 0-indent bullet lists, in document order) is preserved
-for `--yaml-out` instead of silently dropped.
+— is captured as a `SubsectionDef` via `_parse_object_subsections()` /
+`_parse_subsection()` / `_parse_block_content()`, so its content is
+preserved for `--yaml-out` instead of silently dropped:
+
+- `notes`: prose paragraphs and 0-indent bullet entries, in document order.
+- `tables`: each pipe table as a `TableDef` — header cells as `columns`,
+  every further row as a `{column: cell}` map, plus the mmark caption line
+  (`Table: …`) and anchor (`{#…}`, inline or on the next line) that follow
+  it. This is how the status value tables (e.g. `Table: Domain Name Status
+  Values`) are exported.
+- Fenced blocks (```` ```ascii ```` diagrams) and the `Figure: …` caption
+  and anchor that follow them are skipped whole: diagrams are not exported.
+- `subsections`: headings one level deeper, parsed the same way,
+  recursively (e.g. `#### Allowed Transitions` under `### Redemption Grace
+  Period`). A subsection's own body ends at its first child heading.
+
+The element list of a Component/Process Object (`* Data Elements:`) ends at
+the first heading, so the last element never absorbs following subsections.
+
+### Object attributes derived from structure
+
+- `unique_identifier` — the `* Unique Identifier:` header bullet
+  (`_parse_unique_identifier()`). Absent and `(None)` both give `""`: the
+  object has no identity of its own.
+- `owner` — for a Process Object embedded in a Data Object's
+  `## Processes` section, the identifier of that Data Object (the Owner
+  Data Object), set by `_walk_normative_objects()` from the heading
+  nesting. Never derived from identifier prefixes or prose. `""` otherwise.
+
+### Data element optional attributes
+
+`* Direct Access:` and `* Visibility:` are parsed into
+`ElementDef.direct_access` (bool, default `false`) and
+`ElementDef.visibility` (`default` | `onDemand`, default `default`), the
+defaults the draft defines for an absent bullet. Raw values are kept in
+`attr_values` for validation; other attribute bullets go to `extra_attrs`
+(see [Data-element attributes](#data-element-attributes-normative-only)),
+which is never exported: it blocks `--yaml-out` instead.
+
+### What is NOT parsed (prose)
+
+The script never derives structure from prose. Information that the draft
+states only in prose — e.g. which status table a `label` element's values
+come from (a link inside a Constraints sentence), what a resource Create
+operation takes beyond its own elements, or which Process Object it
+implicitly initiates — is not exported as a structured field; it stays in
+`constraints`/`description`/`notes` as text. The fix is a structured
+bullet in the draft, not a heuristic in the script.
 
 ### Operation identifier requirement
 
@@ -353,12 +456,29 @@ reported as `[OP MISSING IDENTIFIER]`. They are excluded from all further
 comparisons (IANA matching, parameter checking) but the error is always
 emitted, even when the parent object has no IANA entry yet.
 
-### Transient parameters
+### Input data elements and parameters
 
-Parameters are parsed from bullet lists that appear after a line containing
-the phrase "transient data element" (case-insensitive). Each parameter bullet
-must have at minimum an `* Identifier:` sub-bullet; `* Cardinality:` and
-`* Data Type:` are also captured when present.
+An operation's Input Data Elements and Parameters are bullet definitions
+following a **lead-in line** (`_op_section_marker_kind()`): a non-bullet,
+non-heading prose line in the operation body that ends with `:` and names
+exactly one of the kinds — "input data element(s)" or "parameter(s)"
+(case-insensitive). A line naming both kinds is ambiguous and stays orphan
+prose. Each section runs from its lead-in line to the next lead-in line or
+the end of the operation block, so both kinds may appear in one operation,
+in either order.
+
+Each definition bullet must have at minimum an `* Identifier:` sub-bullet;
+`* Cardinality:`, `* Data Type:`, `* Description:` and `* Constraints:`
+(`PARAM_ATTR_KEYS`) are captured when present. Any other attribute bullet
+is kept verbatim in `extra_attrs` and reported as
+`[INPUT|PARAM ATTR NOT APPLICABLE]`; it is never exported and blocks
+`--yaml-out`. Operation field bullets (`* Input:`,
+`* Output:`, `* Authorisation:`) inside a section are parsed as fields, not
+as definitions.
+
+Lead-in lines without the words above (e.g. the former "transient data
+element" wording) are not recognised: their bullets are not parsed as
+definitions and their text shows up as orphan prose.
 
 ### Constraints (and other list-valued attributes)
 
@@ -398,18 +518,23 @@ differs from elements/objects:
 - **Description** is never a `* Description:` bullet (that form is
   element/object-only) — it is plain prose written directly after
   `* Identifier:`. Every prose paragraph between `* Identifier:` and the
-  first recognised field bullet below (or the transient-params marker) is
-  the description, newline-joined if there is more than one paragraph.
+  first recognised field bullet below (or the first input/parameter lead-in
+  line) is the description, newline-joined if there is more than one
+  paragraph.
 - **`* Authorisation:`** always has a blank inline value followed by a
   nested bullet list — parsed the same way as a Constraints sub-list (one
   string per top-level bullet, deeper nesting such as "Pull transfer:" /
   "Push transfer:" sub-cases newline-folded into that entry). Its
   indentation is read from the source, not assumed.
-- **`* Input:`** / **`* Output:`** are always a single inline value (never a
-  list) — captured as plain strings.
-- Any prose **after** the last recognised field bullet (e.g. a further
-  explanatory paragraph following Authorisation) is NOT part of the
-  description — it stays in the operation's `notes`.
+- **`* Input:`** / **`* Output:`** are captured as plain strings: the inline
+  value, or — when the inline value is blank — the items of the nested
+  bullet list, newline-joined.
+- Field bullets are recognised anywhere after the description, in any order
+  (e.g. `* Output:` after a list of input data elements).
+- Any prose after the description that is not a field bullet, lead-in line
+  or input/parameter definition (e.g. a further explanatory paragraph
+  following Authorisation) is NOT part of the description — it stays in the
+  operation's `notes`.
 
 ---
 
@@ -441,6 +566,11 @@ Operation Identifier: <id>
 
 Description: <text>
 
+Input Data Elements
+| Identifier | Name | Card. | Data Type | Description |
+| ---------- | ---- | ----- | --------- | ----------- |
+| …          | …    | …     | …         | …           |
+
 Parameters
 | Identifier | Name | Card. | Data Type | Description |
 | ---------- | ---- | ----- | --------- | ----------- |
@@ -450,7 +580,11 @@ Parameters
 One blank line separates every field. Multiple `Operation:` blocks may follow
 the `Operations` keyword.
 
-`Parameters: (None)` is used when an operation has no parameters.
+`Input Data Elements: (None)` / `Parameters: (None)` are used when an
+operation has none of that kind. A section heading with a trailing colon
+(`Parameters:`) is accepted before a table. Every operation is expected to
+declare both sections; one that declares neither a table nor `(None)` for a
+section is reported as `[OP SECTION MISSING IN IANA]`.
 
 `Operation Identifier:` is optional in IANA; if absent the script derives the
 identifier as the lower-cased first word of the Operation Name.
@@ -515,8 +649,8 @@ A complete block ready to paste into the IANA section, including:
 - `Data Elements` pipe table with auto-sized columns; `Description` column
   filled from the normative `* Description:` attribute
 - `Operations` section with one `Operation:` block per normative operation,
-  `Description:` filled from normative, and a `Parameters` table (or
-  `Parameters: (None)`) with descriptions filled in
+  `Description:` filled from normative, and an `Input Data Elements` and a
+  `Parameters` section (each a table, or `(None)`) with descriptions filled in
 
 Column header style:
 - Resource objects: `Identifier` / `Name`
@@ -539,8 +673,9 @@ format as for missing elements).
 ### Missing operations → full operation block
 
 A complete `Operation:` block with `Operation Identifier:`, `Description:`
-filled from the normative `* Description:` bullet, and a `Parameters` table
-(or `Parameters: (None)`) with descriptions filled in.
+filled from the normative operation description, and an `Input Data Elements`
+and a `Parameters` section (each a table, or `(None)`) with descriptions
+filled in.
 
 ### Empty operation descriptions → full corrected block (`[OP DESC EMPTY]`)
 
@@ -548,19 +683,21 @@ When the IANA operation exists but its `Description:` field is blank and the
 normative definition has a description, the full corrected operation block is
 output (same format as for missing operations).
 
-### Missing parameters → single table row
+### Missing input data elements / parameters → single table row
 
-One pipe-table row per missing parameter, with the `Description` cell filled
+One pipe-table row per missing entry (`[INPUT|PARAM MISSING IN IANA]`; a
+`KIND MISMATCH` entry is included too, as a row for its correct table),
+under a header naming the target table, with the `Description` cell filled
 from the normative `* Description:` attribute:
 ```
 | identifier | Name | Card. | Data Type | Description text |
 ```
 
-### Empty parameter descriptions → single corrected row (`[PARAM DESC EMPTY]`)
+### Empty input / parameter descriptions → single corrected row (`[INPUT|PARAM DESC EMPTY]`)
 
-When the IANA parameter row exists but its Description cell is blank and the
+When the IANA row exists but its Description cell is blank and the
 normative definition has a description, a corrected row is output (same
-format as for missing parameters).
+format as for missing entries).
 
 ---
 
@@ -574,8 +711,12 @@ numbered lists, etc. `extract_orphan_prose()` is the single function that
 collects this text everywhere it can occur, so it is preserved (for
 `--yaml-out`) rather than silently dropped.
 
-A line is orphan prose if it is **not**: blank, a heading, a table row
-(`| ... |`), a recognised `* Key: value` attribute bullet (see
+A pipe table met in an orphan-prose location is kept as one verbatim,
+newline-joined entry (source lines unchanged, including its caption line).
+A fenced block and its `Figure:` caption are skipped whole, never mangled
+line by line into prose.
+
+A line is orphan prose if it is **not**: blank, a heading, a recognised `* Key: value` attribute bullet (see
 `_KNOWN_ATTR_KEYS` in the script), an element/operation/parameter header
 bullet, or an `A>` aside note. Aside notes are recognised and always dropped
 — never captured, never warned about — since they are editorial TODO/TBD/TBC
@@ -593,18 +734,21 @@ the list items at the source.
 | Extraction site | Target field | Line range |
 | --- | --- | --- |
 | `parse_section_notes()` | top-level `section_notes[<h1 heading text>]` | from just after the H1 heading to the first object inside it |
+| `_walk_envelope_level()` | top-level `section_notes[<group heading text>]`, e.g. `"## Messages"` | from just after a group heading to its first child heading |
+| `_object_lead_prose()` | start of `ObjectDef.preamble` | from just after an object's heading to its `* Name:` bullet |
 | `_parse_object_body()` | `ObjectDef.preamble` | from the end of the object's header attribute bullets to its first element/operation |
 | `_parse_normative_elements_nested()` / `_parse_normative_elements_flat()` | `ElementDef.notes` | from just after the element header bullet to the next element (or block end) |
-| `_parse_normative_operations_nested()` (via `_parse_operation_body_fields()`) | `OperationDef.notes` | whatever remains of the operation body after description/authorisation/input/output, excluding the parsed parameter bullet sub-range |
-| `_parse_normative_params_from_bullets()` | `ParamDef.notes` | from just after the parameter header bullet to the next parameter (or block end) |
+| `_parse_normative_operations_nested()` (via `_parse_operation_body_fields()`) | `OperationDef.notes` | the operation body after the description, excluding field bullets (with nested lists), input/parameter lead-in lines and each parsed definition's own range |
+| `_parse_normative_params_from_bullets()` | `ParamDef.notes` (in `inputs` or `params`) | from just after the definition's header bullet to the next 0-indent bullet (or section end) |
 | `_parse_subsection_body()` | `SubsectionDef.notes` | a generic subsection's body — prose paragraphs and 0-indent bullet lists, in document order (not `extract_orphan_prose`, which treats bullets as headers to skip; see **Generic subsections** above) |
 
 ### Warnings
 
 Every non-empty extraction is appended to the module-level `PROSE_WARNINGS`
-list. `main()` prints all accumulated warnings to stderr after the requested
-report/YAML output, one line per orphan-prose occurrence, naming the source
-line and how many paragraphs were found. This is intentional: an orphan-prose
+list. At `--level warning` or `info` they are included in the consistency
+report (or, with `--no-check`, printed to stderr), one line per orphan-prose
+occurrence, naming the source line and how many paragraphs were found; at the
+default `--level error` they are not shown (see [Report levels](#report-levels)). This is intentional: an orphan-prose
 warning signals prose that likely belongs in a proper `* Description:` or
 `* Constraints:` bullet at the source, and the warning is a nudge to fix the
 draft — the YAML export having a populated `notes`/`preamble` field is not
@@ -630,6 +774,8 @@ the object's *actual* type, not necessarily its enclosing H1 section — see
 identifier: domainName
 name: Domain Name Data Object
 object_type: Resource
+unique_identifier: name   # "* Unique Identifier:"; "" if absent or "(None)"
+owner: ""                 # Owner Data Object identifier (embedded processes only)
 description: "..."
 preamble: []              # orphan prose before the first element/operation
 elements:
@@ -640,6 +786,8 @@ elements:
     data_type: String
     description: "..."
     constraints: []        # list of strings — see Constraints above
+    direct_access: false   # "* Direct Access:"; false if absent
+    visibility: default    # "* Visibility:"; "default" if absent
     notes: []              # orphan prose inside this element's own block
 operations:
   - identifier: create
@@ -649,7 +797,7 @@ operations:
     input: ""
     output: ""
     notes: []              # orphan prose beyond description/authorisation/input/output
-    params:
+    inputs:                # Input Data Elements
       - identifier: ...
         name: ...
         cardinality: "..."
@@ -657,10 +805,18 @@ operations:
         description: "..."
         constraints: []
         notes: []
+    params: []             # Parameters — same shape as inputs
 subsections:                # non-Data-Elements/Operations/Processes headings
   - heading: "RDATA Structures in EPP Profile"
     anchor: "{#rdata-structures}"
     notes: []                # prose paragraphs and bullets, in document order
+    tables:                  # pipe tables in the subsection's own body
+      - caption: "Domain Name Status Values"
+        anchor: "{#tbl-domain-status-values}"
+        columns: [Status Value, Description]
+        rows:
+          - {Status Value: ok, Description: "..."}
+    subsections: []          # deeper headings, same shape, recursively
 extends: ""                 # Object NAME this object extends, from "* Extends:"; "" if none
 supported_processes:        # inherited-process bullets from the object's "## Processes"
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
@@ -672,6 +828,16 @@ Nothing in the structured fields is duplicated into `notes`/`preamble`/
 `section_notes`/`subsections` and vice versa — those fields hold only the
 leftover content the parser could not attribute to a recognised bullet or
 heading.
+
+### Uncovered attributes block the export
+
+An attribute bullet the YAML model has no field for — an unknown element
+attribute (`[ELEM ATTR UNKNOWN]`) or an attribute not applicable to an
+input/parameter (`[INPUT|PARAM ATTR NOT APPLICABLE]`) — means the draft
+holds information the export routine does not cover. `yaml_export_errors()`
+collects these; when there are any, `--yaml-out` prints them to stderr,
+writes no file and sets exit code 1, whether or not `--check` runs. Fix the
+draft, or extend the model (a new field) — never export them generically.
 
 ### Header comment
 
@@ -706,13 +872,22 @@ list-parsing for nested and flat element/parameter layouts (including
 blank-line/`A>`-aside tolerance between attribute bullets (elements,
 parameters, and object headers); operation description/authorisation/
 input/output field parsing, including the multi-paragraph-description-vs-
-trailing-notes split; generic-subsection discovery and its exclusion rules
+trailing-notes split; input data element / parameter lead-in detection,
+section splitting, out-of-order field bullets and `extra_attrs`; the
+YAML export refusing uncovered attributes; IANA
+`Input Data Elements`/`Parameters` section parsing (including absence);
+the operation-input checks (kind mismatch, missing in either direction,
+missing IANA section, attributes not applicable); both sections in
+generated operation blocks; generic-subsection discovery and its exclusion rules
 (`Data Elements`/`Operations`/`Processes`/`Object Description`, plus the
 Component-never-has-Operations warning path); the top-down object walk
 (`_walk_normative_objects`), including a Process Object embedded in a Data
 Object's `## Processes` section and an aside before an object's header;
 orphan-prose extraction (paragraph joining, aside skipping,
-empty-when-fully-structured); Organisation/User section recognition; an
+empty-when-fully-structured, fenced blocks skipped); unique
+identifier and owner; Direct Access/Visibility parsing and the element
+attribute checks; the element list ending at a heading; subsection tables
+and nesting; Organisation/User section recognition; an
 end-to-end check that the real draft's `organisation`/`user` objects parse;
 YAML model structure; and a YAML round-trip (render → `yaml.safe_load` →
 verify).
