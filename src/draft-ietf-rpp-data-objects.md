@@ -190,7 +190,8 @@ The definition of each data element within an object consists of the following a
   * `1` for exactly one
   * `0-1` for zero or one
   * `0+` for zero or more
-  * and `1+` for one or more
+  * `1+` for one or more
+  * and `X-Y` for at least X and at most Y, where X and Y are non-negative integers, X is less than Y, and Y is greater than 1, e.g. `1-2` for one or two
 * Data Type: Defines the element's data structure, which can be a primitive type, a Common Data Type or a reference to another component object.
 * Description: Explains the purpose of the data element and any other relevant information.
 * Constraints: Provides specific validation rules or limitations on top of the data type itself, such as value ranges.
@@ -199,6 +200,8 @@ The definition of each data element within an object consists of the following a
   * read-only: The element's value is managed by the server. It cannot be set or modified directly by the client, though it may change as a result of server-side operations.
   * read-write: The element's value can be set and modified by the client.
 * Direct Access: An optional flag indicating whether the associated object or objects are additionally exposed as an addressable sub-resource of the containing object. When set to `true`, the associated object or objects are exposed as a sub-resource that can be addressed independently of the containing object, in addition to their inline representation within it. When absent or set to `false`, the element is accessed only inline. The default value is `false`.
+
+A data element is required when the lower bound of its cardinality is greater than zero (`1`, `1+`, or `X-Y` with X greater than 0); otherwise it is optional.
 
 The Direct Access flag is applicable only to a data element whose Data Type is an association (Aggregation, Composition, Labelled Aggregation, Dictionary Aggregation, Labelled Composition, or Dictionary Composition) with a Data Object, Component Object, or Process Object, of any cardinality. Where such a data element has a cardinality greater than `1`, the associated object type MUST define a Unique Identifier, so that an individual associated object can be addressed unambiguously among the collection.
 * Visibility: An optional attribute indicating whether the data element is included in operation output by default. It MUST be one of the following:
@@ -252,7 +255,7 @@ The `includeElements` parameter is defined for every operation whose output cont
   * Description: A comma-separated list of Identifiers of data elements that the client requests to be included in the operation output.
   * Constraints: Each list item is the Identifier of a top-level data element of the object or objects returned by the operation. Data elements nested within component objects or other associated objects cannot be listed. Identifiers are case-sensitive. The list contains no whitespace.
 
-A listed Identifier refers to the data element as a whole. For a data element with a cardinality of `0+` or `1+`, it refers to the entire collection of values, and individual values cannot be selected. For a data element whose Data Type is a component object or an association, it refers to the complete associated object or objects.
+A listed Identifier refers to the data element as a whole. For a data element with a cardinality of `0+`, `1+`, or `X-Y`, it refers to the entire collection of values, and individual values cannot be selected. For a data element whose Data Type is a component object or an association, it refers to the complete associated object or objects.
 
 The server processes this data element as follows:
 
@@ -1626,11 +1629,11 @@ A> TODO: Model Disclose in universal (extendible) way
     * Constraints: None.
   * Statements
     * Identifier: statements
-    * Cardinality: 0+
+    * Cardinality: 1-2
     * Mutability: read-write
     * Data Type: String
     * Description: Client statements required by the RGP process.
-    * Constraints: At least one and at most two statements MUST be provided. In EPP Compatibility Profile exactly two statements MUST be present as defined in [@!RFC3915].
+    * Constraints: In EPP Compatibility Profile exactly two statements MUST be present as defined in [@!RFC3915].
   * Other
     * Identifier: other
     * Cardinality: 0-1
@@ -4134,7 +4137,7 @@ Data Elements
 | deleteTime         | Delete Time       | 0-1   | read-write | Timestamp | The date and time when the object delete request was sent to the server.                                           |
 | restoreTime        | Restore Time      | 0-1   | read-write | Timestamp | The date and time when the original restore request operation was sent to the server.                              |
 | restoreReason      | Restore Reason    | 0-1   | read-write | String    | A brief explanation of the reason for restoring the object.                                                        |
-| statements         | Statements        | 0+    | read-write | String    | Mandatory client statements required by the RGP process. At least one and at most two statements MUST be provided. |
+| statements         | Statements        | 1-2   | read-write | String    | Mandatory client statements required by the RGP process.                                                           |
 | other              | Other             | 0-1   | read-write | String    | Any additional information needed to support the statements provided by the client.                                |
 
 
@@ -5068,6 +5071,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
 * defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
