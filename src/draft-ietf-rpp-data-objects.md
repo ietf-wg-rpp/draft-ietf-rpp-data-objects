@@ -1895,6 +1895,18 @@ The Review Response Object defines the data elements for returning the result of
     * Description: The new expiration date of the object.
     * Constraints: (None)
 
+### Maintenance Message Object
+
+The Maintenance Message Object notifies clients of registry maintenance events, equivalent to the maintenance poll messages defined for EPP in [@RFC9167].
+
+* Name: Maintenance Message Object
+* Identifier: maintenanceMessage
+* Extends: Base Message Object
+* Description: Notification of a scheduled, updated, cancelled, or completed registry maintenance event.
+* Data Elements: (None)
+
+A> TODO: Complete the Maintenance Message Object definition. The data elements of the maintenance item defined in [@RFC9167] are not yet modelled.
+
 ### Service Notice Message Object
 
 The Service Notice Message Object is not linked to a specific object or process and can be used to convey general information to the client.
@@ -4792,6 +4804,7 @@ A> TODO: write security considerations, if any
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
 * Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
+* Added Maintenance Message Object placeholder based on RFC 9167 (Issue #180)
 
 {toc="exclude"}
 {numbered="false"}
