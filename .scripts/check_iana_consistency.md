@@ -51,7 +51,7 @@ original behaviour (consistency report to stdout, `--check` on by default).
 
 Exit code 0 = no errors (or `--no-check`); exit code 1 = at least one
 consistency error, or a `--yaml-out` export refused because of attributes
-it does not cover (see [YAML export](#yaml-export)). Orphan-prose warnings (see below) never affect the exit
+it does not cover or a prose-mapping error (see [YAML export](#yaml-export)). Orphan-prose warnings (see below) never affect the exit
 code.
 
 ### Report levels
@@ -442,13 +442,27 @@ which is never exported: it blocks `--yaml-out` instead.
 
 ### What is NOT parsed (prose)
 
-The script never derives structure from prose. Information that the draft
-states only in prose — e.g. which status table a `label` element's values
-come from (a link inside a Constraints sentence), what a resource Create
-operation takes beyond its own elements, or which Process Object it
-implicitly initiates — is not exported as a structured field; it stays in
-`constraints`/`description`/`notes` as text. The fix is a structured
-bullet in the draft, not a heuristic in the script.
+The script never derives structure from prose by itself. Information that
+the draft states only in prose — e.g. what a resource Create operation
+takes beyond its own elements, or which Process Object it implicitly
+initiates — stays in `constraints`/`description`/`notes` as text. The fix
+is a structured bullet in the draft, not a heuristic in the script.
+
+The one exception is an explicit list of verbatim sentences in
+[prose_mappings.yaml](prose_mappings.yaml), each paired with the
+structured fields it stands for (see [Prose mappings](#prose-mappings)).
+The script only looks for those exact strings; it never interprets wording,
+keywords or link text.
+
+### Common Data Types
+
+Every H2 heading under `# Common Data Types` is parsed into a
+`CommonTypeDef` (`parse_common_data_types()`): `name` (heading text),
+`anchor`, `line`, and `description` (its body via
+`_parse_subsection_body()`: one entry per paragraph or top-level bullet,
+asides dropped). The section's own intro paragraph is not exported. Their
+syntax is prose only in the draft; structured `restrictions` come from
+prose mappings.
 
 ### Operation identifier requirement
 
@@ -539,8 +553,8 @@ differs from elements/objects:
 - **`* Input:`** / **`* Output:`** follow the draft's "Operation Input and
   Output" notation and are parsed into `IOItemDef` lists
   (`_parse_io_items()`): inline `(None)` gives `[]`; otherwise each nested
-  bullet `<Kind>: <target>` (`Reference`, `Object`, `Changes`) is one item,
-  with optional sub-bullets `* Elements: <mutability>, …` (Object/Changes,
+  bullet `<Kind>: <target>` (`Reference`, `Object`) is one item,
+  with optional sub-bullets `* Elements: <mutability>, …` (Object,
   required) and `* Cardinality: <card>` (Object only, default `1`); an
   `Input Data Elements` / `Parameters` item carries definitions (see
   [Input data elements and parameters](#input-data-elements-and-parameters)). Any
@@ -786,7 +800,8 @@ model by `--check`, not re-exported) to `PATH` as YAML.
 
 ### Structure
 
-Top-level keys: `section_notes`, `components`, `processes`, `resources`.
+Top-level keys: `section_notes`, `common_data_types`, `components`,
+`processes`, `resources`.
 `components`/`processes`/`resources` each hold a list of objects, keyed by
 `ObjectDef.obj_type` via `OBJ_TYPE_TO_YAML_KEY` (note: `obj_type` reflects
 the object's *actual* type, not necessarily its enclosing H1 section — see
@@ -808,6 +823,7 @@ elements:
     data_type: String
     description: "..."
     constraints: []        # list of strings — see Constraints above
+    restrictions: {}       # structured rules from prose mappings
     direct_access: false   # "* Direct Access:"; false if absent
     visibility: default    # "* Visibility:"; "default" if absent
     notes: []              # orphan prose inside this element's own block
@@ -829,6 +845,7 @@ operations:
             data_type: "..."
             description: "..."
             constraints: []
+            restrictions: {}
             notes: []
     output: []
     notes: []              # orphan prose beyond description/authorisation/input/output
@@ -848,7 +865,50 @@ supported_processes:        # inherited-process bullets from the object's "## Pr
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
     constraints: []          # list of strings — same convention as element/param Constraints
     notes: []                # orphan prose inside this entry's own block
+conditions: []              # cross-element rules from prose mappings
 ```
+
+Each `common_data_types` entry:
+
+```yaml
+name: Phone Number
+anchor: ""
+description: ["Telephone number syntax is derived from ..."]
+restrictions: {base_type: String, pattern: '^\+[0-9]{1,3}\.[0-9]{1,14}(x[0-9]+)?$'}
+```
+
+### Prose mappings
+
+[prose_mappings.yaml](prose_mappings.yaml) (`PROSE_MAPPINGS_FILE`) holds a
+`mappings:` list; each entry has a verbatim `text`, and `set` and/or
+`object` (plus an optional `note` for maintainers). The file's header
+comment lists every key. `build_yaml_model()` starts every element, input,
+parameter and Common Data Type with `restrictions: {}` and every object
+with `conditions: []`; `apply_prose_mappings()` then, for each mapping:
+
+1. searches `text` as an exact substring of every element/input/parameter
+   `description` and `constraints` entry and every Common Data Type
+   `description` entry, in the whole model (text-only matching: no
+   location is named, so one sentence used by several elements needs one
+   entry);
+2. removes it from each text it occurs in (with one adjoining space); a
+   constraint or description entry left empty is dropped;
+3. merges `set` into that holder's `restrictions`, resolving
+   `allowed_values_from` (`[{table, column}]`, table by anchor without
+   `{#`/`}`) into `allowed_values` from the parsed subsection tables;
+4. appends `object.conditions` to the object owning the holder.
+
+The mappings change only the YAML model; the parsed `ObjectDef`s and the
+IANA check are not affected. `--yaml-out` fails (stderr, no file, exit 1)
+on:
+
+- `[MAPPING INVALID]` — file missing, bad shape, unknown key, duplicate
+  `text` (`validate_prose_mappings()`), an unresolvable table/column, or
+  `object` fields on a Common Data Type (which has no owning object);
+- `[MAPPING STALE]` — `text` found nowhere: the draft wording changed,
+  so update or drop the entry;
+- `[MAPPING CONFLICT]` — two mappings set one restriction of one holder to
+  different values.
 
 Nothing in the structured fields is duplicated into `notes`/`preamble`/
 `section_notes`/`subsections` and vice versa — those fields hold only the
@@ -864,6 +924,8 @@ holds information the export routine does not cover. `yaml_export_errors()`
 collects these; when there are any, `--yaml-out` prints them to stderr,
 writes no file and sets exit code 1, whether or not `--check` runs. Fix the
 draft, or extend the model (a new field) — never export them generically.
+Prose-mapping errors (see [Prose mappings](#prose-mappings)) block the
+export the same way.
 
 ### Header comment
 
@@ -918,8 +980,11 @@ attribute checks; the element list ending at a heading; subsection tables
 and nesting; Input/Output notation parsing, the Uniform interface
 defaults and the operation Input/Output check; Organisation/User section recognition; an
 end-to-end check that the real draft's `organisation`/`user` objects parse;
-YAML model structure; and a YAML round-trip (render → `yaml.safe_load` →
-verify).
+YAML model structure; a YAML round-trip (render → `yaml.safe_load` →
+verify); Common Data Type parsing; prose mappings (fragment removal,
+restrictions, table-resolved `allowed_values`, conditions, stale/conflict/
+invalid errors, file-shape validation); and an end-to-end check that every
+entry of `prose_mappings.yaml` matches the real draft.
 
 When changing parsing behaviour or the YAML schema, add or update a `_test_*`
 function in the same change — do not verify by hand-running the script and

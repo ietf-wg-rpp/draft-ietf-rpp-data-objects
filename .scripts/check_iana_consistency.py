@@ -76,6 +76,14 @@ DRAFT_FILE = Path("./draft-ietf-rpp-data-objects.md")
 # the explanatory text lives in one static file, not in Python string literals.
 YAML_TEMPLATE_FILE = Path(__file__).resolve().parent / "object_model_template.yaml"
 
+# Verbatim prose fragment -> structured field mappings for --yaml-out (see
+# apply_prose_mappings). The only sanctioned way to turn prose into structure:
+# the fragments are listed in this data file, never matched by code.
+PROSE_MAPPINGS_FILE = Path(__file__).resolve().parent / "prose_mappings.yaml"
+
+# H1 section whose H2 headings each define one Common Data Type.
+COMMON_DATA_TYPES_HEADING = "# Common Data Types"
+
 # Object Type label (as used in ObjectDef.obj_type) → top-level YAML list key
 OBJ_TYPE_TO_YAML_KEY: dict[str, str] = {
     "Component": "components",
@@ -312,6 +320,19 @@ class ObjectDef:
     preamble: list[str] = field(default_factory=list)
     subsections: list[SubsectionDef] = field(default_factory=list)
     supported_processes: list[SupportedProcessDef] = field(default_factory=list)
+
+
+@dataclass
+class CommonTypeDef:
+    """
+    One Common Data Type: an H2 heading under "# Common Data Types" (e.g.
+    "## Phone Number"). The draft defines these in prose only, so the body
+    is kept as text; structured restrictions come from prose_mappings.yaml.
+    """
+    name: str          # heading text, e.g. "Phone Number"
+    anchor: str        # "{#...}" anchor if present, else ""
+    line: int          # 1-based line of the heading
+    description: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -989,7 +1010,7 @@ def _parse_operation_body_fields(
             desc_end, field_ranges)
 
 
-IO_KINDS = ("Reference", "Object", "Changes")
+IO_KINDS = ("Reference", "Object")
 # Item kinds holding a list of definitions, laid out like an object's
 # "* Data Elements:"; allowed in Input only, at most once each.
 IO_DEFINITION_KINDS = ("Input Data Elements", "Parameters")
@@ -1006,7 +1027,7 @@ def _parse_io_items(lines: list[str], start: int, end: int, inline_val: str,
     other inline value is not the notation. Otherwise lines[start:end] is
     the nested item list; each bullet at its first line's indentation is
     one item "<Kind>: <target>":
-    - Reference / Object / Changes: sub-bullets "* Elements: ..." and
+    - Reference / Object: sub-bullets "* Elements: ..." and
       (Object only) "* Cardinality: ...".
     - Input Data Elements / Parameters (Input only, at most once each): a
       blank value, then one "* <Name>" entry per definition one level deeper,
@@ -1933,6 +1954,27 @@ def parse_normative_objects(lines: list[str], iana_start: int,
     return objects
 
 
+def parse_common_data_types(lines: list[str], iana_start: int) -> list[CommonTypeDef]:
+    """
+    Every H2 heading under "# Common Data Types" is one Common Data Type;
+    its body (prose paragraphs and bullets, asides dropped) is its
+    description. Returns [] when the section is absent.
+    """
+    for i in range(iana_start):
+        if lines[i].rstrip() != COMMON_DATA_TYPES_HEADING:
+            continue
+        section_end = iana_start
+        for k in range(i + 1, iana_start):
+            if re.match(r"^# [^#]", lines[k]):
+                section_end = k
+                break
+        return [CommonTypeDef(name=h_text, anchor=anchor, line=h_line + 1,
+                              description=_parse_subsection_body(lines, h_line + 1, h_end))
+                for h_line, h_end, h_text, anchor in _find_sibling_headings(
+                    lines, i + 1, section_end, level=2)]
+    return []
+
+
 # ---------------------------------------------------------------------------
 # IANA object parser
 # ---------------------------------------------------------------------------
@@ -2751,7 +2793,8 @@ def _param_to_dict(p: ParamDef) -> dict:
         "cardinality": p.cardinality,
         "data_type": p.data_type,
         "description": p.description,
-        "constraints": p.constraints,
+        "constraints": list(p.constraints),
+        "restrictions": {},
         "notes": list(p.notes),
     }
 
@@ -2764,7 +2807,8 @@ def _element_to_dict(e: ElementDef) -> dict:
         "mutability": e.mutability,
         "data_type": e.data_type,
         "description": e.description,
-        "constraints": e.constraints,
+        "constraints": list(e.constraints),
+        "restrictions": {},
         "direct_access": e.direct_access,
         "visibility": e.visibility,
         "notes": list(e.notes),
@@ -2835,18 +2879,33 @@ def _object_to_dict(obj: ObjectDef) -> dict:
         "operations": [_operation_to_dict(op) for op in obj.operations],
         "subsections": [_subsection_to_dict(s) for s in obj.subsections],
         "supported_processes": [_supported_process_to_dict(p) for p in obj.supported_processes],
+        "conditions": [],
+    }
+
+
+def _common_type_to_dict(t: CommonTypeDef) -> dict:
+    return {
+        "name": t.name,
+        "anchor": t.anchor,
+        "description": list(t.description),
+        "restrictions": {},
     }
 
 
 def build_yaml_model(normative: list[ObjectDef],
-                      section_notes: dict[str, list[str]]) -> dict:
+                      section_notes: dict[str, list[str]],
+                      common_types: list[CommonTypeDef] = ()) -> dict:
     """
-    Assemble the plain-dict YAML model from parsed normative objects and
-    section-level intro prose. Keys: section_notes, components, processes,
-    resources — see object_model_template.yaml for the full field reference.
+    Assemble the plain-dict YAML model from parsed normative objects, the
+    Common Data Types and section-level intro prose. Keys: section_notes,
+    common_data_types, components, processes, resources — see
+    object_model_template.yaml for the full field reference. Every
+    restrictions/conditions field starts empty; apply_prose_mappings()
+    fills them.
     """
     model: dict = {
         "section_notes": dict(section_notes),
+        "common_data_types": [_common_type_to_dict(t) for t in common_types],
         "components": [],
         "processes": [],
         "resources": [],
@@ -2876,16 +2935,218 @@ def yaml_export_errors(normative: list[ObjectDef]) -> list[str]:
     return errors
 
 
-def render_yaml(normative: list[ObjectDef],
-                 section_notes: dict[str, list[str]]) -> str:
-    """
-    Render the full structured object model as a YAML document, prefixed
-    verbatim with the header comment block from YAML_TEMPLATE_FILE.
-    """
+# Keys a prose mapping may set on the element / input / parameter / Common
+# Data Type that holds the fragment ("set"), and on the object that holds
+# that element or input ("object"). allowed_values_from is resolved against
+# the draft's own tables and exported as allowed_values.
+RESTRICTION_KEYS = ("base_type", "allowed_values", "allowed_values_from", "range",
+                    "pattern", "min_length", "max_length", "key_pattern",
+                    "value_range")
+RANGE_KEYS = ("min", "max")
+OBJECT_MAPPING_KEYS = ("conditions",)
+CONDITION_KEYS = ("if", "require", "forbid")
+MAPPING_ENTRY_KEYS = ("text", "set", "object", "note")
+
+
+def _require_yaml() -> None:
     if yaml is None:
         print("ERROR: PyYAML is required for --yaml-out (pip install pyyaml).",
               file=sys.stderr)
         sys.exit(1)
+
+
+def load_prose_mappings(path: Path) -> tuple[list[dict], list[str]]:
+    """
+    Read the "mappings:" list of the prose-mapping file and validate its
+    shape. Returns (mappings, errors); a mapping with an error is dropped.
+    """
+    _require_yaml()
+    if not path.exists():
+        return [], [f"[MAPPING INVALID] {path.name}: file not found"]
+    return validate_prose_mappings(yaml.safe_load(path.read_text()), path.name)
+
+
+def validate_prose_mappings(data, source: str) -> tuple[list[dict], list[str]]:
+    """Shape check of a loaded prose-mapping document (see load_prose_mappings)."""
+    entries = data.get("mappings") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return [], [f"[MAPPING INVALID] {source}: top-level 'mappings' list missing"]
+
+    mappings: list[dict] = []
+    errors: list[str] = []
+    seen: set[str] = set()
+    for n, m in enumerate(entries, 1):
+        where = f"[MAPPING INVALID] {source} entry {n}"
+        problems: list[str] = []
+        if not isinstance(m, dict):
+            errors.append(f"{where}: not a mapping")
+            continue
+        text = m.get("text")
+        if not isinstance(text, str) or not text.strip():
+            problems.append("'text' must be a non-empty string")
+        elif text in seen:
+            problems.append("duplicate 'text'")
+        problems += [f"unknown key '{k}'" for k in m if k not in MAPPING_ENTRY_KEYS]
+        if "set" not in m and "object" not in m:
+            problems.append("needs 'set' and/or 'object'")
+        restrictions = m.get("set", {})
+        if not isinstance(restrictions, dict):
+            problems.append("'set' must be a mapping")
+        else:
+            problems += [f"unknown 'set' key '{k}'" for k in restrictions
+                         if k not in RESTRICTION_KEYS]
+            for key in ("range", "value_range"):
+                if key in restrictions and (
+                        not isinstance(restrictions[key], dict)
+                        or any(k not in RANGE_KEYS for k in restrictions[key])):
+                    problems.append(f"'{key}' takes only {'/'.join(RANGE_KEYS)}")
+            for ref in restrictions.get("allowed_values_from", []):
+                if not isinstance(ref, dict) or set(ref) != {"table", "column"}:
+                    problems.append("'allowed_values_from' entries need table and column")
+        obj_fields = m.get("object", {})
+        if not isinstance(obj_fields, dict):
+            problems.append("'object' must be a mapping")
+        else:
+            problems += [f"unknown 'object' key '{k}'" for k in obj_fields
+                         if k not in OBJECT_MAPPING_KEYS]
+            for cond in obj_fields.get("conditions", []):
+                if (not isinstance(cond, dict) or "if" not in cond
+                        or any(k not in CONDITION_KEYS for k in cond)):
+                    problems.append("each condition needs 'if' plus 'require'/'forbid'")
+        if problems:
+            errors.extend(f"{where}: {p}" for p in problems)
+            continue
+        seen.add(text)
+        mappings.append(m)
+    return mappings, errors
+
+
+def _strip_fragment(value: str, text: str) -> str:
+    """value with the verbatim fragment text (and one adjoining space) removed."""
+    for variant in (" " + text, text + " ", text):
+        if variant in value:
+            return value.replace(variant, "", 1).strip()
+    return value
+
+
+def _mapping_holders(model: dict) -> list[tuple[dict, dict | None, str]]:
+    """
+    Every place a prose fragment may be mapped from: (holder, object, label)
+    for each element, each operation input/parameter definition and each
+    Common Data Type. object is the dict owning the holder (None for a
+    Common Data Type).
+    """
+    holders: list[tuple[dict, dict | None, str]] = []
+    for t in model["common_data_types"]:
+        holders.append((t, None, f"common data type '{t['name']}'"))
+    for key in OBJ_TYPE_TO_YAML_KEY.values():
+        for obj in model[key]:
+            for e in obj["elements"]:
+                holders.append((e, obj, f"{obj['identifier']}.{e['identifier']}"))
+            for op in obj["operations"]:
+                for item in (op["input"] or []):
+                    for d in item.get("definitions", []):
+                        holders.append((d, obj, f"{obj['identifier']}.{op['identifier']}"
+                                                f".{d['identifier']}"))
+    return holders
+
+
+def _remove_fragment(holder: dict, text: str) -> bool:
+    """Remove text from the holder's description/constraints; True if found."""
+    found = False
+    desc = holder.get("description")
+    if isinstance(desc, str) and text in desc:
+        holder["description"] = _strip_fragment(desc, text)
+        found = True
+    for field_name in ("description", "constraints"):
+        entries = holder.get(field_name)
+        if not isinstance(entries, list):
+            continue
+        kept = []
+        for entry in entries:
+            if text in entry:
+                found = True
+                entry = _strip_fragment(entry, text)
+            if entry:
+                kept.append(entry)
+        holder[field_name] = kept
+    return found
+
+
+def _table_index(model: dict) -> dict[str, dict]:
+    """Every exported table, keyed by its anchor without the "{#" / "}"."""
+    index: dict[str, dict] = {}
+
+    def walk(subsections: list[dict]) -> None:
+        for sub in subsections:
+            for t in sub["tables"]:
+                if t["anchor"]:
+                    index[t["anchor"].strip("{}#")] = t
+            walk(sub["subsections"])
+
+    for key in OBJ_TYPE_TO_YAML_KEY.values():
+        for obj in model[key]:
+            walk(obj["subsections"])
+    return index
+
+
+def apply_prose_mappings(model: dict, mappings: list[dict]) -> list[str]:
+    """
+    Replace each mapping's verbatim text, wherever it occurs in an element,
+    input, parameter or Common Data Type description/constraint, by the
+    structured fields the mapping names: "set" goes into that holder's
+    restrictions, "object" into the owning object (conditions are
+    appended). Returns errors: a fragment found nowhere (stale mapping), an
+    unresolvable table reference, conflicting values for one restriction,
+    or object fields on a Common Data Type.
+    """
+    errors: list[str] = []
+    holders = _mapping_holders(model)
+    tables = _table_index(model)
+    for m in mappings:
+        text = m["text"]
+        short = text if len(text) <= 60 else text[:57] + "..."
+        restrictions = dict(m.get("set", {}))
+        refs = restrictions.pop("allowed_values_from", None)
+        if refs:
+            values: list[str] = []
+            for ref in refs:
+                table = tables.get(ref["table"])
+                if table is None or ref["column"] not in table["columns"]:
+                    errors.append(f"[MAPPING INVALID] '{short}': no table "
+                                  f"'{ref['table']}' with column '{ref['column']}'")
+                    continue
+                values += [row[ref["column"]] for row in table["rows"]]
+            restrictions["allowed_values"] = values
+        matched = False
+        for holder, obj, label in holders:
+            if not _remove_fragment(holder, text):
+                continue
+            matched = True
+            for key, value in restrictions.items():
+                if key in holder["restrictions"] and holder["restrictions"][key] != value:
+                    errors.append(f"[MAPPING CONFLICT] {label}: '{key}' set to "
+                                  f"different values")
+                holder["restrictions"][key] = copy.deepcopy(value)
+            for key, value in m.get("object", {}).items():
+                if obj is None:
+                    errors.append(f"[MAPPING INVALID] {label}: 'object' fields "
+                                  f"need an owning object")
+                    continue
+                obj[key].extend(copy.deepcopy(value))
+        if not matched:
+            errors.append(f"[MAPPING STALE] '{short}': text not found in any "
+                          f"description or constraint")
+    return errors
+
+
+def render_yaml(model: dict) -> str:
+    """
+    Render the YAML model (build_yaml_model, with apply_prose_mappings
+    applied) as a YAML document, prefixed verbatim with the header comment
+    block from YAML_TEMPLATE_FILE.
+    """
+    _require_yaml()
 
     header_lines: list[str] = []
     if YAML_TEMPLATE_FILE.exists():
@@ -2896,7 +3157,6 @@ def render_yaml(normative: list[ObjectDef],
                 # Reached the template's placeholder data (section_notes: {}, …)
                 break
 
-    model = build_yaml_model(normative, section_notes)
     body = yaml.safe_dump(model, sort_keys=False, allow_unicode=True,
                            width=100, default_flow_style=False)
 
@@ -2963,10 +3223,11 @@ def apply_uniform_interface(normative: list[ObjectDef],
 
 def parse_document(
     path: Path,
-) -> tuple[list[ObjectDef], list[ObjectDef], dict[str, list[str]]]:
+) -> tuple[list[ObjectDef], list[ObjectDef], dict[str, list[str]], list[CommonTypeDef]]:
     """
     Shared entry point for both the IANA consistency check and the YAML
-    export: parses the draft once and returns (normative, iana, section_notes).
+    export: parses the draft once and returns (normative, iana,
+    section_notes, common_types).
     """
     lines = path.read_text().splitlines()
 
@@ -2985,7 +3246,8 @@ def parse_document(
     iana          = parse_iana_objects(lines, iana_start)
     section_notes = parse_section_notes(lines, iana_start)
     section_notes.update(group_notes)
-    return normative, iana, section_notes
+    common_types  = parse_common_data_types(lines, iana_start)
+    return normative, iana, section_notes, common_types
 
 
 # Report verbosity levels, least to most verbose. Each level includes the
@@ -4066,7 +4328,7 @@ def _test_parse_document_covers_organisation_and_user():
     """End-to-end: the real draft's Organisation and User objects are parsed."""
     if not DRAFT_FILE.exists():
         return  # skip when not run from src/
-    normative, _iana, _section_notes = parse_document(DRAFT_FILE)
+    normative, _iana, _section_notes, _common_types = parse_document(DRAFT_FILE)
     ids = {o.identifier for o in normative}
     assert "organisation" in ids, sorted(ids)
     assert "user" in ids, sorted(ids)
@@ -4295,6 +4557,10 @@ def _test_build_yaml_model_structure():
     assert "inputs" not in op and "params" not in op, op
     assert op["output"] is None
     assert model["components"][0]["supported_processes"] == []
+    assert model["components"][0]["conditions"] == []
+    assert model["components"][0]["elements"][0]["restrictions"] == {}
+    assert op["input"][1]["definitions"][0]["restrictions"] == {}
+    assert model["common_data_types"] == []
     assert model["section_notes"]["# Component Objects"] == ["Section intro."]
     assert model["processes"] == []
     assert model["resources"] == []
@@ -4307,7 +4573,7 @@ def _test_render_yaml_roundtrips_and_has_header_comment():
         name="Widget Object", identifier="widget", source="normative", line=1,
         obj_type="Component", description="A widget.",
     )
-    text = render_yaml([obj], {})
+    text = render_yaml(build_yaml_model([obj], {}))
     assert text.lstrip().startswith("#"), "expected header comment block"
     parsed = yaml.safe_load(text)
     assert parsed["components"][0]["identifier"] == "widget"
@@ -4483,7 +4749,7 @@ def _test_parse_io_items_reports_notation_errors():
     """
     Input/Output items outside the notation are reported, never guessed:
     free-text inline values, unknown kinds, missing or invalid Elements,
-    Elements on a Reference, Cardinality on Changes, bad Cardinality, a
+    Elements on a Reference, Cardinality on a Reference, bad Cardinality, a
     definition without an Identifier, a repeated or inline-valued or empty
     Parameters item.
     """
@@ -4498,8 +4764,7 @@ def _test_parse_io_items_reports_notation_errors():
         "  * Object: Widget Object",
         "    * Elements: read-write, writable",
         "    * Cardinality: 2",
-        "  * Changes: Widget Object",
-        "    * Elements: read-write",
+        "  * Reference: Widget Object",
         "    * Cardinality: 0+",
         "  * Parameters:",
         "    * Nameless",
@@ -4507,7 +4772,7 @@ def _test_parse_io_items_reports_notation_errors():
         "  * Parameters: Inline",
     ]
     items, errs = _parse_io_items(lines, 0, len(lines), "", "Input")
-    assert [i.kind for i in items] == ["Reference", "Object", "Object", "Changes",
+    assert [i.kind for i in items] == ["Reference", "Object", "Object", "Reference",
                                        "Parameters", "Parameters"], items
     assert len(errs) == 10, errs
     assert "has no Identifier" in errs[6], errs
@@ -4565,6 +4830,147 @@ def _test_uniform_interface_defaults_and_io_check():
     assert sum("[OP IO MISSING]" in e for e in errors) == 2, errors
 
 
+def _test_parse_common_data_types():
+    lines = [
+        "# Common Data Types",                    # 0
+        "",
+        "Intro sentence.",
+        "",
+        "## Identifier",                          # 4
+        "",
+        "Identifiers are strings.",
+        "",
+        "## Phone Number {#phone}",               # 8
+        "",
+        "Phone numbers begin with a plus.",
+        "",
+        "A> TBC: aside dropped.",
+        "",
+        "# Associations",                         # 14
+        "",
+        "## Aggregation",
+    ]
+    types = parse_common_data_types(lines, len(lines))
+    assert [t.name for t in types] == ["Identifier", "Phone Number"], types
+    assert types[0].description == ["Identifiers are strings."], types[0]
+    assert types[1].anchor == "{#phone}" and types[1].line == 9, types[1]
+    assert types[1].description == ["Phone numbers begin with a plus."], types[1]
+    assert parse_common_data_types(lines[14:], len(lines) - 14) == []
+
+
+def _mapping_test_model() -> dict:
+    status = ObjectDef(
+        name="Widget Status Object", identifier="widgetStatus", source="normative",
+        line=1, obj_type="Component",
+        elements=[ElementDef(identifier="label", name="Label", cardinality="1",
+                             mutability="read-write", data_type="String", line=2,
+                             constraints=["Only values in [Values](#v) are allowed."])],
+        subsections=[SubsectionDef(heading="Status Values", anchor="{#v}", line=3,
+                                   tables=[TableDef(caption="Values", anchor="{#tbl-v}",
+                                                    line=4, columns=["Status Value", "Description"],
+                                                    rows=[{"Status Value": "ok", "Description": "-"},
+                                                          {"Status Value": "hold", "Description": "-"}])])])
+    widget = ObjectDef(
+        name="Widget Process Object", identifier="widgetProcess", source="normative",
+        line=5, obj_type="Process",
+        elements=[
+            ElementDef(identifier="dir", name="Direction", cardinality="0-1",
+                       mutability="create-only", data_type="String", line=6,
+                       constraints=['MUST be "a" or "b".', "Server policy applies."]),
+            ElementDef(identifier="other", name="Other", cardinality="0-1",
+                       mutability="create-only", data_type="String", line=7,
+                       description="The other party. REQUIRED when dir is a."),
+        ],
+        operations=[OperationDef(name="Create", identifier="create", line=8,
+                                 input=[IOItemDef(kind="Parameters", definitions=[
+                                     ParamDef(identifier="size", name="Size", cardinality="1",
+                                              data_type="Integer", line=9,
+                                              constraints=["MUST be positive."])])])])
+    common = [CommonTypeDef(name="Phone Number", anchor="", line=10,
+                            description=["Derived from E.164.  Begins with a plus."])]
+    return build_yaml_model([status, widget], {}, common)
+
+
+def _test_apply_prose_mappings_replaces_fragments_with_structure():
+    model = _mapping_test_model()
+    errors = apply_prose_mappings(model, [
+        {"text": 'MUST be "a" or "b".', "set": {"allowed_values": ["a", "b"]}},
+        {"text": "Only values in [Values](#v) are allowed.",
+         "set": {"allowed_values_from": [{"table": "tbl-v", "column": "Status Value"}]}},
+        {"text": "REQUIRED when dir is a.",
+         "object": {"conditions": [{"if": {"dir": "a"}, "require": ["other"]}]}},
+        {"text": "MUST be positive.", "set": {"range": {"min": 1}}},
+        {"text": "Begins with a plus.", "set": {"base_type": "String", "pattern": r"^\+"}},
+    ])
+    assert errors == [], errors
+    label = model["components"][0]["elements"][0]
+    assert label["restrictions"] == {"allowed_values": ["ok", "hold"]}, label
+    assert label["constraints"] == [], label
+    widget = model["processes"][0]
+    direction, other = widget["elements"]
+    assert direction["restrictions"] == {"allowed_values": ["a", "b"]}, direction
+    assert direction["constraints"] == ["Server policy applies."], direction
+    assert other["description"] == "The other party.", other
+    assert other["restrictions"] == {}, other
+    assert widget["conditions"] == [{"if": {"dir": "a"}, "require": ["other"]}], widget
+    param = widget["operations"][0]["input"][0]["definitions"][0]
+    assert param["restrictions"] == {"range": {"min": 1}} and param["constraints"] == [], param
+    phone = model["common_data_types"][0]
+    assert phone["description"] == ["Derived from E.164."], phone
+    assert phone["restrictions"] == {"base_type": "String", "pattern": r"^\+"}, phone
+    assert model["components"][0]["conditions"] == []
+
+
+def _test_apply_prose_mappings_reports_stale_conflict_and_bad_refs():
+    model = _mapping_test_model()
+    errors = apply_prose_mappings(model, [
+        {"text": "No such sentence.", "set": {"pattern": "x"}},
+        {"text": 'MUST be "a" or "b".', "set": {"allowed_values": ["a", "b"]}},
+        {"text": "Server policy applies.", "set": {"allowed_values": ["c"]}},
+        {"text": "Only values in [Values](#v) are allowed.",
+         "set": {"allowed_values_from": [{"table": "tbl-missing", "column": "Status Value"}]}},
+        {"text": "Begins with a plus.", "object": {"conditions": [{"if": {"x": "y"}}]}},
+    ])
+    assert sum("[MAPPING STALE]" in e for e in errors) == 1, errors
+    assert sum("[MAPPING CONFLICT] widgetProcess.dir" in e for e in errors) == 1, errors
+    assert sum("no table 'tbl-missing'" in e for e in errors) == 1, errors
+    assert sum("need an owning object" in e for e in errors) == 1, errors
+
+
+def _test_validate_prose_mappings_rejects_bad_entries():
+    mappings, errors = validate_prose_mappings({"mappings": [
+        {"text": "Fine.", "set": {"pattern": "x"}, "note": "kept"},
+        {"text": "Fine.", "set": {"pattern": "y"}},
+        {"text": "No target."},
+        {"text": "Bad key.", "set": {"enum": ["a"]}},
+        {"text": "Bad range.", "set": {"range": {"lo": 1}}},
+        {"text": "Bad ref.", "set": {"allowed_values_from": [{"table": "t"}]}},
+        {"text": "Bad condition.", "object": {"conditions": [{"require": ["a"]}]}},
+        {"text": "Bad entry key.", "set": {}, "where": "x"},
+    ]}, "test")
+    assert [m["text"] for m in mappings] == ["Fine."], mappings
+    for needle in ("duplicate 'text'", "needs 'set' and/or 'object'",
+                   "unknown 'set' key 'enum'", "'range' takes only",
+                   "need table and column", "each condition needs",
+                   "unknown key 'where'"):
+        assert sum(needle in e for e in errors) == 1, (needle, errors)
+    assert validate_prose_mappings([], "test") == (
+        [], ["[MAPPING INVALID] test: top-level 'mappings' list missing"])
+
+
+def _test_prose_mappings_file_applies_cleanly_to_draft():
+    """End-to-end: every fragment in prose_mappings.yaml is found in the real draft."""
+    if yaml is None or not DRAFT_FILE.exists():
+        return  # skip without PyYAML or when not run from src/
+    normative, _iana, section_notes, common_types = parse_document(DRAFT_FILE)
+    mappings, errors = load_prose_mappings(PROSE_MAPPINGS_FILE)
+    model = build_yaml_model(normative, section_notes, common_types)
+    errors += apply_prose_mappings(model, mappings)
+    assert errors == [], errors
+    assert {t["name"] for t in model["common_data_types"]} >= {
+        "Identifier", "Client Identifier", "Phone Number"}, model["common_data_types"]
+
+
 _SELF_TESTS = [
     _test_element_constraints_and_notes_nested,
     _test_element_attrs_tolerate_blank_lines_and_asides_between_bullets,
@@ -4612,6 +5018,11 @@ _SELF_TESTS = [
     _test_orphan_prose_skips_fenced_block,
     _test_parse_io_items_reports_notation_errors,
     _test_uniform_interface_defaults_and_io_check,
+    _test_parse_common_data_types,
+    _test_apply_prose_mappings_replaces_fragments_with_structure,
+    _test_apply_prose_mappings_reports_stale_conflict_and_bad_refs,
+    _test_validate_prose_mappings_rejects_bad_entries,
+    _test_prose_mappings_file_applies_cleanly_to_draft,
 ]
 
 
@@ -4689,7 +5100,7 @@ def main() -> int:
         print(f"ERROR: file not found: {DRAFT_FILE}", file=sys.stderr)
         return 1
 
-    normative, iana, section_notes = parse_document(DRAFT_FILE)
+    normative, iana, section_notes, common_types = parse_document(DRAFT_FILE)
 
     exit_code = 0
 
@@ -4707,14 +5118,17 @@ def main() -> int:
 
     if args.yaml_out:
         export_errors = yaml_export_errors(normative)
+        mappings, mapping_errors = load_prose_mappings(PROSE_MAPPINGS_FILE)
+        model = build_yaml_model(normative, section_notes, common_types)
+        export_errors += mapping_errors + apply_prose_mappings(model, mappings)
         if export_errors:
-            print(f"ERROR: YAML not written — {len(export_errors)} attribute(s) "
-                  f"not covered by the export:", file=sys.stderr)
+            print(f"ERROR: YAML not written — {len(export_errors)} problem(s) "
+                  f"with uncovered attributes or prose mappings:", file=sys.stderr)
             for e in export_errors:
                 print(f"  - {e}", file=sys.stderr)
             exit_code = 1
         else:
-            yaml_text = render_yaml(normative, section_notes)
+            yaml_text = render_yaml(model)
             args.yaml_out.write_text(yaml_text)
             print(f"YAML object model written to {args.yaml_out}")
 
