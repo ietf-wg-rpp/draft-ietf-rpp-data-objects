@@ -152,7 +152,7 @@ The data type of a data element may also be a reference to another data object, 
 
 ## Extensibility
 
-The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional transient data elements.
+The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, define new processes on existing or new data objects, and define new operations or extend the inputs and outputs of existing operations.
 
 ### Standardised and Private Extensions
 
@@ -170,6 +170,7 @@ The following aspects of the data model are extensible:
 * New data elements: Extensions MAY add new data elements to existing data objects. Such elements follow the same Data Element Semantics as core data elements.
 * New associations: Extensions MAY introduce new associations between existing or new objects.
 * New operations: Extensions MAY define entirely new operations on existing or new data objects.
+* New processes: Extensions MAY define new Process Objects and MAY declare that existing or new Data Objects support them. A new Process Object MUST extend the Base Process Object, either directly or through another Process Object.
 * Extended operation inputs and outputs: Extensions MAY add new transient data elements to the inputs or outputs of existing operations.
 
 When an extension adds data elements or transient parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
@@ -1661,7 +1662,7 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 * Name: Processes Object
 * Identifier: processes
-* Description: A container grouping the Process Objects (#process-objects) currently or recently initiated on a Data Object. Each data element MUST be named after the identifier of a Process Object and MUST be of type Aggregation of that Process Object. The data elements below are the process types defined in this document.
+* Description: A container grouping the Process Objects (#process-objects) currently or recently initiated on a Data Object. Each data element MUST be named after the identifier of a Process Object and MUST be of type Aggregation of that Process Object. The data elements below are the process types defined in this document. Extensions MUST add further data elements for the Process Objects they define.
 * Data Elements:
   * Transfer Processes
     * Identifier: transferProcess
@@ -4779,6 +4780,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* allowed extensions to define new processes
 * create-only definition clarified about reading (Issue #80)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
