@@ -89,7 +89,7 @@ Input Data Element
 : A data element that a client provides as input to a specific operation, in addition to the identifier or data elements of the object the operation targets, and that carries content the operation acts upon. An input data element is defined as part of the operation definition and is not part of the state of the object. An input data element is described using the attributes defined in (#data-element-semantics), except Direct Access, and Visibility, which do not apply.
 
 Parameter
-: A data element that a client provides as input to an operation to control how the server processes the operation or which data it returns, without itself carrying content that the operation acts upon. A parameter is not part of the state of the object and is not returned as part of the object. A parameter is described using the same attributes as an Input Data Element, and its definition specifies the behaviour of the operation when the parameter is absent.
+A data element that a client provides with an operation to control how the server performs the operation or which data it returns. Unlike an Input Data Element, a parameter does not carry content that the operation acts upon. A parameter is not part of the state of the object and is never returned as part of the object. A parameter is described using the same attributes as an Input Data Element, and its definition specifies the behaviour of the operation when the parameter is absent.
 
 Label Generation Ruleset (LGR)
 : A set of rules defining the valid labels for a registry, including the permitted repertoire, contextual rules, and, where applicable, variant mappings. Also historically known as IDN tables.
