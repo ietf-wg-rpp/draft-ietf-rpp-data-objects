@@ -2745,7 +2745,7 @@ The following data elements are defined for the Contact Data Object.
 
 * Contact Information
   * Identifier: contactInfo
-  * Cardinality: 1-2
+  * Cardinality: 1
   * Mutability: read-write
   * Data Type: External:RPP-JSContact-Profile:Card
   * Description: Contains contact information.
@@ -4227,7 +4227,7 @@ Data Elements
 | id           | Handle ID                 | 1     | create-only | Identifier                          | External unique identifier of the contact object.                                                                       |
 | provMetadata | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object        | Standard metadata about the object's lifecycle and ownership.                                                           |
 | status       | Status                    | 1+    | read-write  | Contact Status Object               | Status descriptors associated with the contact.                                                                         |
-| contactInfo  | Contact Information       | 1-2   | read-write  | External:RPP-JSContact-Profile:Card | JSContact Card information.                                                                                             |
+| contactInfo  | Contact Information       | 1     | read-write  | External:RPP-JSContact-Profile:Card | JSContact Card information.                                                                                             |
 | authInfo     | Authorisation Information | 0-1   | read-write  | Authorisation Information Object    | Authorisation information associated with the contact object.                                                           |
 | disclose     | Disclose                  | 0-1   | read-write  | Disclose Object                     | Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties. |
 | processes    | Processes                 | 0-1   | read-only   | Processes Object                    | Process Objects initiated on the contact object.                                                                        |
