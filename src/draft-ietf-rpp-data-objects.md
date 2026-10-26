@@ -245,8 +245,8 @@ Wherever "Object Authorisation" is mentioned, it means that an operation MAY acc
 
 The input and output of an operation are declared by the `Input` and `Output` attributes of the operation definition. The value of each attribute is either a literal `(None)` or a list of items, each of one of the following kinds:
 
-* Reference: a reference to the context of  operation or process. It can contain either a type of the reference or literal `This Object` for the object that defines the operation, or literal `Owner Data Object` for the Owner Data Object of a Process Object. This value may be defined more than once, for example if a reference can be only resolved in a context of other reference (for example Process can be only resolved in context of its Owner Data Object).
-* Object: a name of type in the input or output:
+* Reference: a reference to the context of  operation or process. It can contain either the type of a reference or a literal value `This Object` for the object that defines the operation, or literal value `Owner Data Object` for the Owner Data Object of a Process Object. This value may be defined more than once, for example if a reference can be only resolved in a context of other reference (for example Process can be only resolved in context of its Owner Data Object).
+* Object: The name of the object type in the input or output:
   * Elements: a comma-separated list of the Mutability values (`create-only`, `read-only`, `read-write`) of the data elements included in the representation.
   * Cardinality: the number of representations, in the notation defined in (#data-element-semantics). The default value is `1`.
 
