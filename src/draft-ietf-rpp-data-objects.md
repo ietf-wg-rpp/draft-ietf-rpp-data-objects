@@ -249,7 +249,6 @@ The input and output of an operation are declared by the `Input` and `Output` at
 * Object: a name of type in the input or output:
   * Elements: a comma-separated list of the Mutability values (`create-only`, `read-only`, `read-write`) of the data elements included in the representation.
   * Cardinality: the number of representations, in the notation defined in (#data-element-semantics). The default value is `1`.
-* Changes: changes to the data elements of an existing instance of the named object, named as for Reference. It has an Elements sub-attribute as defined for Object.
 
 * Input Data Elements: the input data elements of the operation, listed in the same form as the Data Elements of an object: each entry is the Name of an input data element, followed by its attributes as defined in (#data-element-semantics), except Mutability, Direct Access and Visibility. It is allowed in Input only, at most once.
 * Parameters: the parameters of the operation, listed in the same form as Input Data Elements. It is allowed in Input only, at most once.
@@ -328,7 +327,7 @@ If the querying client is not the sponsoring client and the client does not prov
 
 * Input:
   * Reference: This Object
-  * Changes: This Object
+  * Object: This Object
     * Elements: read-write
 * Output:
   * Object: This Object
