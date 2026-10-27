@@ -21,6 +21,16 @@
 #   no such intro (most Resource/Data Object sections start immediately with
 #   the object's own header bullets, so they have no entry here).
 #
+# common_data_types:
+#   One entry per H2 heading under "# Common Data Types" (Identifier,
+#   Client Identifier, Phone Number, ...):
+#     name:         the heading text, as used in elements' data_type
+#     anchor:       its "{#...}" anchor, or ""
+#     description:  its prose, one entry per paragraph/bullet (asides
+#                   dropped), minus any fragment mapped into restrictions
+#     restrictions: structured syntax, from prose_mappings.yaml (see
+#                   "Restrictions and conditions" below); {} if none
+#
 # components / processes / resources:
 #   One list per Object Type (Component, Process, Resource), each entry
 #   built from the object's normative definition:
@@ -74,6 +84,11 @@
 #                   identifier) of the object this one extends, e.g. a
 #                   Domain Transfer Process Object extends "Transfer Process
 #                   Object". Empty string for objects that extend nothing.
+#     conditions:   cross-element rules from prose_mappings.yaml, e.g.
+#                   {if: {transferDir: push}, require: [gainingClientId]}:
+#                   when every "if" element has the given value, the
+#                   "require" elements MUST and the "forbid" elements MUST
+#                   NOT be present. [] if none.
 #     supported_processes: the INHERITED-process bullet list from a Data
 #                   Object's "## Processes" section — the Process Objects it
 #                   supports UNMODIFIED. Processes it *extends* are not
@@ -106,6 +121,9 @@
 #                   further nesting under it (a sub-list, a numbered list)
 #                   folded into that same entry as extra newline-joined
 #                   lines, keeping the original markers (e.g. "1.", "2.").
+#                   A constraint mapped into restrictions is removed here.
+#     restrictions: structured value rules mapped from prose (see
+#                   "Restrictions and conditions" below); {} if none
 #     direct_access: the element's "* Direct Access:" bullet as a boolean;
 #                   false when absent (the draft's default)
 #     visibility:   the element's "* Visibility:" bullet, "default" or
@@ -125,38 +143,60 @@
 #                   prose written directly after its "* Identifier:" bullet).
 #                   Covers every prose paragraph between "* Identifier:" and
 #                   the first "* Authorisation:"/"* Input:"/"* Output:"
-#                   bullet (or the first Input Data Elements / Parameters
-#                   lead-in line), newline-joined
-#                   if there is more than one paragraph.
+#                   bullet, newline-joined if there is more than one
+#                   paragraph.
 #     authorisation: the operation's "* Authorisation:" bullet as a LIST of
 #                   strings, one per top-level sub-bullet (same
 #                   nested-bullet folding as an element's "constraints" —
 #                   deeper nesting, e.g. "Pull transfer:"/"Push transfer:"
 #                   sub-cases, is newline-joined into that entry). Empty
 #                   list if the operation has no Authorisation bullet.
-#     input:        the operation's "* Input:" bullet value as a single
-#                   string, e.g. "Object identifier"; a nested bullet list
-#                   under a blank "* Input:" is newline-joined. Empty string
-#                   if absent.
-#     output:       the operation's "* Output:" bullet value, same rules as
-#                   input. Empty string if absent.
+#     input:        the operation's "* Input:" items, in the draft's
+#                   "Operation Input and Output" notation; [] for "(None)".
+#                   A Data Object operation that declares no Input gets the
+#                   Uniform interface default for its identifier. Each
+#                   Reference / Object item:
+#                     kind:        "Reference" | "Object"
+#                     target:      an object Name, "This Object" (the object
+#                                  defining the operation) or "Owner Data
+#                                  Object" (of a Process Object)
+#                     elements:    Mutability values of the included data
+#                                  elements; [] for a Reference
+#                     cardinality: number of representations ("1" unless
+#                                  an Object item says otherwise)
+#                   An "Input Data Elements" (content the operation acts
+#                   upon) / "Parameters" (controls processing or output)
+#                   item — Input only, at most once each, neither part of
+#                   the object's state:
+#                     kind:        "Input Data Elements" | "Parameters"
+#                     definitions: one entry per definition, laid out like
+#                                  the draft's "* Data Elements:" list:
+#                                  identifier, name, cardinality,
+#                                  data_type, description, constraints,
+#                                  restrictions, notes — same meaning as
+#                                  for elements
+#                   null only if neither the operation nor a default
+#                   declares it (reported as [OP IO MISSING]).
+#     output:       the operation's "* Output:" items, same rules as input.
 #     notes:        orphan prose in the operation's body beyond description/
 #                   authorisation/input/output (e.g. a further explanatory
-#                   paragraph after the Authorisation bullet). The lead-in
-#                   lines introducing inputs/params are structure, not
-#                   notes. Empty list if none.
-#     inputs:       Input Data Elements of the operation (content the
-#                   operation acts upon, not part of the object's state),
-#                   from the bullets after a lead-in line such as "The
-#                   following input data elements are defined for this
-#                   operation:". Each with identifier, name, cardinality,
-#                   data_type, description, constraints, notes — same
-#                   meaning as for elements.
-#     params:       Parameters of the operation (control processing or
-#                   output, not part of the object's state), from the
-#                   bullets after a lead-in line such as "The following
-#                   parameters are defined for this operation:". Same
-#                   fields as inputs.
+#                   paragraph after the Authorisation bullet). Empty list
+#                   if none.
+#
+# --- Restrictions and conditions -------------------------------------------
+#
+# Facts the draft states only in prose are exported in structured form when
+# .scripts/prose_mappings.yaml lists the exact sentence: the sentence is
+# removed from its description/constraints and replaced by these fields.
+# Prose not listed there stays as text. restrictions keys (each optional):
+#   base_type             primitive type a Common Data Type is built on
+#   allowed_values        closed list of permitted values (for a status
+#                         label, resolved from the draft's status table)
+#   range                 {min, max} of a scalar value, inclusive
+#   pattern               regular expression the whole value matches
+#   min_length/max_length length bounds of a string value
+#   key_pattern           regular expression every Dictionary key matches
+#   value_range           {min, max} of every Dictionary value, inclusive
 #
 # Every attribute bullet in the draft has a field here: an element, input
 # or parameter attribute the export does not cover makes --yaml-out fail
@@ -171,6 +211,7 @@
 # -----------------------------------------------------------------------------
 
 section_notes: {}
+common_data_types: []
 components: []
 processes: []
 resources: []
