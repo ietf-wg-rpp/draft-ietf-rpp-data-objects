@@ -101,6 +101,8 @@
 #                                 would be a redundant second key). The
 #                                 short form is accepted: "Renew Process"
 #                                 refers to "Renew Process Object".
+#                                 Bracketed parts (e.g. an "(#anchor)"
+#                                 reference) are dropped.
 #                     constraints: list of strings — same convention as an
 #                                 element's Constraints
 #                     notes:      orphan prose inside this entry's own block.
@@ -136,7 +138,8 @@
 #
 #   Each operation entry:
 #     identifier, name: as defined in the operation heading /
-#       "* Identifier:" bullet
+#       "* Identifier:" bullet; bracketed parts of the heading are
+#       dropped ("Delete (Transfer Cancel)" -> "Delete")
 #     description:  plain prose describing the operation (this document's
 #                   convention: NOT a "* Description:" bullet, which is
 #                   element/object-only — every operation's description is

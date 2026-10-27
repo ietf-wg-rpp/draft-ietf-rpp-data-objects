@@ -2791,6 +2791,18 @@ def generate_iana_param_row(param: ParamDef) -> str:
 # YAML export
 # ---------------------------------------------------------------------------
 
+_PAREN_RE = re.compile(r"\s*(?:\[[^\]]*\])?\([^)]*\)")
+
+
+def _bare_name(name: str) -> str:
+    """
+    Name without bracketed parts, for operation and supported-process
+    names: "Delete (Transfer Cancel)" -> "Delete",
+    "Domain Create Process (#domain-create-process)" -> "Domain Create Process".
+    """
+    return _PAREN_RE.sub("", name).strip()
+
+
 def _param_to_dict(p: ParamDef) -> dict:
     return {
         "identifier": p.identifier,
@@ -2834,7 +2846,7 @@ def _io_to_list(items: list[IOItemDef] | None) -> list[dict] | None:
 def _operation_to_dict(op: OperationDef) -> dict:
     return {
         "identifier": op.identifier,
-        "name": op.name,
+        "name": _bare_name(op.name),
         "description": op.description,
         "authorisation": list(op.authorisation),
         "input": _io_to_list(op.input),
@@ -2864,7 +2876,7 @@ def _subsection_to_dict(sub: SubsectionDef) -> dict:
 
 def _supported_process_to_dict(p: SupportedProcessDef) -> dict:
     return {
-        "name": p.name,
+        "name": _bare_name(p.name),
         "constraints": list(p.constraints),
         "notes": list(p.notes),
     }
@@ -3962,6 +3974,21 @@ def _test_resolve_process_name_accepts_short_form():
     assert resolve_process_name("Bogus Process", norm_names) is None
 
 
+def _test_yaml_names_drop_bracketed_parts():
+    """
+    Operation and supported-process names are exported without bracketed
+    parts (heading parentheticals, anchor references).
+    """
+    assert _bare_name("Delete (Transfer Cancel)") == "Delete"
+    assert _bare_name("Domain Create Process (#domain-create-process)") == "Domain Create Process"
+    assert _bare_name("Domain Create Process [](#domain-create-process)") == "Domain Create Process"
+    assert _bare_name("Renew Process") == "Renew Process"
+    op = OperationDef(identifier="cancel", name="Delete (Transfer Cancel)", line=1)
+    assert _operation_to_dict(op)["name"] == "Delete"
+    proc = SupportedProcessDef(name="Domain Transfer Process (#domain-transfer-process)", line=1)
+    assert _supported_process_to_dict(proc)["name"] == "Domain Transfer Process"
+
+
 def _test_resolve_process_name_ignores_anchor_references():
     """
     A trailing cross-reference ("(#anchor)" or "[](#anchor)") on a
@@ -5018,6 +5045,7 @@ _SELF_TESTS = [
     _test_parse_object_header_unique_identifier_does_not_end_header,
     _test_check_supported_processes_resolves_names_and_extends,
     _test_resolve_process_name_ignores_anchor_references,
+    _test_yaml_names_drop_bracketed_parts,
     _test_walk_envelope_group_heading_recurses_and_keeps_intro,
     _test_walk_normative_objects_skips_aside_before_header,
     _test_object_header_tolerates_blank_lines_and_asides_between_attrs,

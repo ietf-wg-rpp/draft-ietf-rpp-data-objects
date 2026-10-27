@@ -383,8 +383,10 @@ would be a redundant second lookup key alongside the one `Extends:` already
 uses. `resolve_process_name()` accepts the short form, so `Renew Process`
 resolves to the object named `Renew Process Object`
 (`[PROCESS MISSING IN NORMATIVE]` if unresolved). Cross-reference markup in
-the bullet text (`(#anchor)`, `[](#anchor)`) is ignored when resolving; the
-parsed `name` keeps it verbatim.
+the bullet text (`(#anchor)`, `[](#anchor)`) is ignored when resolving, and
+the YAML export drops it from `name`, together with any other bracketed
+part. Operation names are exported the same way: the heading
+`Delete (Transfer Cancel)` becomes `name: Delete`.
 
 The only attribute a bullet may carry is `Constraints` (optional), with the
 same list-valued convention as element/param Constraints (inline value,
