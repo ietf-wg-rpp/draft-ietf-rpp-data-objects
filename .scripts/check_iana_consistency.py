@@ -2320,14 +2320,19 @@ def check_objects(normative: list[ObjectDef],
     return errors
 
 
+# mmark cross-reference markup: "(#anchor)" or "[text](#anchor)".
+_XREF_RE = re.compile(r"\[[^\]]*\]\(#[^)]*\)|\(#[^)]*\)")
+
+
 def resolve_process_name(name: str, norm_names: set[str]) -> str | None:
     """
     Resolve a process reference written as an Object Name against the
     normative object index, accepting the short form used in a Data
     Object's "## Processes" bullet list: "Renew Process" resolves to
-    "Renew Process Object". Returns the matched Object Name, or None.
+    "Renew Process Object". Cross-reference markup ("(#anchor)",
+    "[](#anchor)") is ignored. Returns the matched Object Name, or None.
     """
-    name = _norm(name)
+    name = _norm(_XREF_RE.sub("", name))
     if name in norm_names:
         return name
     expanded = f"{name} Object"
@@ -3957,6 +3962,20 @@ def _test_resolve_process_name_accepts_short_form():
     assert resolve_process_name("Bogus Process", norm_names) is None
 
 
+def _test_resolve_process_name_ignores_anchor_references():
+    """
+    A trailing cross-reference ("(#anchor)" or "[](#anchor)") on a
+    "## Processes" bullet is not part of the Object Name.
+    """
+    norm_names = {"Domain Create Process Object"}
+    assert resolve_process_name(
+        "Domain Create Process (#domain-create-process)", norm_names) == "Domain Create Process Object"
+    assert resolve_process_name(
+        "Domain Create Process [](#domain-create-process)", norm_names) == "Domain Create Process Object"
+    assert resolve_process_name(
+        "Bogus Process (#domain-create-process)", norm_names) is None
+
+
 def _test_parse_supported_processes_stops_at_extended_process_heading():
     """
     A Data Object's "## Processes" section holds an intro line, then the
@@ -4998,6 +5017,7 @@ _SELF_TESTS = [
     _test_parse_object_header_captures_extends,
     _test_parse_object_header_unique_identifier_does_not_end_header,
     _test_check_supported_processes_resolves_names_and_extends,
+    _test_resolve_process_name_ignores_anchor_references,
     _test_walk_envelope_group_heading_recurses_and_keeps_intro,
     _test_walk_normative_objects_skips_aside_before_header,
     _test_object_header_tolerates_blank_lines_and_asides_between_attrs,

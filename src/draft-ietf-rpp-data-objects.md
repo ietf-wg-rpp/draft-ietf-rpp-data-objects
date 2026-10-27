@@ -2811,8 +2811,8 @@ The Domain Name Data Object supports the following Process Objects (#process-obj
   * Constraints: OPTIONAL; available only when the RGP feature is supported.
 
 The Domain Name Data Object supports the following Process Objects extended by an object-specific definition:
-* Create Process (#domain-create-process)
-* Transfer Process (#domain-transfer-process)
+* Domain Create Process (#domain-create-process)
+* Domain Transfer Process (#domain-transfer-process)
 
 ### Domain Create Process Object {#domain-create-process}
 
@@ -4073,7 +4073,7 @@ Data Elements
 | clientTransactionId | Client Transaction ID | 0-1   | read-only   | String              | The client transaction identifier from the original request, if supplied. |
 | serverTransactionId | Server Transaction ID | 1     | read-only   | String              | The server transaction identifier returned for the original request.      |
 | completionDate      | Completion Date       | 1     | read-only   | Timestamp           | The date and time when review of the requested action was completed.      |
-| message             | Message               | 1     | create-only | String              | Human-readable message associated with the review response.               |
+| message             | Message               | 1     | read-only   | String              | Human-readable message associated with the review response.               |
 | process             | Process               | 0-1   | read-only   | Base Process Object | The process whose operation was subject to the offline review.            |
 
 Object: transferRequestMessage
@@ -5023,107 +5023,6 @@ Description: Retrieves the Discovery Data Object.
 Input Data Elements: (None)
 
 Parameters: (None)
-
-Object: reviewResponseMessage
-
-Object Name: Review Response Object
-
-Object Type: Component
-
-Description: Notification of the result of an offline-review of a requested operation.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier  | Element Name          | Card. | Mutability  | Data Type | Description                                                               |
-| ------------------- | --------------------- | ----- | ----------- | --------- | ------------------------------------------------------------------------- |
-| approved            | Approval Result       | 1     | read-only   | Boolean   | Whether the requested action was approved and completed.                  |
-| clientTransactionId | Client Transaction ID | 0-1   | read-only   | String    | The client transaction identifier from the original request, if supplied. |
-| serverTransactionId | Server Transaction ID | 1     | read-only   | String    | The server transaction identifier returned for the original request.      |
-| completionDate      | Completion Date       | 1     | read-only   | Timestamp | The date and time when review of the requested action was completed.      |
-| message             | Message               | 1     | create-only | String    | Human-readable message associated with the review response.               |
-
-Object: transferRequestMessage
-
-Object Name: Transfer Request Message Object
-
-Object Type: Component
-
-Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                              |
-| ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------ |
-| status             | Transfer Status | 1     | read-only  | String    | The current state of the transfer request.                               |
-| requestDate        | Request Date    | 1     | read-only  | Timestamp | The date and time the transfer was requested.                            |
-| actionDate         | Action Date     | 0-1   | read-only  | Timestamp | The deadline for responding before the server takes an automated action. |
-
-Object: transferOutcomeMessage
-
-Object Name: Transfer Outcome Message Object
-
-Object Type: Component
-
-Description: Notification for a client affected by the completion of a transfer request.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                                                      |
-| ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------------ |
-| trStatus           | Transfer Status | 1     | read-only  | String    | The final state of the transfer request.                                                         |
-| requestDate        | Request Date    | 1     | read-only  | Timestamp | The date and time the transfer was requested.                                                    |
-| actionDate         | Action Date     | 1     | read-only  | Timestamp | The date and time the transfer request was resolved.                                             |
-| expiryDate         | Expiry Date     | 0-1   | read-only  | Timestamp | The end of the object's validity period if the operation causes a change in the validity period. |
-
-Object: expirationDeletionMessage
-
-Object Name: Expiration Deletion Message Object
-
-Object Type: Component
-
-Description: Notification for the sponsoring client that an object was deleted following expiration.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name  | Card. | Mutability | Data Type | Description                                      |
-| ------------------ | ------------- | ----- | ---------- | --------- | ------------------------------------------------ |
-| deletionDate       | Deletion Date | 1     | read-only  | Timestamp | The date and time the server deleted the object. |
-
-Object: autoRenewalMessage
-
-Object Name: Auto-Renewal Message Object
-
-Object Type: Component
-
-Description: Notification for the sponsoring client that the server automatically renewed an object.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                      |
-| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------ |
-| renewalDate        | Renewal Date | 1     | read-only  | Timestamp | The date and time the server renewed the object. |
-| expiryDate         | Expiry Date  | 1     | read-only  | Timestamp | The new expiration date of the object.           |
-
-Object: serviceNoticeMessage
-
-Object Name: Service Notice Message Object
-
-Object Type: Component
-
-Description: Generic text based message containing information not covered by any other message type.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                        |
-| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------ |
-| message            | Message      | 1     | read-only  | String    | Human-readable service information for the receiving organisation. |
-
 
 ## RPP User Role Values Registry
 

@@ -382,7 +382,9 @@ to the Process Object, by Name — there is no `Identifier` attribute, which
 would be a redundant second lookup key alongside the one `Extends:` already
 uses. `resolve_process_name()` accepts the short form, so `Renew Process`
 resolves to the object named `Renew Process Object`
-(`[PROCESS MISSING IN NORMATIVE]` if unresolved).
+(`[PROCESS MISSING IN NORMATIVE]` if unresolved). Cross-reference markup in
+the bullet text (`(#anchor)`, `[](#anchor)`) is ignored when resolving; the
+parsed `name` keeps it verbatim.
 
 The only attribute a bullet may carry is `Constraints` (optional), with the
 same list-valued convention as element/param Constraints (inline value,
