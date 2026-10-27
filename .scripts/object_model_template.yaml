@@ -96,6 +96,10 @@
 #     status_not_required_for_client_request: (same) true when a client
 #                   may omit status values when creating or updating the
 #                   object that holds them.
+#     abstract:     true if the object's preamble has "* Abstract: true" —
+#                   the object is used only as a base object and no instance
+#                   ever has it as its own type (e.g. Base Process Object).
+#                   false when the attribute is absent or "false".
 #     supported_processes: the INHERITED-process bullet list from a Data
 #                   Object's "## Processes" section — the Process Objects it
 #                   supports UNMODIFIED. Processes it *extends* are not
