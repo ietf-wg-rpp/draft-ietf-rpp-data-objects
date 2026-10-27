@@ -426,12 +426,12 @@ Restore operations manage the recovery of an object that has entered the Redempt
 
 The RGP process MAY involve two distinct steps:
 
-* Restore Request: (REQUIRED) Initiates the recovery of an object in the `redemptionPeriod` state, signalling to the registry the intent to restore. This corresponds to the Create operation on the Restore Process Object. On success, the object transitions to `pendingRestore`.
-* Restore Report: (OPTIONAL) Submits a report documenting the circumstances of the deletion and restoration, as required by registry policy. This corresponds to the Report operation on the Restore Process Object. On success, the object is returned to its pre-deletion status and all RGP status labels are removed.
+* Restore Request: (REQUIRED) Initiates the recovery of an object in the `rgpRedemptionPeriod` state, signalling to the registry the intent to restore. This corresponds to the Create operation on the Restore Process Object. On success, the object transitions to `rgpPendingRestore`.
+* Restore Report: (OPTIONAL) Submits a report documenting the circumstances of the deletion and restoration, as required by registry policy. This corresponds to the Update operation on the Restore Process Object. On success, the object is returned to its pre-deletion status and all RGP status labels are removed.
 
-Whether a restore report is required after a restore request is a matter of server policy. If the server does not require a restore report, the object returns to its pre-deletion status immediately upon a successful Create operation, bypassing the `pendingRestore` state.
+Whether a restore report is required after a restore request is a matter of server policy. If the server does not require a restore report, the object returns to its pre-deletion status immediately upon a successful Create operation, bypassing the `rgpPendingRestore` state.
 
-The Create operation MAY include the restore report inline to complete both steps atomically in a single operation.
+The Create operation MAY include the restore report, provided as the `restoreReport` data element, to complete both steps atomically in a single operation.
 
 All restore operations act on or return the Restore Process Object and are executed in the context of the Owner Data Object the operation is created upon.
 
@@ -914,7 +914,7 @@ The following diagram describes the allowed status transitions for a domain obje
                             v                         v
                  +------------------+   +-----------------------------------+
                  | Deleted (purged) |   |  status: pendingDelete +           |
-                 |             (10) |   |  redemptionPeriod                  |
+                 |             (10) |   |  rgpRedemptionPeriod               |
                  +------------------+   |  (see Redemption Grace Period      |
                                         |  State Diagram below)          (10)|
                                         +-----------------------------------+
@@ -932,7 +932,7 @@ State descriptions:
 7. Once the pending update, renew, or transfer action completes, the corresponding pending status is removed and the object returns to its `ok` or `inactive` state, as determined by its current nameserver associations.
 8. A delete operation is received and processed. The object enters `pendingDelete` state.
 9. Whether RGP is supported for the domain determines the next transition upon completion of the pending delete action.
-10. If RGP is not supported, the object is purged once the delete action completes. If RGP is supported, the object instead continues into the `redemptionPeriod` state, following the [Redemption Grace Period State Diagram](#fig-rgp-state-diagram) below.
+10. If RGP is not supported, the object is purged once the delete action completes. If RGP is supported, the object instead continues into the `rgpRedemptionPeriod` state, following the [Redemption Grace Period State Diagram](#fig-rgp-state-diagram) below.
 
 ### Pending Status Removal
 
@@ -977,31 +977,31 @@ Table: Redemption Grace Period Status Values
 
 The following state diagram describes the object lifecycle when the Redemption Grace Period (RGP) feature is supported. It adapts the diagram from [@!RFC3915, section 2] to the RPP data model, using RPP status labels and operations instead of EPP command names.
 
-In the diagram below, RPP status labels are shown in the `status` field of the object. Standard EPP-origin status labels (e.g., `ok`, `pendingDelete`) are used alongside the RGP-specific labels defined in this document. The `<create>` and `<report>` labels refer to the Create and Report operations on the Restore Process Object, replacing the EPP extended `<update>` command with `op=request` and `op=report` attributes.
+In the diagram below, each state box shows the values of the `status` data element of the Domain Name Data Object. The values `ok` and `pendingDelete` are defined in (#domain-status-values), and the values beginning with "rgp" are defined in (#rgp-status-values). The `<delete>` label refers to the Delete operation on the Domain Name Data Object. The `<create>` and `<update>` labels refer to the Create operation ((#restore-create)) and the Update operation ((#restore-report)) of the Restore Process Object.
 
 ```ascii
-              |
-              v                     (2)
+              |                    (2)
+              v                   Domain
 +----------------------------+   <delete>   +-------------------------------+
 | status: ok              (1)|------------->| status: pendingDelete      (3)|
-|                            |              |         redemptionPeriod      |
+|                            |              |         rgpRedemptionPeriod   |
 +----------------------------+              +-------------------------------+
    ^   ^             restore, no report      | ^  |                |
    |   |             and report required  (4)| |  |        No (9)  |
-   |   |                  <create>           | |  |       restore  |
-   |   |                  +------------------+ |  |       restore  |
+   |   |                 Restore <create>    | |  |       restore  |
+   |   |                  +------------------+ |  |                |
    |   |                  v                    |  |                v
    |   |  +------------------+                 |  | +-----------------------+
    |   |  | status:       (6)|                 |  | | status:           (10)|
-   |   |  |   pendingDelete  |-----------------+  | |   pendingDelete       |
-   |   |  |   pendingRestore |   report not (7)   | |   rgpPendingDelete    |
+   |   |  | pendingDelete    |-----------------+  | |   pendingDelete       |
+   |   |  | rgpPendingRestore|   report not (7)   | |   rgpPendingDelete    |
    |   |  +------------------+   received         | +-----------------------+
    |   |                (8) |                     |                |
-   |   |    report received |                     |     purge (11) |
-   |   |       <report>     |      restore (5)    |                v
-   |   +--------------------+      with report    | +-----------------------+
-   |                               or not req.    | |      Purged       (12)|
-   |                                  <create>    | +-----------------------+
+   |   |   report received  |                     |     purge (11) |
+   |   |   Restore <update> |    restore (5)      |                v
+   |   +--------------------+    with report      | +-----------------------+
+   |                             or not req.      | |      Purged       (12)|
+   |                             Restore <create> | +-----------------------+
    +----------------------------------------------+
 ```
 Figure: Redemption Grace Period State Diagram
@@ -1011,11 +1011,11 @@ State descriptions:
 
 1. The object is in normal operation (`ok` or other status allowing a delete operation).
 2. A delete operation is received and processed.
-3. RGP begins. The object enters `pendingDelete` + `redemptionPeriod` state. The object remains here until a restore operation is requested or the redemption period elapses.
-4. A restore Create operation is submitted. The registry accepts the request. Go to step 8 if the redemption period elapses before a restore is received (4a).
-5. If the server does not require a restore report, the object returns to its pre-deletion status (1) immediately upon a successful Create operation. If the server requires a report but the client includes it inline in the Create operation, the server processes both atomically and the object transitions directly from `redemptionPeriod` to its pre-deletion status (1), bypassing the `pendingRestore` state.
-6. The object enters `pendingDelete` + `pendingRestore` state. The registry awaits a restore report from the sponsoring client.
-7. If no restore report is received within the registry-defined time, the object returns to `redemptionPeriod` state (step 3).
+3. RGP begins. The object enters `pendingDelete` + `rgpRedemptionPeriod` state. The object remains here until a restore operation is requested or the redemption period elapses.
+4. A restore Create operation is submitted. The registry accepts the request. Go to step 9 if the redemption period elapses before a restore is received (4a).
+5. If the server does not require a restore report, the object returns to its pre-deletion status (1) immediately upon a successful Create operation. If the server requires a report but the client includes it inline in the Create operation, the server processes both atomically and the object transitions directly from `rgpRedemptionPeriod` to its pre-deletion status (1), bypassing the `rgpPendingRestore` state.
+6. The object enters `pendingDelete` + `rgpPendingRestore` state. The registry awaits a restore report from the sponsoring client.
+7. If no restore report is received within the registry-defined time, the object returns to `rgpRedemptionPeriod` state (step 3).
 8. If a restore report is received and accepted, the object returns to its pre-deletion status and all RGP status labels are removed.
 9. The redemption period elapses without a restore request being received.
 10. The object enters `pendingDelete` + `rgpPendingDelete` state and awaits final purge processing.
@@ -2392,8 +2392,19 @@ The Reject operation allows the appropriate client to decline a pending transfer
     * Cardinality: 0-1
     * Mutability: read-only
     * Data Type: Timestamp
-    * Description: The date and time by which a restore report must be submitted before the object reverts to `redemptionPeriod` state. Only present when the object is in `pendingRestore` state.
+    * Description: The date and time by which a restore report must be submitted before the object reverts to `rgpRedemptionPeriod` state. Only present when the object is in `rgpPendingRestore` state.
     * Constraints: MUST NOT be present when `restoreStatus` is not `"pendingRestore"`.
+  * Restore Report
+    * Identifier: restoreReport
+    * Cardinality: 0-1
+    * Mutability: read-write
+    * Data Type: Restore Report Object
+    * Visibility: onDemand
+    * Description: The restore report submitted by the sponsoring client as required by the RGP process. A client MAY provide it in the Create operation, so that the restore request and the report are processed atomically, or in a later Update operation while the object is in `rgpPendingRestore` state. A report provided in an Update operation replaces any previously submitted report.
+    * Constraints:
+      * MUST NOT be provided if the server does not require a restore report.
+      * In EPP Compatibility Profile, the restore report is write-only: the server does not return it in the output of any operation, because [@!RFC3915] provides no means to retrieve a submitted report.
+      * In EPP Compatibility Profile, providing this element in the Create operation corresponds to `op="report"`, omitting it corresponds to `op="request"`, and providing it in the Update operation corresponds to `op="report"` as defined in [@!RFC3915].
 
 ### Operations
 
@@ -2401,7 +2412,9 @@ The Reject operation allows the appropriate client to decline a pending transfer
 
 * Identifier: create
 
-The Create operation initiates the recovery of an object in the `redemptionPeriod` state by creating a Restore Process Object. The server MUST reject this operation if the owning object is not in the `redemptionPeriod` state.
+The Create operation initiates the recovery of an object in the `rgpRedemptionPeriod` state by creating a Restore Process Object. The server MUST reject this operation if the owning object is not in the `rgpRedemptionPeriod` state.
+
+If the server requires a restore report and `restoreReport` is absent, the object transitions to `rgpPendingRestore` state awaiting a subsequent Update operation. Otherwise the restore is completed immediately.
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2442,13 +2455,13 @@ The Read operation allows the sponsoring client to retrieve the current state of
 
 In EPP Compatibility Profile this operation is not supported.
 
-#### Report {#restore-report}
+#### Update (Restore Report) {#restore-report}
 
-* Identifier: report
+* Identifier: update
 
 This operation is OPTIONAL, only for servers which support or require submission of a restore report.
 
-The Report operation submits the restore report required by the RGP process for an object in the `pendingRestore` state. A report MAY be submitted more than once if corrections are required. The server MUST reject this operation if the object is not in the `pendingRestore` state.
+The Update operation submits the restore report required by the RGP process for an object in the `rgpPendingRestore` state. Since `restoreReport` is the only read-write data element of the Restore Process Object, the client MUST provide it in this operation. A report MAY be submitted more than once if corrections are required. The server MUST reject this operation if the object is not in the `rgpPendingRestore` state.
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -4269,7 +4282,8 @@ Data Elements
 | restoreStatus      | Restore Status  | 1     | read-only  | String    | The current state of the restore process.                                                                                               |
 | requestDate        | Request Date    | 0-1   | read-only  | Timestamp | The date and time when the restore request was submitted. Absent if no request has been submitted.                                      |
 | reportDate         | Report Date     | 0-1   | read-only  | Timestamp | The date and time when the most recent restore report was accepted. Absent if no report has been accepted.                              |
-| reportDueDate      | Report Due Date | 0-1   | read-only  | Timestamp | The deadline for submitting a restore report before the object reverts to redemptionPeriod. Present only when status is pendingRestore. |
+| reportDueDate      | Report Due Date | 0-1   | read-only  | Timestamp | The deadline for submitting a restore report before the object reverts to rgpRedemptionPeriod. Present only when status is rgpPendingRestore. |
+| restoreReport      | Restore Report  | 0-1   | read-write | Restore Report Object | The restore report submitted as required by the RGP process. |
 
 Operations
 
@@ -4277,12 +4291,9 @@ Operation: Restore Create
 
 Operation Identifier: create
 
-Description: Initiates recovery of a domain name in the redemptionPeriod state by creating a Restore Process Object. This operation is OPTIONAL and is only available when the RGP feature is supported.
+Description: Initiates recovery of a domain name in the rgpRedemptionPeriod state by creating a Restore Process Object. This operation is OPTIONAL and is only available when the RGP feature is supported.
 
-Input Data Elements
-| Identifier    | Name           | Card. | Data Type             | Description               |
-| ------------- | -------------- | ----- | --------------------- | ------------------------- |
-| restoreReport | Restore Report | 0-1   | Restore Report Object | An inline restore report. |
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -4296,16 +4307,13 @@ Input Data Elements: (None)
 
 Parameters: (None)
 
-Operation: Restore Report
+Operation: Restore Update
 
-Operation Identifier: report
+Operation Identifier: update
 
-Description: Submits the restore report for a domain name in the pendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
+Description: Submits or replaces the restore report for a domain name in the rgpPendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
 
-Input Data Elements
-| Identifier    | Name           | Card. | Data Type             | Description                         |
-| ------------- | -------------- | ----- | --------------------- | ----------------------------------- |
-| restoreReport | Restore Report | 1     | Restore Report Object | The restore report to be submitted. |
+Input Data Elements: (None)
 
 Parameters: (None)
 
@@ -5291,6 +5299,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update
 * Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition
 * fixed User Object delete operation constraint that prevented any user from being deleted
 * Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
