@@ -1699,7 +1699,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
 
 ## Authorisation Information Object
 
-* Name: Authorisation Information
+* Name: Authorisation Information Object
 * Identifier: authInfo
 * Description: Contains information used to authorise operations on a data object. It may hold different kinds of authorisation information.
 * Data Elements:
@@ -1726,7 +1726,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
 
 A> TODO: Model Disclose in universal (extendible) way
 
-* Name: Disclose
+* Name: Disclose Object
 * Identifier: disclose
 * Description: TBD
 
@@ -3885,7 +3885,7 @@ Data Elements
 
 Object: authInfo
 
-Object Name: Authorisation Information
+Object Name: Authorisation Information Object
 
 Object Type: Component
 
@@ -4397,7 +4397,7 @@ Parameters: (None)
 
 Object: disclose
 
-Object Name: Disclose
+Object Name: Disclose Object
 
 Object Type: Component
 
@@ -5382,6 +5382,7 @@ A> TODO: write security considerations, if any
 * moved input data elements and parameters into the Input attribute of operations
 * added a Set By column to status value tables and a set-by field to the status value registries (Issue #186)
 * stated that the server assigns at least one status value on create (Issue #186)
+* renamed Authorisation Information and Disclose component objects to "… Object" to match their references
 
 {toc="exclude"}
 {numbered="false"}
