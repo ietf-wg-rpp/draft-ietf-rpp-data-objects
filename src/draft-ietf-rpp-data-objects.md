@@ -38,14 +38,14 @@ organization = "SIDN Labs"
 
 .# Abstract
 
-This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for foundational resources: domain names, contacts, and hosts. In accordance with the RPP architecture [@!I-D.kowalik-rpp-architecture], these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).
+This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for foundational resources: domain names, contacts, and hosts. In accordance with the RPP architecture [@!I-D.ietf-rpp-architecture], these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).
 
 {mainmatter}
 
 # Introduction
 The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage foundational registry resources, including domain names, contacts, and hosts. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.
 
-In accordance with the RPP architecture [@!I-D.kowalik-rpp-architecture], a core architectural principle is the clear distinction between the abstract data model and its concrete data representation. The data model defines the logical structure, relationships, and constraints of the objects, independent of formatting. The data representation defines how these abstract concepts are expressed in specific formats (e.g., JSON, XML, or YAML).
+In accordance with the RPP architecture [@!I-D.ietf-rpp-architecture], a core architectural principle is the clear distinction between the abstract data model and its concrete data representation. The data model defines the logical structure, relationships, and constraints of the objects, independent of formatting. The data representation defines how these abstract concepts are expressed in specific formats (e.g., JSON, XML, or YAML).
 
 This document focuses on the data model of RPP objects and operations on them, including the data model of operation inputs, outputs as well as the necessary business logic of state transitions. This separation of concerns ensures the protocol maintains a stable semantic foundation that can be consistently implemented across different media types and easily adapted to new representation formats. For instance, the model defines a contact's name as a required string type, but it remains agnostic as to whether that string is ultimately encoded as a JSON property or an XML element.
 
@@ -158,7 +158,7 @@ The data type of a data element may also be a reference to another data object, 
 
 ## Extensibility
 
-The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional data elements.
+The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, define new processes on existing or new data objects, and define new operations or extend the inputs and outputs of existing operations.
 
 ### Standardised and Private Extensions
 
@@ -176,6 +176,7 @@ The following aspects of the data model are extensible:
 * New data elements: Extensions MAY add new data elements to existing data objects. Such elements follow the same Data Element Semantics as core data elements.
 * New associations: Extensions MAY introduce new associations between existing or new objects.
 * New operations: Extensions MAY define entirely new operations on existing or new data objects.
+* New processes: Extensions MAY define new Process Objects and MAY declare that existing or new Data Objects support them. A new Process Object MUST extend the Base Process Object, either directly or through another Process Object.
 * Extended operation inputs and outputs: Extensions MAY add new data elements to the inputs or outputs of existing operations.
 
 When an extension adds data elements, input data elements, or parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
@@ -196,7 +197,7 @@ The definition of each data element within an object consists of the following a
 * Description: Explains the purpose of the data element and any other relevant information.
 * Constraints: Provides specific validation rules or limitations on top of the data type itself, such as value ranges.
 * Mutability: Defines the lifecycle of the data element's value. It MUST be one of the following:
-  * create-only: The element's value is provided during the object's creation and cannot be modified thereafter.
+  * create-only: The element's value is provided during the object's creation and cannot be modified thereafter. After object's creation the element behaves like read-only element.
   * read-only: The element's value is managed by the server. It cannot be set or modified directly by the client, though it may change as a result of server-side operations.
   * read-write: The element's value can be set and modified by the client.
 * Direct Access: An optional flag indicating whether the associated object or objects are additionally exposed as an addressable sub-resource of the containing object. When set to `true`, the associated object or objects are exposed as a sub-resource that can be addressed independently of the containing object, in addition to their inline representation within it. When absent or set to `false`, the element is accessed only inline. The default value is `false`.
@@ -1801,7 +1802,7 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 * Name: Processes Object
 * Identifier: processes
-* Description: A container grouping the Process Objects (#process-objects) currently or recently initiated on a Data Object. Each data element MUST be named after the identifier of a Process Object and MUST be of type Aggregation of that Process Object. The data elements below are the process types defined in this document.
+* Description: A container grouping the Process Objects (#process-objects) currently or recently initiated on a Data Object. Each data element MUST be named after the identifier of a Process Object and MUST be of type Aggregation of that Process Object. The data elements below are the process types defined in this document. Extensions MUST add further data elements for the Process Objects they define.
 * Data Elements:
   * Transfer Processes
     * Identifier: transferProcess
@@ -5310,6 +5311,8 @@ A> TODO: write security considerations, if any
 * fixed User Object delete operation constraint that prevented any user from being deleted
 * Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
 * defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
+* allowed extensions to define new processes
+* create-only definition clarified about reading (Issue #80)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
 * Added Discovery Data Object (Issue #136)
