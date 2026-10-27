@@ -3508,7 +3508,9 @@ The Delete operation removes a specific User Object.
 * Authorisation:
   * Client can only delete users in the context of the organisation linked to the client, and only if the client has the necessary permissions to delete users in that organisation.
 
-The server MUST reject this operation if the User is associated with an Organisation Object.
+The server MUST reject this operation if the target User Object is the last user of the owning organisation that is permitted to manage users.
+
+User Objects are deleted together with their owning Organisation Object.
 
 # Discovery Data Object
 
@@ -5290,6 +5292,7 @@ A> TODO: write security considerations, if any
 ## draft-ietf-rpp-data-objects -01 - -02
 
 * Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition
+* fixed User Object delete operation constraint that prevented any user from being deleted
 * Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
 * defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
