@@ -89,7 +89,7 @@ Input Data Element
 : A data element that a client provides as input to a specific operation, in addition to the identifier or data elements of the object the operation targets, and that carries content the operation acts upon. An input data element is defined as part of the operation definition and is not part of the state of the object. An input data element is described using the attributes defined in (#data-element-semantics), except Direct Access, and Visibility, which do not apply.
 
 Parameter
-: A data element that a client provides as input to an operation to control how the server processes the operation or which data it returns, without itself carrying content that the operation acts upon. A parameter is not part of the state of the object and is not returned as part of the object. A parameter is described using the same attributes as an Input Data Element, and its definition specifies the behaviour of the operation when the parameter is absent.
+A data element that a client provides with an operation to control how the server performs the operation or which data it returns. Unlike an Input Data Element, a parameter does not carry content that the operation acts upon. A parameter is not part of the state of the object and is never returned as part of the object. A parameter is described using the same attributes as an Input Data Element, and its definition specifies the behaviour of the operation when the parameter is absent.
 
 Label Generation Ruleset (LGR)
 : A set of rules defining the valid labels for a registry, including the permitted repertoire, contextual rules, and, where applicable, variant mappings. Also historically known as IDN tables.
@@ -531,7 +531,7 @@ Example aggregation having cardinality >1:
 
 ## Composition
 
-Notation: Composition[Type] or Type
+Notation: Type
 
 A relation between an independent parent object and 1 or more dependent child object(s).
 
@@ -1534,7 +1534,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
     * Identifier: records
     * Cardinality: 0+
     * Mutability: read-write
-    * Data Type: Composition[DNS Resource Record Object]
+    * Data Type: DNS Resource Record Object
     * Description: An array of DNS resource records associated with the provisioned object.
     * Constraints:
       * Allowed record types MAY be constrained by server policy.
@@ -2444,7 +2444,7 @@ The following data elements are defined for the Domain Name Data Object.
   * Identifier: registrant
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Contact Data Object
+  * Data Type: Aggregation[Contact Data Object]
   * Description: The contact object associated with the domain as the registrant.
   * Constraints:
     * The relation MUST correspond to a valid Contact Data Object known to the server.
@@ -2707,7 +2707,7 @@ The following data elements are defined for the Contact Data Object.
   * Identifier: id
   * Cardinality: 1
   * Mutability: create-only
-  * Data Type: Identifier.
+  * Data Type: Identifier
   * Description: External unique identifier of the contact object.
   * Constraints:
     * This value MUST be supported to be provided by the client.
@@ -2745,7 +2745,7 @@ The following data elements are defined for the Contact Data Object.
   * Identifier: authInfo
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Authorisation Information
+  * Data Type: Authorisation Information Object
   * Visibility: onDemand
   * Description: Authorisation information associated with the contact object.
   * Constraints: (None)
@@ -2754,7 +2754,7 @@ The following data elements are defined for the Contact Data Object.
   * Identifier: disclose
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Disclose Object.
+  * Data Type: Disclose Object
   * Description: Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties.
   * Constraints:
     * A server MUST reject any transaction that requests disclosure practices that do not conform to the server's announced data-collection policy.
@@ -3024,7 +3024,7 @@ The following data elements are defined for the Organisation Data Object.
   * Identifier: parent
   * Cardinality: 0-1
   * Mutability: read-write
-  * Data Type: Organisation Data Object
+  * Data Type: Aggregation[Organisation Data Object]
   * Description: The parent organisation in a hierarchical organisation structure (e.g., a reseller's parent registrar).
   * Constraints:
     * Loops MUST be prohibited. If organisation A has organisation B as its parent, organisation B MUST NOT have organisation A as its parent, directly or transitively.
@@ -3270,7 +3270,7 @@ The following data elements are defined for the User Data Object.
   * Identifier: organisationId
   * Cardinality: 1
   * Mutability: read-only
-  * Data Type: Organisation Data Object Reference
+  * Data Type: Aggregation[Organisation Data Object]
   * Description: A reference to the owner organisation object.
   * Constraints: -
 * Processes
@@ -3506,7 +3506,7 @@ The following data elements are defined for the Profile Data Object. All data el
   * Identifier: baseProfile
   * Cardinality: 0-1
   * Mutability: read-only
-  * Data Type: Profile Data Object
+  * Data Type: Aggregation[Profile Data Object]
   * Description: A base profile that is extended by this profile. The features and versions of the base profile are included in this profile, which MAY add to them or override them, for example the version of an extension.
   * Constraints:
     * The base profile MUST be published in the IANA registry for RPP profiles, or be made available to the client using other means.
@@ -3647,7 +3647,7 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name | Card. | Mutability | Data Type                                | Description                                                              |
 | ------------------ | ------------ | ----- | ---------- | ---------------------------------------- | ------------------------------------------------------------------------ |
-| records            | Records      | 0+    | read-write | Composition [DNS Resource Record Object] | An array of DNS resource records associated with the provisioned object. |
+| records            | Records      | 0+    | read-write | DNS Resource Record Object | An array of DNS resource records associated with the provisioned object. |
 | controls           | Controls     | 0-1   | read-write | DNS Operational Controls Object          | Operational control parameters for the DNS records.                      |
 
 Object: authInfo
@@ -4134,21 +4134,21 @@ Description: Represents a domain name and its associated data.
 Reference: [This-ID]
 
 Data Elements
-| Identifier       | Name                      | Card. | Mutability  | Data Type                            | Description                                                                                                        |
-|------------------|---------------------------|-------|-------------|--------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| name             | Name                      | 1     | create-only | Fully Qualified Domain Name          | The fully qualified name of the domain object.                                                                     |
-| uName            | Unicode Name              | 0-1   | create-only | String                               | The fully qualified name of the domain using the Unicode character set.                                            |
-| lgr              | LGR                       | 0-1   | create-only | String                               | The name of the Label Generation Ruleset (LGR) containing the valid code points used for the Unicode Name (uName). |
-| provMetadata     | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object         | Standard metadata about object lifecycle and ownership.                                                            |
-| status           | Status                    | 1+    | read-write  | Domain Name Status Object            | The current status descriptors for the domain.                                                                     |
-| registrant       | Registrant                | 0-1   | read-write  | Contact Data Object                  | The registrant contact ID.                                                                                         |
+| Identifier       | Name                      | Card. | Mutability  | Data Type                                 | Description                                                                                                        |
+|------------------|---------------------------|-------|-------------|-------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| name             | Name                      | 1     | create-only | Fully Qualified Domain Name               | The fully qualified name of the domain object.                                                                     |
+| uName            | Unicode Name              | 0-1   | create-only | String                                    | The fully qualified name of the domain using the Unicode character set.                                            |
+| lgr              | LGR                       | 0-1   | create-only | String                                    | The name of the Label Generation Ruleset (LGR) containing the valid code points used for the Unicode Name (uName). |
+| provMetadata     | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object              | Standard metadata about object lifecycle and ownership.                                                            |
+| status           | Status                    | 1+    | read-write  | Domain Name Status Object                 | The current status descriptors for the domain.                                                                     |
+| registrant       | Registrant                | 0-1   | read-write  | Aggregation[Contact Data Object]          | The registrant contact ID.                                                                                         |
 | contacts         | Contacts                  | 0+    | read-write  | LabelledAggregation [Contact Data Object] | Associated contact objects.                                                                                        |
-| nameservers      | Nameservers               | 0+    | read-write  | Aggregation [Host Data Object]       | A collection of nameservers associated with the domain.                                                            |
-| dns              | DNS Data                  | 0-1   | read-write  | DNS Data Object                      | DNS resource records and operational controls related to the domain name.                                          |
-| subordinateHosts | Subordinate Hosts         | 0+    | read-only   | Aggregation [Host Data Object]       | Subordinate host names.                                                                                            |
-| expiryDate       | Expiry Date               | 0-1   | read-only   | Timestamp                            | Expiry timestamp.                                                                                                  |
-| authInfo         | Authorisation Information | 0-1   | read-write  | Authorisation Information Object     | Authorisation information for the object.                                                                          |
-| processes        | Processes                 | 0-1   | read-only   | Processes Object                     | Process Objects initiated on the domain object.                                                                    |
+| nameservers      | Nameservers               | 0+    | read-write  | Aggregation [Host Data Object]            | A collection of nameservers associated with the domain.                                                            |
+| dns              | DNS Data                  | 0-1   | read-write  | DNS Data Object                           | DNS resource records and operational controls related to the domain name.                                          |
+| subordinateHosts | Subordinate Hosts         | 0+    | read-only   | Aggregation [Host Data Object]            | Subordinate host names.                                                                                            |
+| expiryDate       | Expiry Date               | 0-1   | read-only   | Timestamp                                 | Expiry timestamp.                                                                                                  |
+| authInfo         | Authorisation Information | 0-1   | read-write  | Authorisation Information Object          | Authorisation information for the object.                                                                          |
+| processes        | Processes                 | 0-1   | read-only   | Processes Object                          | Process Objects initiated on the domain object.                                                                    |
 
 Operations
 
@@ -4204,15 +4204,15 @@ Description: A Contact Data Object represents the contact information for an ind
 Reference: [This-ID]
 
 Data Elements
-| Identifier   | Name                      | Card. | Mutability  | Data Type                                  | Description                                                                                                             |
-| ------------ | ------------------------- | ----- | ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| id           | Handle ID                 | 1     | create-only | Identifier.                                | External unique identifier of the contact object.                                                                       |
-| provMetadata | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object               | Standard metadata about the object's lifecycle and ownership.                                                           |
-| status       | Status                    | 1+    | read-write  | Contact Status Object                      | Status descriptors associated with the contact.                                                             |
-| contactInfo  | Contact Information       | 1-2   | read-write  | External:RPP-JSContact-Profile:Card       | JSContact Card information.                                                                                    |
-| authInfo     | Authorisation Information | 0-1   | read-write  | Authorisation Information                  | Authorisation information associated with the contact object.                                                           |
-| disclose     | Disclose                  | 0-1   | read-write  | Disclose Object.                           | Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties. |
-| processes    | Processes                 | 0-1   | read-only   | Processes Object                           | Process Objects initiated on the contact object. |
+| Identifier   | Name                      | Card. | Mutability  | Data Type                           | Description                                                                                                             |
+|--------------|---------------------------|-------|-------------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| id           | Handle ID                 | 1     | create-only | Identifier                          | External unique identifier of the contact object.                                                                       |
+| provMetadata | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object        | Standard metadata about the object's lifecycle and ownership.                                                           |
+| status       | Status                    | 1+    | read-write  | Contact Status Object               | Status descriptors associated with the contact.                                                                         |
+| contactInfo  | Contact Information       | 1-2   | read-write  | External:RPP-JSContact-Profile:Card | JSContact Card information.                                                                                             |
+| authInfo     | Authorisation Information | 0-1   | read-write  | Authorisation Information Object    | Authorisation information associated with the contact object.                                                           |
+| disclose     | Disclose                  | 0-1   | read-write  | Disclose Object                     | Identifies elements that require exceptional server-operator handling to allow or restrict disclosure to third parties. |
+| processes    | Processes                 | 0-1   | read-only   | Processes Object                    | Process Objects initiated on the contact object.                                                                        |
 
 Operations
 
@@ -4336,17 +4336,17 @@ Description: Represents an entity, such as a registrar, reseller, DNS service op
 Reference: [This-ID]
 
 Data Elements
-| Identifier   | Name                   | Card. | Mutability  | Data Type                                         | Description                                                                                              |
-| ------------ | ---------------------- | ----- | ----------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| id           | Organisation ID        | 1     | create-only | Identifier                                        | A server-unique identifier for the organisation object.                                                  |
-| provMetadata | Provisioning Metadata  | 1     | read-only   | Provisioning Metadata Object                      | Standard metadata about the object's lifecycle and ownership.                                            |
-| status       | Status                 | 1+    | read-write  | Organisation Status Object                        | The current operational status descriptors for the organisation.                                         |
-| roles        | Roles                  | 1+    | read-write  | DictionaryComposition [Organisation Role Object]  | One or more roles describing the organisation's relationship within the registry ecosystem.              |
-| parent     | Parent Organisation ID | 0-1   | read-write  | Organisation Data Object                          | The parent organisation in a hierarchical organisation structure.                                        |
-| contactInfo   | Contact Information     | 0-1   | read-write  | External:RPP-JSContact-Profile:Card     | Contact information. |
-| contacts     | Contacts               | 0+    | read-write  | LabelledAggregation[Contact Data Object]  | Identifiers of contact objects associated with the organisation.                                         |
-| users        | Users                  | 0+    | read-write  | LabelledAggregation [User Data Object]          | Identifiers of user objects associated with the organisation.                                         |
-| processes    | Processes              | 0-1   | read-only   | Processes Object                                | Process Objects initiated on the organisation object.                        |
+| Identifier   | Name                   | Card. | Mutability  | Data Type                                        | Description                                                                                 |
+|--------------|------------------------|-------|-------------|--------------------------------------------------|---------------------------------------------------------------------------------------------|
+| id           | Organisation ID        | 1     | create-only | Identifier                                       | A server-unique identifier for the organisation object.                                     |
+| provMetadata | Provisioning Metadata  | 1     | read-only   | Provisioning Metadata Object                     | Standard metadata about the object's lifecycle and ownership.                               |
+| status       | Status                 | 1+    | read-write  | Organisation Status Object                       | The current operational status descriptors for the organisation.                            |
+| roles        | Roles                  | 1+    | read-write  | DictionaryComposition [Organisation Role Object] | One or more roles describing the organisation's relationship within the registry ecosystem. |
+| parent       | Parent Organisation ID | 0-1   | read-write  | Aggregation [Organisation Data Object]           | The parent organisation in a hierarchical organisation structure.                           |
+| contactInfo  | Contact Information    | 0-1   | read-write  | External:RPP-JSContact-Profile:Card              | Contact information.                                                                        |
+| contacts     | Contacts               | 0+    | read-write  | LabelledAggregation[Contact Data Object]         | Identifiers of contact objects associated with the organisation.                            |
+| users        | Users                  | 0+    | read-write  | LabelledAggregation [User Data Object]           | Identifiers of user objects associated with the organisation.                               |
+| processes    | Processes              | 0-1   | read-only   | Processes Object                                 | Process Objects initiated on the organisation object.                                       |
 
 Operations
 
@@ -4471,7 +4471,7 @@ Data Elements
 | status         | Status          | 1     | read-write  | String                              | The status of the user.                                                        |
 | processes      | Processes       | 0-1   | read-only   | Processes Object                    | Process Objects initiated on the user object.                                  |
 | description    | Description     | 0-1   | read-write  | String                              | A description of the user                                                      |
-| organisationId | Organisation ID | 1     | read-only   | Organisation Data Object Reference  | A reference to the owner organisation object.                                  |
+| organisationId | Organisation ID | 1     | read-only   | Aggregation [Organisation Data Object]  | A reference to the owner organisation object.                                  |
 
 Operations
 
@@ -4526,16 +4526,16 @@ Description: Represents a named set of protocol features and versions that defin
 Reference: [This-ID]
 
 Data Elements
-| Identifier | Name | Card. | Mutability | Data Type | Description |
-| ---------- | ---- | ----- | ---------- | --------- | ----------- |
-| name | Name | 1 | read-only | String | A unique name that identifies the profile. |
-| description | Description | 1 | read-only | String | A human-readable description of the profile and its intended use. |
-| version | Version | 1 | read-only | String | The version of the profile. |
-| rppVersion | RPP Version | 1 | read-only | String | The minimum version of the RPP protocol that is supported or required for the profile. |
-| objects | Objects | 1+ | read-only | String | The objects allowed for provisioning operations. |
-| extensions | Extensions | 0+ | read-only | Extension Object | The extensions, including their names and versions, that are supported or required for the profile. |
-| baseProfile | Base Profile | 0-1 | read-only | Profile Data Object | A base profile that is extended by this profile. |
-| defaultProfile | Default Profile | 1 | read-only | Boolean | Indicates whether this profile is the default profile. |
+| Identifier     | Name            | Card. | Mutability | Data Type                         | Description                                                                                         |
+|----------------|-----------------|-------|------------|-----------------------------------|-----------------------------------------------------------------------------------------------------|
+| name           | Name            | 1     | read-only  | String                            | A unique name that identifies the profile.                                                          |
+| description    | Description     | 1     | read-only  | String                            | A human-readable description of the profile and its intended use.                                   |
+| version        | Version         | 1     | read-only  | String                            | The version of the profile.                                                                         |
+| rppVersion     | RPP Version     | 1     | read-only  | String                            | The minimum version of the RPP protocol that is supported or required for the profile.              |
+| objects        | Objects         | 1+    | read-only  | String                            | The objects allowed for provisioning operations.                                                    |
+| extensions     | Extensions      | 0+    | read-only  | Extension Object                  | The extensions, including their names and versions, that are supported or required for the profile. |
+| baseProfile    | Base Profile    | 0-1   | read-only  | Aggregation [Profile Data Object] | A base profile that is extended by this profile.                                                    |
+| defaultProfile | Default Profile | 1     | read-only  | Boolean                           | Indicates whether this profile is the default profile.                                              |
 
 Operations
 

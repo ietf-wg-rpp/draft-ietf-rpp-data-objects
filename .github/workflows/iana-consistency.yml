@@ -1,0 +1,27 @@
+name: IANA consistency check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r .scripts/requirements.txt
+
+      - name: Run script self-tests
+        working-directory: src
+        run: python3 ../.scripts/check_iana_consistency.py --self-test
+
+      - name: Check normative definitions against IANA tables
+        working-directory: src
+        run: python3 ../.scripts/check_iana_consistency.py

@@ -50,7 +50,8 @@ requested in a single invocation. Running with no flags reproduces the
 original behaviour (consistency report to stdout, `--check` on by default).
 
 Exit code 0 = no errors (or `--no-check`); exit code 1 = at least one
-consistency error. Orphan-prose warnings (see below) never affect the exit
+consistency error, or a `--yaml-out` export refused because of attributes
+it does not cover (see [YAML export](#yaml-export)). Orphan-prose warnings (see below) never affect the exit
 code.
 
 ### Report levels
@@ -128,6 +129,17 @@ identically, each against its own IANA table:
 | Code | Meaning |
 | ---- | ------- |
 | `[INPUT\|PARAM ATTR NOT APPLICABLE]` | A normative Input Data Element or Parameter declares an attribute bullet other than Identifier, Cardinality, Data Type, Description, Constraints (`PARAM_ATTR_KEYS`), e.g. Mutability. Reported whether or not the object is in IANA. |
+
+### Data-element attributes (normative-only)
+
+The IANA tables carry no Direct Access or Visibility column, so these are
+checked against the draft's own "Data Element Semantics" definitions only
+(`check_element_attrs()`):
+
+| Code | Meaning |
+| ---- | ------- |
+| `[ELEM ATTR UNKNOWN]` | An element declares an attribute bullet not in `ELEMENT_ATTR_KEYS` (kept in `extra_attrs`) |
+| `[ELEM ATTR INVALID]` | `Direct Access` is not `true`/`false`; `Visibility` is not `default`/`onDemand`; or `Direct Access: true` on an element whose Data Type is not an association (`_is_association_type()`): a bracketed notation from `ASSOCIATION_NOTATIONS` (`Aggregation[Type]`, …), or a Composition — the bare Name of a normative object (`Type`) |
 
 ### Supported-process level (normative-only, no IANA table involved)
 
@@ -387,10 +399,54 @@ document layouts** above); their `* Extends:` value lands in
 Any sibling heading of an object that is not `Object Description`,
 `Data Elements`, `Operations`, or `Processes` — e.g. `### RDATA Structures
 in EPP Profile {#rdata-structures}` inside the `dnsRecord` Component Object
-— is captured as a `SubsectionDef` (`heading`, `anchor`, `notes`) via
-`_parse_object_subsections()` / `_parse_subsection_body()`, so its content
-(prose paragraphs and 0-indent bullet lists, in document order) is preserved
-for `--yaml-out` instead of silently dropped.
+— is captured as a `SubsectionDef` via `_parse_object_subsections()` /
+`_parse_subsection()` / `_parse_block_content()`, so its content is
+preserved for `--yaml-out` instead of silently dropped:
+
+- `notes`: prose paragraphs and 0-indent bullet entries, in document order.
+- `tables`: each pipe table as a `TableDef` — header cells as `columns`,
+  every further row as a `{column: cell}` map, plus the mmark caption line
+  (`Table: …`) and anchor (`{#…}`, inline or on the next line) that follow
+  it. This is how the status value tables (e.g. `Table: Domain Name Status
+  Values`) are exported.
+- Fenced blocks (```` ```ascii ```` diagrams) and the `Figure: …` caption
+  and anchor that follow them are skipped whole: diagrams are not exported.
+- `subsections`: headings one level deeper, parsed the same way,
+  recursively (e.g. `#### Allowed Transitions` under `### Redemption Grace
+  Period`). A subsection's own body ends at its first child heading.
+
+The element list of a Component/Process Object (`* Data Elements:`) ends at
+the first heading, so the last element never absorbs following subsections.
+
+### Object attributes derived from structure
+
+- `unique_identifier` — the `* Unique Identifier:` header bullet
+  (`_parse_unique_identifier()`). Absent and `(None)` both give `""`: the
+  object has no identity of its own.
+- `owner` — for a Process Object embedded in a Data Object's
+  `## Processes` section, the identifier of that Data Object (the Owner
+  Data Object), set by `_walk_normative_objects()` from the heading
+  nesting. Never derived from identifier prefixes or prose. `""` otherwise.
+
+### Data element optional attributes
+
+`* Direct Access:` and `* Visibility:` are parsed into
+`ElementDef.direct_access` (bool, default `false`) and
+`ElementDef.visibility` (`default` | `onDemand`, default `default`), the
+defaults the draft defines for an absent bullet. Raw values are kept in
+`attr_values` for validation; other attribute bullets go to `extra_attrs`
+(see [Data-element attributes](#data-element-attributes-normative-only)),
+which is never exported: it blocks `--yaml-out` instead.
+
+### What is NOT parsed (prose)
+
+The script never derives structure from prose. Information that the draft
+states only in prose — e.g. which status table a `label` element's values
+come from (a link inside a Constraints sentence), what a resource Create
+operation takes beyond its own elements, or which Process Object it
+implicitly initiates — is not exported as a structured field; it stays in
+`constraints`/`description`/`notes` as text. The fix is a structured
+bullet in the draft, not a heuristic in the script.
 
 ### Operation identifier requirement
 
@@ -415,7 +471,8 @@ Each definition bullet must have at minimum an `* Identifier:` sub-bullet;
 `* Cardinality:`, `* Data Type:`, `* Description:` and `* Constraints:`
 (`PARAM_ATTR_KEYS`) are captured when present. Any other attribute bullet
 is kept verbatim in `extra_attrs` and reported as
-`[INPUT|PARAM ATTR NOT APPLICABLE]`. Operation field bullets (`* Input:`,
+`[INPUT|PARAM ATTR NOT APPLICABLE]`; it is never exported and blocks
+`--yaml-out`. Operation field bullets (`* Input:`,
 `* Output:`, `* Authorisation:`) inside a section are parsed as fields, not
 as definitions.
 
@@ -654,8 +711,12 @@ numbered lists, etc. `extract_orphan_prose()` is the single function that
 collects this text everywhere it can occur, so it is preserved (for
 `--yaml-out`) rather than silently dropped.
 
-A line is orphan prose if it is **not**: blank, a heading, a table row
-(`| ... |`), a recognised `* Key: value` attribute bullet (see
+A pipe table met in an orphan-prose location is kept as one verbatim,
+newline-joined entry (source lines unchanged, including its caption line).
+A fenced block and its `Figure:` caption are skipped whole, never mangled
+line by line into prose.
+
+A line is orphan prose if it is **not**: blank, a heading, a recognised `* Key: value` attribute bullet (see
 `_KNOWN_ATTR_KEYS` in the script), an element/operation/parameter header
 bullet, or an `A>` aside note. Aside notes are recognised and always dropped
 — never captured, never warned about — since they are editorial TODO/TBD/TBC
@@ -713,6 +774,8 @@ the object's *actual* type, not necessarily its enclosing H1 section — see
 identifier: domainName
 name: Domain Name Data Object
 object_type: Resource
+unique_identifier: name   # "* Unique Identifier:"; "" if absent or "(None)"
+owner: ""                 # Owner Data Object identifier (embedded processes only)
 description: "..."
 preamble: []              # orphan prose before the first element/operation
 elements:
@@ -723,6 +786,8 @@ elements:
     data_type: String
     description: "..."
     constraints: []        # list of strings — see Constraints above
+    direct_access: false   # "* Direct Access:"; false if absent
+    visibility: default    # "* Visibility:"; "default" if absent
     notes: []              # orphan prose inside this element's own block
 operations:
   - identifier: create
@@ -739,13 +804,19 @@ operations:
         data_type: "..."
         description: "..."
         constraints: []
-        extra_attributes: {}   # attribute bullets beyond PARAM_ATTR_KEYS, e.g. {mutability: create-only}
         notes: []
     params: []             # Parameters — same shape as inputs
 subsections:                # non-Data-Elements/Operations/Processes headings
   - heading: "RDATA Structures in EPP Profile"
     anchor: "{#rdata-structures}"
     notes: []                # prose paragraphs and bullets, in document order
+    tables:                  # pipe tables in the subsection's own body
+      - caption: "Domain Name Status Values"
+        anchor: "{#tbl-domain-status-values}"
+        columns: [Status Value, Description]
+        rows:
+          - {Status Value: ok, Description: "..."}
+    subsections: []          # deeper headings, same shape, recursively
 extends: ""                 # Object NAME this object extends, from "* Extends:"; "" if none
 supported_processes:        # inherited-process bullets from the object's "## Processes"
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
@@ -757,6 +828,16 @@ Nothing in the structured fields is duplicated into `notes`/`preamble`/
 `section_notes`/`subsections` and vice versa — those fields hold only the
 leftover content the parser could not attribute to a recognised bullet or
 heading.
+
+### Uncovered attributes block the export
+
+An attribute bullet the YAML model has no field for — an unknown element
+attribute (`[ELEM ATTR UNKNOWN]`) or an attribute not applicable to an
+input/parameter (`[INPUT|PARAM ATTR NOT APPLICABLE]`) — means the draft
+holds information the export routine does not cover. `yaml_export_errors()`
+collects these; when there are any, `--yaml-out` prints them to stderr,
+writes no file and sets exit code 1, whether or not `--check` runs. Fix the
+draft, or extend the model (a new field) — never export them generically.
 
 ### Header comment
 
@@ -792,7 +873,8 @@ blank-line/`A>`-aside tolerance between attribute bullets (elements,
 parameters, and object headers); operation description/authorisation/
 input/output field parsing, including the multi-paragraph-description-vs-
 trailing-notes split; input data element / parameter lead-in detection,
-section splitting, out-of-order field bullets and `extra_attrs`; IANA
+section splitting, out-of-order field bullets and `extra_attrs`; the
+YAML export refusing uncovered attributes; IANA
 `Input Data Elements`/`Parameters` section parsing (including absence);
 the operation-input checks (kind mismatch, missing in either direction,
 missing IANA section, attributes not applicable); both sections in
@@ -802,7 +884,10 @@ Component-never-has-Operations warning path); the top-down object walk
 (`_walk_normative_objects`), including a Process Object embedded in a Data
 Object's `## Processes` section and an aside before an object's header;
 orphan-prose extraction (paragraph joining, aside skipping,
-empty-when-fully-structured); Organisation/User section recognition; an
+empty-when-fully-structured, fenced blocks skipped); unique
+identifier and owner; Direct Access/Visibility parsing and the element
+attribute checks; the element list ending at a heading; subsection tables
+and nesting; Organisation/User section recognition; an
 end-to-end check that the real draft's `organisation`/`user` objects parse;
 YAML model structure; and a YAML round-trip (render → `yaml.safe_load` →
 verify).
