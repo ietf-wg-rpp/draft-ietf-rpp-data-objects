@@ -27,13 +27,22 @@ Operation level:
   [OP NAME MISMATCH]        - same identifier, different Operation Name
   [OP DESC EMPTY]           - IANA operation Description field is blank; normative has one
 
-Operation parameter level:
-  [PARAM MISSING IN IANA]      - normative parameter absent from IANA table
-  [PARAM MISSING IN NORMATIVE] - IANA parameter row absent from normative
-  [PARAM NAME MISMATCH]        - identifier matches, but Parameter Name differs
-  [PARAM CARD MISMATCH]        - identifier matches, but Cardinality differs
-  [PARAM TYPE MISMATCH]        - identifier matches, but Data Type differs
-  [PARAM DESC EMPTY]           - IANA description cell is blank; normative has one
+  [OP SECTION MISSING IN IANA] - IANA operation declares neither a table nor
+                                 "(None)" for Input Data Elements or Parameters
+
+Operation input level (Input Data Elements use the INPUT tag, Parameters
+the PARAM tag; both are checked the same way):
+  [INPUT|PARAM MISSING IN IANA]      - normative entry absent from IANA table
+  [INPUT|PARAM MISSING IN NORMATIVE] - IANA row absent from normative
+  [INPUT|PARAM KIND MISMATCH]        - defined as one kind normatively but
+                                       registered in the other kind's IANA table
+  [INPUT|PARAM NAME MISMATCH]        - identifier matches, but Name differs
+  [INPUT|PARAM CARD MISMATCH]        - identifier matches, but Cardinality differs
+  [INPUT|PARAM TYPE MISMATCH]        - identifier matches, but Data Type differs
+  [INPUT|PARAM DESC EMPTY]           - IANA description cell is blank; normative has one
+  [INPUT|PARAM ATTR NOT APPLICABLE]  - normative entry declares an attribute
+                                       other than Identifier, Cardinality,
+                                       Data Type, Description, Constraints
 
 Supported-process level (normative-only, no IANA table involved):
   [PROCESS MISSING IN NORMATIVE]  - an inherited-process bullet in a Data Object's
@@ -45,6 +54,7 @@ Supported-process level (normative-only, no IANA table involved):
 """
 
 import argparse
+import copy
 import re
 import sys
 from dataclasses import dataclass, field
@@ -66,6 +76,14 @@ DRAFT_FILE = Path("./draft-ietf-rpp-data-objects.md")
 # the explanatory text lives in one static file, not in Python string literals.
 YAML_TEMPLATE_FILE = Path(__file__).resolve().parent / "object_model_template.yaml"
 
+# Verbatim prose fragment -> structured field mappings for --yaml-out (see
+# apply_prose_mappings). The only sanctioned way to turn prose into structure:
+# the fragments are listed in this data file, never matched by code.
+PROSE_MAPPINGS_FILE = Path(__file__).resolve().parent / "prose_mappings.yaml"
+
+# H1 section whose H2 headings each define one Common Data Type.
+COMMON_DATA_TYPES_HEADING = "# Common Data Types"
+
 # Object Type label (as used in ObjectDef.obj_type) → top-level YAML list key
 OBJ_TYPE_TO_YAML_KEY: dict[str, str] = {
     "Component": "components",
@@ -80,6 +98,7 @@ NORMATIVE_TOPLEVEL_SECTIONS = [
     "# Contact Data Object",
     "# Host Data Object",
     "# Organisation Data Object",
+    "# Message Data Object",
     "# User Object",
     "# Discovery Data Object",
     "# Profile Data Object",
@@ -95,6 +114,7 @@ SECTION_TO_OBJ_TYPE: dict[str, str] = {
     "# Contact Data Object":     "Resource",
     "# Host Data Object":        "Resource",
     "# Organisation Data Object": "Resource",
+    "# Message Data Object":      "Resource",
     "# User Object":              "Resource",
     "# Discovery Data Object":    "Resource",
     "# Profile Data Object":      "Resource",
@@ -142,11 +162,25 @@ class ElementDef:
     description: str = ""
     constraints: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # "* Direct Access:" / "* Visibility:" - optional, with the defaults the
+    # draft's Data Element Semantics section defines for an absent bullet.
+    # The raw bullet values are kept in attr_values for validation.
+    direct_access: bool = False
+    visibility: str = "default"
+    # Attribute bullets beyond ELEMENT_ATTR_KEYS, kept verbatim and reported
+    # as [ELEM ATTR UNKNOWN].
+    extra_attrs: dict[str, str] = field(default_factory=dict)
+    attr_values: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class ParamDef:
-    """Operation parameter (transient, not persisted)."""
+    """
+    Operation input that is not part of the object's state: either an Input
+    Data Element (content the operation acts upon) or a Parameter (controls
+    processing or output). Both kinds share this shape; which list of
+    OperationDef holds it determines the kind.
+    """
     identifier: str
     name: str
     cardinality: str
@@ -155,6 +189,33 @@ class ParamDef:
     description: str = ""
     constraints: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # Any further "* Key: value" attribute bullets beyond PARAM_ATTR_KEYS
+    # (e.g. Mutability), kept verbatim so they are neither lost nor accepted
+    # silently - see [INPUT/PARAM ATTR NOT APPLICABLE].
+    extra_attrs: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class IOItemDef:
+    """
+    One item of an operation's Input or Output, in the notation of the
+    draft's "Operation Input and Output" section:
+
+      * Object: Transfer Process Object     <- kind: target
+        * Elements: create-only, read-write
+        * Cardinality: 0+
+      * Parameters:                          <- kind, then definitions laid
+        * Hosts Filter                          out like "* Data Elements:"
+          * Identifier: hostsFilter
+          * ...
+    """
+    kind: str          # one of IO_KINDS or IO_DEFINITION_KINDS
+    target: str = ""   # an object Name, "This Object", "Owner Data Object";
+                       # "" for a definition kind
+    elements: list[str] = field(default_factory=list)  # Mutability values
+    cardinality: str = "1"
+    # "Input Data Elements" / "Parameters" items: the definitions.
+    definitions: list["ParamDef"] = field(default_factory=list)
 
 
 @dataclass
@@ -164,10 +225,20 @@ class OperationDef:
     line: int          # 1-based line number
     description: str = ""
     authorisation: list[str] = field(default_factory=list)
-    input: str = ""
-    output: str = ""
-    params: list[ParamDef] = field(default_factory=list)
+    # "* Input:" / "* Output:" items; None when the operation declares no
+    # such attribute ("(None)" gives []). A Data Object operation without
+    # one gets the Uniform interface default (apply_uniform_interface).
+    input: list[IOItemDef] | None = None
+    output: list[IOItemDef] | None = None
+    # Notation problems found while parsing Input/Output ([OP IO INVALID]).
+    io_errors: list[str] = field(default_factory=list)
+    inputs: list[ParamDef] = field(default_factory=list)  # Input Data Elements
+    params: list[ParamDef] = field(default_factory=list)  # Parameters
     notes: list[str] = field(default_factory=list)
+    # IANA only: whether the operation block declares each section (a table
+    # or "(None)"). Always True for normative operations.
+    inputs_declared: bool = True
+    params_declared: bool = True
 
 
 @dataclass
@@ -198,17 +269,33 @@ class SupportedProcessDef:
 
 
 @dataclass
+class TableDef:
+    """
+    A GFM pipe table, with the mmark caption line ("Table: ...") and anchor
+    line ("{#...}") that may follow it. Rows are keyed by the header cells.
+    """
+    caption: str       # text after "Table:", "" if the table has no caption
+    anchor: str        # "{#tbl-...}" if present, else ""
+    line: int          # 1-based line of the header row
+    columns: list[str] = field(default_factory=list)
+    rows: list[dict[str, str]] = field(default_factory=list)
+
+
+@dataclass
 class SubsectionDef:
     """
     A non-Operations H3 subsection nested inside an object's H2 (e.g.
     "### RDATA Structures in EPP Profile {#rdata-structures}" inside the
     dnsRecord Component Object) - explanatory content that is neither a data
     element nor an operation, but belongs to the object it's nested under.
+    Deeper headings inside it are its own nested subsections.
     """
     heading: str       # full heading text, e.g. "RDATA Structures in EPP Profile"
     anchor: str        # "{#rdata-structures}" anchor if present, else ""
     line: int          # 1-based line of the heading
     notes: list[str] = field(default_factory=list)
+    tables: list[TableDef] = field(default_factory=list)
+    subsections: list["SubsectionDef"] = field(default_factory=list)
 
 
 @dataclass
@@ -219,12 +306,33 @@ class ObjectDef:
     line: int          # 1-based line of the Name / "Object:" declaration
     obj_type: str = ""       # "Component", "Process", or "Resource"
     extends: str = ""        # "* Extends:" — the NAME of the object this one extends
+    # "* Unique Identifier:" — the identifier of the element that identifies
+    # an instance; "" when absent or "(None)" (both mean: no own identity).
+    unique_identifier: str = ""
+    # Owner Data Object of an object-specific Process Object: the identifier
+    # of the Data Object whose "## Processes" section contains it (taken
+    # from the heading nesting, never from prose or name prefixes); "" for
+    # every other object.
+    owner: str = ""
     description: str = ""
     elements: list[ElementDef] = field(default_factory=list)
     operations: list[OperationDef] = field(default_factory=list)
     preamble: list[str] = field(default_factory=list)
     subsections: list[SubsectionDef] = field(default_factory=list)
     supported_processes: list[SupportedProcessDef] = field(default_factory=list)
+
+
+@dataclass
+class CommonTypeDef:
+    """
+    One Common Data Type: an H2 heading under "# Common Data Types" (e.g.
+    "## Phone Number"). The draft defines these in prose only, so the body
+    is kept as text; structured restrictions come from prose_mappings.yaml.
+    """
+    name: str          # heading text, e.g. "Phone Number"
+    anchor: str        # "{#...}" anchor if present, else ""
+    line: int          # 1-based line of the heading
+    description: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -435,8 +543,58 @@ _TABLE_ROW_RE = re.compile(r"^\s*\|")
 _KNOWN_ATTR_KEYS = {
     "name", "identifier", "cardinality", "mutability", "data type",
     "description", "constraints", "unique identifier", "object type",
-    "reference", "extends",
+    "reference", "extends", "direct access", "visibility",
 }
+
+# Data element attribute bullets defined by the draft's "Data Element
+# Semantics" section. Any other "* Key:" bullet on an element is kept in
+# ElementDef.extra_attrs and reported as [ELEM ATTR UNKNOWN].
+ELEMENT_ATTR_KEYS = {"identifier", "cardinality", "mutability", "data type",
+                     "description", "constraints", "direct access",
+                     "visibility"}
+
+# Allowed values of the optional element attributes, as enumerated in
+# "Data Element Semantics"; anything else is reported as [ELEM ATTR INVALID].
+DIRECT_ACCESS_VALUES = {"true": True, "false": False}
+VISIBILITY_VALUES = {"default", "onDemand"}
+
+# Bracketed association notations (see "# Associations"), written
+# "<Notation>[Type]". A Composition has no bracketed notation: it is the bare
+# name of an object ("Type"). Direct Access applies only to these.
+ASSOCIATION_NOTATIONS = ("Aggregation", "LabelledAggregation",
+                         "DictionaryAggregation", "LabelledComposition",
+                         "DictionaryComposition")
+
+
+def _is_association_type(data_type: str, norm_names: set[str]) -> bool:
+    """
+    True if *data_type* is an association: a bracketed notation
+    ("Aggregation[Host Data Object]") or a Composition, i.e. the bare Name
+    of a normative object ("Processes Object"). *norm_names* holds the
+    _norm()-ed names of all normative objects.
+    """
+    t = _norm_type(data_type)
+    if any(t.startswith(n + "[") and t.endswith("]") for n in ASSOCIATION_NOTATIONS):
+        return True
+    return _norm(t) in norm_names
+
+
+def _element_optional_attrs(attrs: dict[str, tuple[str, int]]) -> dict:
+    """
+    ElementDef keyword arguments for the optional element attributes
+    (Direct Access, Visibility) and any unknown attribute bullets. An
+    invalid value falls back to the default here; the raw value stays in
+    attr_values so check_element_attrs can report it.
+    """
+    raw = {k: v for k, (v, _line) in attrs.items()
+           if k in ("direct access", "visibility")}
+    return {
+        "direct_access": DIRECT_ACCESS_VALUES.get(raw.get("direct access", "false"), False),
+        "visibility": raw["visibility"] if raw.get("visibility") in VISIBILITY_VALUES else "default",
+        "extra_attrs": {k: v for k, (v, _line) in attrs.items()
+                        if k not in ELEMENT_ATTR_KEYS},
+        "attr_values": raw,
+    }
 
 
 def _is_attr_bullet(raw: str) -> bool:
@@ -485,13 +643,32 @@ def extract_orphan_prose(lines: list[str], start: int, end: int,
             paragraphs.append(" ".join(current))
             current.clear()
 
-    for j in range(start, end):
+    j = start
+    while j < end:
         if any(lo <= j < hi for lo, hi in skip_ranges):
             _flush()
+            j += 1
             continue
 
         raw = lines[j]
         stripped = raw.strip()
+
+        # Fenced blocks (diagrams) are not exported: skip them whole, with
+        # their caption, rather than mangling them line by line.
+        if _FENCE_RE.match(raw):
+            _flush()
+            j = _skip_fenced_block(lines, j, end)
+            continue
+        # A table here is structured content in an unstructured location:
+        # keep its source lines verbatim (one newline-joined paragraph)
+        # rather than dropping it.
+        if _TABLE_ROW_RE.match(raw):
+            _flush()
+            _table, block_end = _parse_table_block(lines, j, end)
+            paragraphs.append("\n".join(lines[j:block_end]))
+            j = block_end
+            continue
+        j += 1
 
         if stripped == "":
             _flush()
@@ -500,9 +677,6 @@ def extract_orphan_prose(lines: list[str], start: int, end: int,
             _flush()
             continue
         if _HEADING_RE.match(stripped):
-            _flush()
-            continue
-        if _TABLE_ROW_RE.match(raw):
             _flush()
             continue
         if _is_attr_bullet(raw):
@@ -551,21 +725,24 @@ def _parse_normative_elements_nested(lines: list[str], body_start: int,
             continue
 
         if in_data_elements:
-            # Another top-level bullet ends the block
-            if re.match(r"^\* \S", raw):
+            # Another top-level bullet or any heading (a sibling subsection,
+            # e.g. "### Status Values") ends the block
+            if re.match(r"^\* \S", raw) or _HEADING_RE.match(raw):
                 break
 
             m_elem = re.match(r"^  \* (.+)$", raw)
             if m_elem:
                 elem_name_raw = m_elem.group(1).strip()
                 elem_line = i + 1
-                # Find end of this element's block (next 2-space header or body_end)
+                # Find end of this element's block (next 2-space header,
+                # top-level bullet, heading, or body_end)
                 elem_end = body_end
                 for k in range(i + 1, body_end):
-                    if re.match(r"^  \* \S", lines[k]) or re.match(r"^\* \S", lines[k]):
+                    if (re.match(r"^  \* \S", lines[k]) or re.match(r"^\* \S", lines[k])
+                            or _HEADING_RE.match(lines[k])):
                         elem_end = k
                         break
-                attrs = _collect_element_attrs(lines, i + 1, body_end, indent=4)
+                attrs = _collect_element_attrs(lines, i + 1, elem_end, indent=4)
                 elem_id = attrs.get("identifier",  ("", 0))[0]
                 card    = attrs.get("cardinality", ("", 0))[0]
                 mutab   = attrs.get("mutability",  ("", 0))[0]
@@ -590,6 +767,7 @@ def _parse_normative_elements_nested(lines: list[str], body_start: int,
                         description=desc,
                         constraints=cons,
                         notes=notes,
+                        **_element_optional_attrs(attrs),
                     ))
         i += 1
     return elements
@@ -625,7 +803,7 @@ def _parse_normative_elements_flat(lines: list[str], body_start: int,
                 if re.match(r"^\* \S", lines[k]):
                     elem_end = k
                     break
-            attrs = _collect_element_attrs(lines, i + 1, body_end, indent=2)
+            attrs = _collect_element_attrs(lines, i + 1, elem_end, indent=2)
             elem_id = attrs.get("identifier",  ("", 0))[0]
             card    = attrs.get("cardinality", ("", 0))[0]
             mutab   = attrs.get("mutability",  ("", 0))[0]
@@ -650,6 +828,7 @@ def _parse_normative_elements_flat(lines: list[str], body_start: int,
                     description=desc,
                     constraints=cons,
                     notes=notes,
+                    **_element_optional_attrs(attrs),
                 ))
         i += 1
     return elements
@@ -701,108 +880,86 @@ def _parse_supported_processes(lines: list[str], body_start: int,
 # Normative operation parser
 # ---------------------------------------------------------------------------
 
-def _parse_normative_params_from_bullets(lines: list[str], start: int,
-                                         end: int) -> list[ParamDef]:
-    """
-    Parse transient operation parameters from a bullet block.
-    Used for both nested (Process, 4-space attrs) and flat (Data Object, 2-space attrs).
+# Attributes defined for Input Data Elements and Parameters: the Data Element
+# Semantics attributes minus Mutability, Direct Access and Visibility, which
+# the draft's terminology declares not applicable to operation inputs.
+PARAM_ATTR_KEYS = {"identifier", "cardinality", "data type", "description",
+                   "constraints"}
 
-    Nested (Process objects – params live inside the #### heading block):
-      * Param Name              ← 0-indent
-        * Identifier: foo       ← 2-space indent
-        * Cardinality: 0-1
-        * Data Type: String
 
-    The function tries 2-space attrs first and falls back to 4-space if not found.
+def _parse_io_definition(lines: list[str], header: int, end: int,
+                         name: str) -> tuple[ParamDef | None, list[str]]:
     """
-    params: list[ParamDef] = []
-    i = start
-    while i < end:
-        raw = lines[i]
-        m_param = re.match(r"^\* (.+)$", raw)
-        if m_param:
-            param_name_raw = m_param.group(1).strip()
-            # Skip bullet lines that are not parameter headers
-            if re.match(r"^(Identifier|Cardinality|Data Type|Mutability|"
-                        r"Input|Output|Authorisation|Constraints|Description|"
-                        r"In EPP):", param_name_raw):
-                i += 1
-                continue
-            param_line = i + 1
-            # Find end of this param's block (next 0-indent bullet or end)
-            param_end = end
-            for k in range(i + 1, end):
-                if re.match(r"^\* \S", lines[k]):
-                    param_end = k
-                    break
-            # Try 2-space indent first, then 4-space
-            attr_indent = 2
-            attrs = _collect_element_attrs(lines, i + 1, end, indent=attr_indent)
-            if not attrs.get("identifier"):
-                attr_indent = 4
-                attrs = _collect_element_attrs(lines, i + 1, end, indent=attr_indent)
-            param_id = attrs.get("identifier",  ("", 0))[0]
-            card     = attrs.get("cardinality", ("", 0))[0]
-            dtype    = attrs.get("data type",   ("", 0))[0]
-            desc     = attrs.get("description", ("", 0))[0]
-            cons, cons_range = _collect_constraints_list(
-                lines, param_end, attrs, attr_indent=attr_indent)
-            id_line  = attrs.get("identifier",  ("", param_line))[1]
-            if param_id:
-                notes = extract_orphan_prose(
-                    lines, i + 1, param_end,
-                    label=f"parameter '{param_id}'",
-                    source_ref=f"line {param_line}",
-                    skip_ranges=[cons_range] if cons_range else None)
-                params.append(ParamDef(
-                    identifier=param_id,
-                    name=param_name_raw,
-                    cardinality=card,
-                    data_type=dtype,
-                    line=id_line,
-                    description=desc,
-                    constraints=cons,
-                    notes=notes,
-                ))
-        i += 1
-    return params
+    The definition whose "* <Name>" bullet is lines[header], an entry of an
+    "Input Data Elements:" / "Parameters:" item: the attribute bullets one level
+    deeper (indentation read from the source) up to *end*. Attributes
+    beyond PARAM_ATTR_KEYS are kept in extra_attrs. Returns (definition or
+    None, errors).
+    """
+    k = header + 1
+    while k < end and lines[k].strip() == "":
+        k += 1
+    if k >= end:
+        return None, [f"definition '{name}' has no attributes."]
+    indent = len(lines[k]) - len(lines[k].lstrip(" "))
+    attrs = _collect_element_attrs(lines, header + 1, end, indent=indent)
+    param_id = attrs.get("identifier", ("", 0))[0]
+    if not param_id:
+        return None, [f"definition '{name}' has no Identifier."]
+    cons, cons_range = _collect_constraints_list(lines, end, attrs, attr_indent=indent)
+    notes = extract_orphan_prose(
+        lines, header + 1, end,
+        label=f"input item '{param_id}'",
+        source_ref=f"line {header + 1}",
+        skip_ranges=[cons_range] if cons_range else None)
+    return ParamDef(
+        identifier=param_id,
+        name=name,
+        cardinality=attrs.get("cardinality", ("", 0))[0],
+        data_type=attrs.get("data type", ("", 0))[0],
+        line=attrs["identifier"][1],
+        description=attrs.get("description", ("", 0))[0],
+        constraints=cons,
+        notes=notes,
+        extra_attrs={k: v for k, (v, _) in attrs.items() if k not in PARAM_ATTR_KEYS},
+    ), []
 
 
 _OP_FIELD_BULLET_RE = re.compile(r"^\* (Authorisation|Input|Output):\s*(.*)$")
-_OP_TRANSIENT_MARKER_RE = re.compile(r"transient data element", re.IGNORECASE)
 
-
-def _parse_operation_body_fields(lines: list[str], body_start: int,
-                                  body_end: int) -> tuple[str, list[str], str, str, int]:
+def _parse_operation_body_fields(
+        lines: list[str], body_start: int, body_end: int,
+) -> tuple[str, list[str], str, str, int, list[tuple[int, int]]]:
     """
     Parse an operation's body (the block after its "* Identifier:" bullet)
-    into (description, authorisation, input, output, fields_end).
+    into (description, authorisation, input, output, desc_end, field_ranges).
 
     Convention used throughout this document: an operation's description is
     plain prose (never a "* Description:" bullet, which is element/object-
     only) immediately following "* Identifier:", ending at the first
     recognised field bullet - "* Authorisation:", "* Input:", or
-    "* Output:" - or the "transient data element" params marker, whichever
-    comes first. That prose is collected via _parse_subsection_body (so
-    paragraph breaks are preserved as separate description lines, joined
-    with "\\n") rather than extract_orphan_prose's space-joining, matching
-    the newline-preserving convention chosen for multi-paragraph
-    descriptions.
+    "* Output:". That prose is collected via
+    _parse_subsection_body (so paragraph breaks are preserved as separate
+    description lines, joined with "\\n") rather than extract_orphan_prose's
+    space-joining, matching the newline-preserving convention chosen for
+    multi-paragraph descriptions.
 
-    - "* Authorisation:" is always followed by a nested bullet list (never
-      an inline value) - parsed the same way as a Constraints sub-list via
-      _parse_nested_bullet_list, into a list of strings.
-    - "* Input:"/"* Output:" are always a single inline value, never a list.
+    Field bullets are recognised anywhere in the rest of the body, in any
+    order. Each field
+    takes either an inline value or, when the inline value is blank, a
+    nested bullet list:
+    - "* Authorisation:" becomes a list of strings (one per top-level item).
+    - "* Input:"/"* Output:" become lists of IOItemDef (_parse_io_items),
+      including the Input Data Element / Parameter definitions; notation
+      problems are returned in io_errors.
 
-    fields_end is the 0-based index one past the last recognised field
-    bullet's own content, for the caller to exclude from further notes/
-    params scanning.
+    field_ranges are the 0-based half-open line ranges consumed by field
+    bullets (including any nested list), for the caller to exclude from
+    notes.
     """
-    # Locate the first recognised field bullet or the transient-params
-    # marker, whichever comes first - that is where description prose ends.
     desc_end = body_end
     for j in range(body_start, body_end):
-        if _OP_FIELD_BULLET_RE.match(lines[j]) or _OP_TRANSIENT_MARKER_RE.search(lines[j]):
+        if _OP_FIELD_BULLET_RE.match(lines[j]):
             desc_end = j
             break
 
@@ -810,47 +967,144 @@ def _parse_operation_body_fields(lines: list[str], body_start: int,
     description = "\n".join(desc_paragraphs)
 
     authorisation: list[str] = []
-    op_input = ""
-    op_output = ""
-    fields_end = desc_end
+    op_input: list[IOItemDef] | None = None
+    op_output: list[IOItemDef] | None = None
+    io_errors: list[str] = []
+    field_ranges: list[tuple[int, int]] = []
     j = desc_end
     while j < body_end:
         m = _OP_FIELD_BULLET_RE.match(lines[j])
         if not m:
-            break
+            j += 1
+            continue
         field_name = m.group(1)
         inline_val = m.group(2).strip()
+        items: list[str] = [inline_val] if inline_val else []
+        consumed_end = j + 1
+        list_start = consumed_end
+        if not inline_val:
+            # Blank inline value: the nested bullet list's indentation is
+            # read from the source (not assumed) - same approach as
+            # _collect_constraints_list.
+            k = j + 1
+            while k < body_end and lines[k].strip() == "":
+                k += 1
+            if k < body_end and re.match(r"^ +\* \S", lines[k]):
+                actual_indent = len(lines[k]) - len(lines[k].lstrip(" "))
+                list_start = k
+                items, consumed_end = _parse_nested_bullet_list(
+                    lines, k, body_end, indent=actual_indent)
+        field_ranges.append((j, consumed_end))
         if field_name == "Authorisation":
-            if inline_val:
-                authorisation = [inline_val]
-                j += 1
+            authorisation = items
+        else:  # Input / Output
+            io_items, errs = _parse_io_items(lines, list_start, consumed_end,
+                                             inline_val, field_name)
+            io_errors.extend(f"{field_name} (line {j + 1}): {e}" for e in errs)
+            if field_name == "Input":
+                op_input = io_items
             else:
-                # Blank inline value: the nested bullet list's indentation is
-                # read from the source (not assumed) - same approach as
-                # _collect_constraints_list, to stay correct if the document
-                # ever uses a different indent depth.
-                k = j + 1
-                while k < body_end and lines[k].strip() == "":
-                    k += 1
-                if k < body_end and re.match(r"^ *\* \S", lines[k]):
-                    actual_indent = len(lines[k]) - len(lines[k].lstrip(" "))
-                    items, consumed_end = _parse_nested_bullet_list(
-                        lines, k, body_end, indent=actual_indent)
-                    authorisation = items
-                    j = consumed_end
-                else:
-                    j += 1
-        elif field_name == "Input":
-            op_input = inline_val
-            j += 1
-        else:  # Output
-            op_output = inline_val
-            j += 1
-        # Skip a following blank line before checking for the next field bullet.
-        while j < body_end and lines[j].strip() == "":
-            j += 1
-        fields_end = j
-    return description, authorisation, op_input, op_output, fields_end
+                op_output = io_items
+        j = consumed_end
+    return (description, authorisation, op_input, op_output, io_errors,
+            desc_end, field_ranges)
+
+
+IO_KINDS = ("Reference", "Object")
+# Item kinds holding a list of definitions, laid out like an object's
+# "* Data Elements:"; allowed in Input only, at most once each.
+IO_DEFINITION_KINDS = ("Input Data Elements", "Parameters")
+IO_KEYWORD_TARGETS = ("This Object", "Owner Data Object")
+MUTABILITY_VALUES = ("create-only", "read-only", "read-write")
+CARDINALITY_VALUES = ("1", "0-1", "0+", "1+")
+_IO_ITEM_RE = re.compile(r"^( *)\* ([\w ]+?):\s*(.*?)\s*$")
+
+
+def _parse_io_items(lines: list[str], start: int, end: int, inline_val: str,
+                    field_name: str) -> tuple[list[IOItemDef], list[str]]:
+    """
+    Parse an "* Input:"/"* Output:" value: inline "(None)" gives [], any
+    other inline value is not the notation. Otherwise lines[start:end] is
+    the nested item list; each bullet at its first line's indentation is
+    one item "<Kind>: <target>":
+    - Reference / Object: sub-bullets "* Elements: ..." and
+      (Object only) "* Cardinality: ...".
+    - Input Data Elements / Parameters (Input only, at most once each): a
+      blank value, then one "* <Name>" entry per definition one level deeper,
+      each parsed by _parse_io_definition.
+    Returns (items, errors); target names are resolved later by
+    check_operation_io, which knows every object.
+    """
+    if inline_val:
+        if inline_val == "(None)":
+            return [], []
+        return [], [f"inline value '{inline_val}' is neither '(None)' nor a "
+                    f"nested list of items."]
+    if start >= end:
+        return [], ["blank value without a nested list of items."]
+    indent = len(lines[start]) - len(lines[start].lstrip(" "))
+    headers = [h for h in range(start, end)
+               if lines[h].startswith(" " * indent + "* ")]
+    result: list[IOItemDef] = []
+    errors: list[str] = []
+    for n, h in enumerate(headers):
+        h_end = headers[n + 1] if n + 1 < len(headers) else end
+        m = _IO_ITEM_RE.match(lines[h])
+        kind = m.group(2) if m else ""
+        if kind not in IO_KINDS + IO_DEFINITION_KINDS:
+            errors.append(f"item '{lines[h].strip()}' is not one of: "
+                          f"{', '.join(k + ': ...' for k in IO_KINDS + IO_DEFINITION_KINDS)}.")
+            continue
+        if kind in IO_DEFINITION_KINDS:
+            if field_name != "Input":
+                errors.append(f"{kind} item is allowed in Input only.")
+            if any(r.kind == kind for r in result):
+                errors.append(f"{kind} item is given more than once.")
+            if m.group(3):
+                errors.append(f"{kind} item has an inline value "
+                              f"'{m.group(3)}' instead of a nested list.")
+            io = IOItemDef(kind=kind)
+            entries = [e for e in range(h + 1, h_end)
+                       if re.match(r"^ *\* ", lines[e])]
+            entry_indent = (len(lines[entries[0]]) - len(lines[entries[0]].lstrip(" "))
+                            if entries else 0)
+            entries = [e for e in entries if lines[e].startswith(" " * entry_indent + "* ")
+                       and not lines[e].startswith(" " * (entry_indent + 1))]
+            if not entries or entry_indent <= indent:
+                errors.append(f"{kind} item has no definitions.")
+            for n_e, e in enumerate(entries):
+                e_end = entries[n_e + 1] if n_e + 1 < len(entries) else h_end
+                name = lines[e].strip()[2:].strip()
+                definition, errs = _parse_io_definition(lines, e, e_end, name)
+                errors.extend(errs)
+                if definition is not None:
+                    io.definitions.append(definition)
+            result.append(io)
+            continue
+        io = IOItemDef(kind=kind, target=m.group(3))
+        for sub in lines[h + 1:h_end]:
+            if sub.strip() == "":
+                continue
+            m_sub = _IO_ITEM_RE.match(sub)
+            key = m_sub.group(2) if m_sub and len(m_sub.group(1)) > indent else ""
+            if key == "Elements" and kind != "Reference":
+                io.elements = [v.strip() for v in m_sub.group(3).split(",") if v.strip()]
+            elif key == "Cardinality" and kind == "Object":
+                io.cardinality = m_sub.group(3)
+            else:
+                errors.append(f"'{sub.strip()}' is not a sub-attribute of a {kind} item.")
+        if kind != "Reference" and not io.elements:
+            errors.append(f"{kind} item '{io.target}' has no Elements.")
+        bad = [e for e in io.elements if e not in MUTABILITY_VALUES]
+        if bad:
+            errors.append(f"{kind} item '{io.target}': Elements {bad} are "
+                          f"not Mutability values.")
+        if io.cardinality not in CARDINALITY_VALUES:
+            errors.append(f"{kind} item '{io.target}': Cardinality "
+                          f"'{io.cardinality}' is not one of: "
+                          f"{', '.join(CARDINALITY_VALUES)}.")
+        result.append(io)
+    return result, errors
 
 
 def _parse_normative_operations_nested(lines: list[str],
@@ -866,7 +1120,9 @@ def _parse_normative_operations_nested(lines: list[str],
     Within each operation block, `* Identifier: <id>` provides the machine id.
     Operations without a `* Identifier:` bullet are recorded with identifier=""
     so that callers can report them as [OP MISSING IDENTIFIER].
-    Transient params are bullet items after a "following transient" marker.
+    Input Data Elements and Parameters are the definitions in the
+    "Input Data Elements:" / "Parameters:" items of the operation's Input
+    (see _parse_io_items).
     """
     operations: list[OperationDef] = []
     i = ops_start
@@ -901,31 +1157,23 @@ def _parse_normative_operations_nested(lines: list[str],
                 break
 
         body_start = id_line + 1
-        op_desc, authorisation, op_input, op_output, fields_end = (
-            _parse_operation_body_fields(lines, body_start, block_end))
+        (op_desc, authorisation, op_input, op_output, io_errors,
+         desc_end, field_ranges) = _parse_operation_body_fields(
+            lines, body_start, block_end)
 
-        # Find params: look for "transient data element" marker, then parse bullets
-        params: list[ParamDef] = []
-        param_start = block_end
-        for j in range(fields_end, block_end):
-            if re.search(r"transient data element", lines[j], re.IGNORECASE):
-                param_start = j + 1
-                break
+        inputs = [d for io in op_input or [] if io.kind == "Input Data Elements"
+                  for d in io.definitions]
+        params = [d for io in op_input or [] if io.kind == "Parameters"
+                  for d in io.definitions]
 
-        if param_start < block_end:
-            params = _parse_normative_params_from_bullets(
-                lines, param_start, block_end)
-
-        # Orphan prose covers whatever remains of the operation body -
-        # excluding the description prose and field bullets (already parsed
-        # above) and the param bullet sub-block - but including the
-        # "transient data element" marker line itself, which is explanatory
-        # prose.
-        notes_end = param_start if param_start < block_end else block_end
+        # Orphan prose covers whatever remains of the operation body after
+        # the description, excluding field bullets with their nested lists
+        # (a definition's own prose lands in its notes).
         notes = extract_orphan_prose(
-            lines, fields_end, notes_end,
+            lines, desc_end, block_end,
             label=f"operation '{op_id or op_name}'",
-            source_ref=f"line {op_line}")
+            source_ref=f"line {op_line}",
+            skip_ranges=field_ranges)
 
         # Always record the operation; identifier="" signals missing identifier
         operations.append(OperationDef(
@@ -936,6 +1184,8 @@ def _parse_normative_operations_nested(lines: list[str],
             authorisation=authorisation,
             input=op_input,
             output=op_output,
+            io_errors=io_errors,
+            inputs=inputs,
             params=params,
             notes=notes,
         ))
@@ -944,24 +1194,84 @@ def _parse_normative_operations_nested(lines: list[str],
     return operations
 
 
-def _parse_subsection_body(lines: list[str], start: int, end: int) -> list[str]:
+_FENCE_RE = re.compile(r"^(```|~~~)\s*(\S*)\s*$")
+_TABLE_CAPTION_RE = re.compile(r"^Table:\s*(.*?)\s*(\{#[^}]*\})?\s*$")
+_FIGURE_CAPTION_RE = re.compile(r"^Figure:\s*(.*?)\s*(\{#[^}]*\})?\s*$")
+_ANCHOR_LINE_RE = re.compile(r"^\s*(\{#[^}]*\})\s*$")
+
+
+def _parse_caption(lines: list[str], i: int, end: int,
+                   caption_re: re.Pattern) -> tuple[str, str, int]:
     """
-    Parse a subsection's body into an ordered list of entries, preserving
-    document order between prose paragraphs and 0-indent bullet lists
-    (unlike extract_orphan_prose, which treats all bullets as element/
-    operation/param headers to be skipped - not applicable here, since a
-    subsection body's bullets ARE its content, e.g. the per-record-type list
-    in "RDATA Structures in EPP Profile").
+    Parse the optional mmark caption line at lines[i] ("Table: ..." /
+    "Figure: ...") and its anchor, written either inline at the end of the
+    caption or alone on the next line. Returns (caption, anchor, next_i).
+    """
+    caption, anchor = "", ""
+    if i < end and (m := caption_re.match(lines[i].strip())):
+        caption, anchor = m.group(1), m.group(2) or ""
+        i += 1
+        if not anchor and i < end and (m_a := _ANCHOR_LINE_RE.match(lines[i])):
+            anchor = m_a.group(1)
+            i += 1
+    return caption, anchor, i
+
+
+def _parse_table_block(lines: list[str], start: int,
+                       end: int) -> tuple[TableDef, int]:
+    """
+    Parse the pipe table starting at lines[start] (its header row), plus its
+    optional caption/anchor. Returns (table, next_index).
+    """
+    i = start
+    rows: list[list[str]] = []
+    while i < end and _TABLE_ROW_RE.match(lines[i]):
+        cells = _parse_table_row(lines[i])
+        if cells is not None:
+            rows.append(cells)
+        i += 1
+    columns = rows[0] if rows else []
+    caption, anchor, i = _parse_caption(lines, i, end, _TABLE_CAPTION_RE)
+    return TableDef(
+        caption=caption, anchor=anchor, line=start + 1, columns=columns,
+        rows=[dict(zip(columns, r)) for r in rows[1:]],
+    ), i
+
+
+def _skip_fenced_block(lines: list[str], start: int, end: int) -> int:
+    """
+    Index one past the fenced code block opening at lines[start] and its
+    optional "Figure:" caption/anchor. Diagrams are not exported.
+    """
+    fence = _FENCE_RE.match(lines[start]).group(1)
+    i = start + 1
+    while i < end and not lines[i].startswith(fence):
+        i += 1
+    i = min(i + 1, end)  # past the closing fence
+    _caption, _anchor, i = _parse_caption(lines, i, end, _FIGURE_CAPTION_RE)
+    return i
+
+
+def _parse_block_content(lines: list[str], start: int, end: int,
+                         ) -> tuple[list[str], list[TableDef]]:
+    """
+    Parse a body of free content into (entries, tables), keeping
+    document order among the entries:
 
     - A run of consecutive non-blank, non-bullet lines becomes one prose
       paragraph entry (space-joined).
     - A run of 0-indent "* " bullets becomes one entry per bullet, each
       folded the same way as a Constraints sub-list (deeper-nested lines
       under a bullet are newline-joined into that same entry).
-    - Headings, table rows, and "A>" asides are skipped (asides dropped
-      silently, matching extract_orphan_prose's behaviour).
+    - A pipe table (with its "Table:" caption and anchor) becomes a
+      TableDef, not repeated in entries.
+    - A fenced code block (a diagram) and its "Figure:" caption/anchor are
+      skipped: diagrams are not exported.
+    - Headings and "A>" asides are skipped (asides dropped silently,
+      matching extract_orphan_prose's behaviour).
     """
     entries: list[str] = []
+    tables: list[TableDef] = []
     para: list[str] = []
 
     def _flush_para():
@@ -978,9 +1288,18 @@ def _parse_subsection_body(lines: list[str], start: int, end: int) -> list[str]:
             _flush_para()
             i += 1
             continue
-        if _ASIDE_RE.match(raw) or _HEADING_RE.match(stripped) or _TABLE_ROW_RE.match(raw):
+        if _ASIDE_RE.match(raw) or _HEADING_RE.match(stripped):
             _flush_para()
             i += 1
+            continue
+        if _FENCE_RE.match(raw):
+            _flush_para()
+            i = _skip_fenced_block(lines, i, end)
+            continue
+        if _TABLE_ROW_RE.match(raw):
+            _flush_para()
+            table, i = _parse_table_block(lines, i, end)
+            tables.append(table)
             continue
         if re.match(r"^\* \S", raw):
             _flush_para()
@@ -994,6 +1313,24 @@ def _parse_subsection_body(lines: list[str], start: int, end: int) -> list[str]:
         i += 1
 
     _flush_para()
+    return entries, tables
+
+
+def _parse_subsection_body(lines: list[str], start: int, end: int) -> list[str]:
+    """
+    Prose paragraphs and 0-indent bullet entries of a body, in document
+    order (see _parse_block_content; unlike extract_orphan_prose, bullets
+    here ARE content, e.g. the per-record-type list in "RDATA Structures in
+    EPP Profile"). Used where only text is expected, e.g. an operation
+    description: a table found there cannot be exported and is warned
+    about instead of silently dropped.
+    """
+    entries, tables = _parse_block_content(lines, start, end)
+    for table in tables:
+        PROSE_WARNINGS.append(
+            f"line {table.line}: table in a text-only location is not "
+            f"exported — move it into a subsection of its object at the "
+            f"source.")
     return entries
 
 
@@ -1202,12 +1539,29 @@ def _parse_object_subsections(lines: list[str], obj_start: int, obj_end: int,
                 f"instead; consider removing it or reclassifying the object "
                 f"at the source."
             )
-        notes = _parse_subsection_body(lines, heading_line + 1, block_end)
-        subsections.append(SubsectionDef(
-            heading=heading_text, anchor=anchor,
-            line=heading_line + 1, notes=notes,
-        ))
+        subsections.append(_parse_subsection(
+            lines, heading_line, block_end, heading_text, anchor, sub_level))
     return subsections
+
+
+def _parse_subsection(lines: list[str], heading_line: int, block_end: int,
+                      heading_text: str, anchor: str,
+                      level: int) -> SubsectionDef:
+    """
+    One generic subsection at heading *level*: its own body runs up to its
+    first child heading (level + 1); each child heading is parsed the same
+    way, recursively, into SubsectionDef.subsections - e.g. "#### Allowed
+    Transitions" under "### Redemption Grace Period".
+    """
+    children = _find_sibling_headings(lines, heading_line + 1, block_end, level + 1)
+    body_end = children[0][0] if children else block_end
+    notes, tables = _parse_block_content(lines, heading_line + 1, body_end)
+    return SubsectionDef(
+        heading=heading_text, anchor=anchor, line=heading_line + 1,
+        notes=notes, tables=tables,
+        subsections=[_parse_subsection(lines, c_line, c_end, c_text, c_anchor, level + 1)
+                     for c_line, c_end, c_text, c_anchor in children],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1303,6 +1657,38 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
     )
 
 
+def _skip_to_object_header(lines: list[str], start: int, end: int) -> int:
+    """
+    Return the index of the first line at or after *start* that is not
+    blank, an "A>" aside, or a prose paragraph line - i.e. where an object's
+    header bullets would begin. Stops at any bullet, heading or table row,
+    so a heading's introductory prose (e.g. "The Review Response Object
+    defines ...") does not hide the object header that follows it, while a
+    child heading (a group heading's first child) is never skipped over.
+    """
+    while start < end:
+        raw = lines[start]
+        stripped = raw.strip()
+        if (stripped.startswith(("*", "#", "|"))
+                and not _ASIDE_RE.match(raw)):
+            break
+        start += 1
+    return start
+
+
+def _object_lead_prose(lines: list[str], start: int, end: int,
+                       obj_id: str) -> list[str]:
+    """
+    Orphan prose between an object's heading and its "* Name:" header bullet,
+    to be prepended to the object's preamble.
+    """
+    header_start = _skip_to_object_header(lines, start, end)
+    return extract_orphan_prose(
+        lines, start, header_start,
+        label=f"object '{obj_id}' lead-in",
+        source_ref=f"line {start + 1}")
+
+
 def _parse_object_header(lines: list[str], obj_start: int,
                           search_end: int) -> tuple[str, str, str, str, int] | None:
     """
@@ -1314,14 +1700,13 @@ def _parse_object_header(lines: list[str], obj_start: int,
 
     Returns (name, identifier, description, extends, header_end) or None if no
     "* Name:" bullet is found at or shortly after obj_start (leading blank
-    lines - e.g. the blank line a heading is always followed by - and "A>"
+    lines - e.g. the blank line a heading is always followed by -, "A>"
     aside lines, e.g. an editorial TODO before an object's header bullets,
-    are skipped). header_end is the 0-based index one past the last header
+    and introductory prose paragraphs are skipped; see
+    _skip_to_object_header). header_end is the 0-based index one past the last header
     attribute bullet.
     """
-    while obj_start < search_end and (
-            lines[obj_start].strip() == "" or _ASIDE_RE.match(lines[obj_start])):
-        obj_start += 1
+    obj_start = _skip_to_object_header(lines, obj_start, search_end)
     if obj_start >= search_end:
         return None
     m_name = TOP_LEVEL_NAME_RE.match(lines[obj_start])
@@ -1366,8 +1751,72 @@ def _parse_object_header(lines: list[str], obj_start: int,
     return obj_name, obj_id, obj_desc, obj_extends, header_end
 
 
+def _parse_unique_identifier(lines: list[str], start: int, header_end: int) -> str:
+    """
+    The object's "* Unique Identifier:" header bullet within
+    [start, header_end); "" when absent or "(None)" - both mean the object
+    has no identity of its own (see the draft's "Unique Identifier" term).
+    """
+    for j in range(start, header_end):
+        m = re.match(r"^\* Unique Identifier:\s*(.*?)\s*$", lines[j])
+        if m:
+            return "" if m.group(1) in ("", "(None)") else m.group(1)
+    return ""
+
+
+def _walk_envelope_level(lines: list[str], start: int, end: int, level: int,
+                         obj_type: str,
+                         group_notes: dict[str, list[str]] | None) -> list[ObjectDef]:
+    """
+    Discover objects among the headings at *level* within an envelope
+    (Component/Process Objects) section.
+
+    - A heading followed by an object header ("* Name:" / "* Identifier:")
+      is one object at that heading level.
+    - A heading without an object header but with child headings one level
+      deeper is a group heading (e.g. "## Messages", "## Discovery"): its
+      children are walked the same way, recursively. The prose between the
+      group heading and its first child heading is recorded in
+      *group_notes*, keyed by the group's heading line (e.g. "## Messages").
+    - Any other heading is not an object and is skipped.
+    """
+    objects: list[ObjectDef] = []
+    for heading_line, block_end, _heading_text, _anchor in _find_sibling_headings(
+            lines, start, end, level=level):
+        header = _parse_object_header(lines, heading_line + 1, block_end)
+        if header is not None:
+            obj_name, obj_id, obj_desc, obj_extends, header_end = header
+            lead = _object_lead_prose(lines, heading_line + 1, block_end, obj_id)
+            obj = _parse_object_body(
+                lines, heading_line + 1, block_end, header_end,
+                obj_heading_level=level, obj_type=obj_type, obj_id=obj_id,
+                obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
+                obj_extends=obj_extends)
+            obj.preamble = lead + obj.preamble
+            obj.unique_identifier = _parse_unique_identifier(
+                lines, heading_line + 1, header_end)
+            objects.append(obj)
+            continue
+        children = _find_sibling_headings(lines, heading_line + 1, block_end,
+                                          level=level + 1)
+        if not children:
+            continue
+        group_heading = lines[heading_line].strip()
+        intro = extract_orphan_prose(
+            lines, heading_line + 1, children[0][0],
+            label=f"group '{group_heading}' intro",
+            source_ref=f"line {heading_line + 1}")
+        if intro and group_notes is not None:
+            group_notes[group_heading] = intro
+        objects.extend(_walk_envelope_level(lines, heading_line + 1, block_end,
+                                            level + 1, obj_type, group_notes))
+    return objects
+
+
 def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
-                             obj_type: str) -> list[ObjectDef]:
+                             obj_type: str,
+                             group_notes: dict[str, list[str]] | None = None,
+                             ) -> list[ObjectDef]:
     """
     Top-down recursive walk that discovers and parses every object inside a
     normative H1 section, given the section's own obj_type as inherited
@@ -1377,7 +1826,8 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
     alongside their owning Data Object, not nested inside it.
 
     - Envelope sections (Component/Process Objects): every H2 child heading
-      is one object at heading level 2.
+      is one object at heading level 2, or a group heading whose children
+      are objects one level deeper (see _walk_envelope_level).
     - Data Object sections: the H1 itself is the one object, at heading
       level 1. If it has a "## Processes" child (heading level 2), every H3
       child of THAT is a further embedded object, at heading level 3, with
@@ -1386,21 +1836,13 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
       else.
     """
     objects: list[ObjectDef] = []
+    owner_id = ""  # the Data Object's identifier, owner of embedded processes
 
     if obj_type in ("Component", "Process"):
-        # Envelope section: every H2 child is one object.
-        for heading_line, block_end, _heading_text, _anchor in _find_sibling_headings(
-                lines, h1_start + 1, h1_end, level=2):
-            header = _parse_object_header(lines, heading_line + 1, block_end)
-            if header is None:
-                continue
-            obj_name, obj_id, obj_desc, obj_extends, header_end = header
-            objects.append(_parse_object_body(
-                lines, heading_line + 1, block_end, header_end,
-                obj_heading_level=2, obj_type=obj_type, obj_id=obj_id,
-                obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
-                obj_extends=obj_extends))
-        return objects
+        # Envelope section: every H2 child is one object, or a group heading
+        # whose own children are objects (see _walk_envelope_level).
+        return _walk_envelope_level(lines, h1_start + 1, h1_end, 2, obj_type,
+                                    group_notes)
 
     # Data Object section: the H1 itself is the object. Its "* Name:" bullet
     # sits under a "## Object Description" child heading (level 2).
@@ -1410,11 +1852,15 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
             header = _parse_object_header(lines, heading_line + 1, block_end)
             if header is not None:
                 obj_name, obj_id, obj_desc, obj_extends, header_end = header
-                objects.append(_parse_object_body(
+                obj = _parse_object_body(
                     lines, h1_start + 1, h1_end, header_end,
                     obj_heading_level=1, obj_type=obj_type, obj_id=obj_id,
                     obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
-                    obj_extends=obj_extends))
+                    obj_extends=obj_extends)
+                obj.unique_identifier = _parse_unique_identifier(
+                    lines, heading_line + 1, header_end)
+                owner_id = obj_id
+                objects.append(obj)
         elif heading_text == "Processes":
             # Embedded Process Objects: every H3 child of "## Processes" is
             # its own object at heading level 3, obj_type "Process".
@@ -1424,11 +1870,17 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
                 if p_header is None:
                     continue
                 p_name, p_id, p_desc, p_extends, p_header_end = p_header
-                objects.append(_parse_object_body(
+                p_lead = _object_lead_prose(lines, p_heading_line + 1, p_block_end, p_id)
+                p_obj = _parse_object_body(
                     lines, p_heading_line + 1, p_block_end, p_header_end,
                     obj_heading_level=3, obj_type="Process", obj_id=p_id,
                     obj_line=p_heading_line + 2, obj_name=p_name, obj_desc=p_desc,
-                    obj_extends=p_extends))
+                    obj_extends=p_extends)
+                p_obj.preamble = p_lead + p_obj.preamble
+                p_obj.unique_identifier = _parse_unique_identifier(
+                    lines, p_heading_line + 1, p_header_end)
+                p_obj.owner = owner_id
+                objects.append(p_obj)
     return objects
 
 
@@ -1473,8 +1925,9 @@ def parse_section_notes(lines: list[str],
     return notes
 
 
-def parse_normative_objects(lines: list[str],
-                             iana_start: int) -> list[ObjectDef]:
+def parse_normative_objects(lines: list[str], iana_start: int,
+                             group_notes: dict[str, list[str]] | None = None,
+                             ) -> list[ObjectDef]:
     """
     Top-down driver: find each normative H1 section, determine its own span
     and obj_type, then delegate to _walk_normative_objects to discover and
@@ -1493,11 +1946,33 @@ def parse_normative_objects(lines: list[str],
                     h1_end = k
                     break
             obj_type = _obj_type_for_h1(stripped)
-            objects.extend(_walk_normative_objects(lines, h1_start, h1_end, obj_type))
+            objects.extend(_walk_normative_objects(lines, h1_start, h1_end, obj_type,
+                                                   group_notes))
             i = h1_end
             continue
         i += 1
     return objects
+
+
+def parse_common_data_types(lines: list[str], iana_start: int) -> list[CommonTypeDef]:
+    """
+    Every H2 heading under "# Common Data Types" is one Common Data Type;
+    its body (prose paragraphs and bullets, asides dropped) is its
+    description. Returns [] when the section is absent.
+    """
+    for i in range(iana_start):
+        if lines[i].rstrip() != COMMON_DATA_TYPES_HEADING:
+            continue
+        section_end = iana_start
+        for k in range(i + 1, iana_start):
+            if re.match(r"^# [^#]", lines[k]):
+                section_end = k
+                break
+        return [CommonTypeDef(name=h_text, anchor=anchor, line=h_line + 1,
+                              description=_parse_subsection_body(lines, h_line + 1, h_end))
+                for h_line, h_end, h_text, anchor in _find_sibling_headings(
+                    lines, i + 1, section_end, level=2)]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -1507,7 +1982,7 @@ def parse_normative_objects(lines: list[str],
 def _parse_iana_params_table(lines: list[str], start: int,
                               end: int) -> list[ParamDef]:
     """
-    Parse a Parameters pipe-table in the IANA section.
+    Parse an Input Data Elements or Parameters pipe-table in the IANA section.
     Columns: Identifier | Name | Card. | Data Type | Description
     """
     params: list[ParamDef] = []
@@ -1556,6 +2031,10 @@ def _parse_iana_params_table(lines: list[str], start: int,
     return params
 
 
+_IANA_OP_SECTION_RE = re.compile(
+    r"^(Input Data Elements|Parameters)(?::?\s*$|(:\s*\(None\)))", re.IGNORECASE)
+
+
 def _parse_iana_operations(lines: list[str], ops_start: int,
                             obj_end: int) -> list[OperationDef]:
     """
@@ -1568,12 +2047,17 @@ def _parse_iana_operations(lines: list[str], ops_start: int,
 
       Description: ...
 
+      Input Data Elements
+      | Identifier | Name | Card. | Data Type | Description |
+      | ...        | ...  | ...   | ...       | ...         |
+
       Parameters
       | Identifier | Name | Card. | Data Type | Description |
       | ...        | ...  | ...   | ...       | ...         |
 
-    or:
-      Parameters: (None)
+    Either section may instead be "<Section>: (None)". A section that is
+    absent altogether is recorded via inputs_declared/params_declared so the
+    check can report it.
     """
     operations: list[OperationDef] = []
     i = ops_start
@@ -1612,22 +2096,28 @@ def _parse_iana_operations(lines: list[str], ops_start: int,
             # Fall back: derive id from name (lowercase first word)
             op_id = op_name.lower().split()[0]
 
-        # Find "Parameters" keyword and parse table or "(None)"
-        params: list[ParamDef] = []
+        # Each section is either a heading line followed by a table, or
+        # "<Section>: (None)". A heading with a trailing colon is accepted.
+        sections: dict[str, list[ParamDef]] = {}
         for j in range(i + 1, block_end):
-            rj = lines[j].rstrip()
-            if rj.strip() == "Parameters":
-                params = _parse_iana_params_table(lines, j + 1, block_end)
-                break
-            if re.match(r"^Parameters:\s*\(None\)", rj):
-                break
+            m_sec = _IANA_OP_SECTION_RE.match(lines[j].rstrip())
+            if not m_sec:
+                continue
+            key = m_sec.group(1).lower()
+            if key in sections:
+                continue  # keep first occurrence
+            sections[key] = ([] if m_sec.group(2)
+                             else _parse_iana_params_table(lines, j + 1, block_end))
 
         operations.append(OperationDef(
             name=op_name,
             identifier=op_id,
             line=op_line,
             description=op_desc,
-            params=params,
+            inputs=sections.get("input data elements", []),
+            params=sections.get("parameters", []),
+            inputs_declared="input data elements" in sections,
+            params_declared="parameters" in sections,
         ))
         i = block_end
 
@@ -1936,6 +2426,167 @@ def check_elements(norm_obj: ObjectDef, iana_obj: ObjectDef) -> list[str]:
     return errors
 
 
+# kind -> (OperationDef attribute, tag, human label, IANA table name)
+_OP_ITEM_KINDS = {
+    "inputs": ("inputs", "INPUT", "input data element", "Input Data Elements"),
+    "params": ("params", "PARAM", "parameter", "Parameters"),
+}
+
+
+def _check_op_items(prefix: str, nop: OperationDef, iop: OperationDef,
+                    kind: str) -> list[str]:
+    """
+    Compare one kind of operation input (Input Data Elements or Parameters)
+    between a normative operation and its IANA entry.
+
+    An identifier that is defined as one kind normatively but registered as
+    the other kind in IANA is reported once, as [<TAG> KIND MISMATCH] from
+    the normative side, instead of as a missing-in-IANA plus a
+    missing-in-normative pair.
+    """
+    attr, tag, label, table = _OP_ITEM_KINDS[kind]
+    other_attr = next(v[0] for k, v in _OP_ITEM_KINDS.items() if k != kind)
+    other_table = next(v[3] for k, v in _OP_ITEM_KINDS.items() if k != kind)
+    norm_items = {p.identifier: p for p in getattr(nop, attr)}
+    iana_items = {p.identifier: p for p in getattr(iop, attr)}
+    norm_other = {p.identifier for p in getattr(nop, other_attr)}
+    iana_other = {p.identifier for p in getattr(iop, other_attr)}
+    ctx = f"{prefix}, op '{nop.identifier}', {label} "
+    errors: list[str] = []
+
+    for np in getattr(nop, attr):
+        if np.identifier not in iana_items:
+            if np.identifier in iana_other:
+                errors.append(
+                    f"[{tag} KIND MISMATCH] {ctx}'{np.identifier}' at normative "
+                    f"line {np.line} is registered in the IANA {other_table} "
+                    f"table instead of the {table} table."
+                )
+            else:
+                errors.append(
+                    f"[{tag} MISSING IN IANA] {prefix}, operation '{nop.identifier}': "
+                    f"{label} '{np.identifier}' ('{np.name}') at normative line {np.line} "
+                    f"has no row in the IANA {table} table."
+                )
+            continue
+        ip = iana_items[np.identifier]
+        for what, nval, ival, same in (
+            ("NAME", np.name, ip.name, _norm(np.name) == _norm(ip.name)),
+            ("CARD", np.cardinality, ip.cardinality,
+             _norm(np.cardinality) == _norm(ip.cardinality)),
+            ("TYPE", np.data_type, ip.data_type,
+             _norm_type(np.data_type) == _norm_type(ip.data_type)),
+        ):
+            if not same:
+                field_name = {"NAME": "name", "CARD": "cardinality",
+                              "TYPE": "data_type"}[what]
+                errors.append(
+                    f"[{tag} {what} MISMATCH] {ctx}'{np.identifier}':\n"
+                    f"    normative (line {np.line}):  {field_name}='{nval}'\n"
+                    f"    IANA     (line {ip.line}): {field_name}='{ival}'"
+                )
+        if np.description and not ip.description:
+            errors.append(
+                f"[{tag} DESC EMPTY] {ctx}'{np.identifier}' (IANA line {ip.line}): "
+                f"IANA description cell is empty."
+            )
+
+    for ip in getattr(iop, attr):
+        if ip.identifier not in norm_items and ip.identifier not in norm_other:
+            errors.append(
+                f"[{tag} MISSING IN NORMATIVE] {prefix}, operation '{iop.identifier}': "
+                f"IANA {label} '{ip.identifier}' ('{ip.name}') at line {ip.line} "
+                f"has no matching normative {label} definition."
+            )
+    return errors
+
+
+def check_operation_item_attrs(norm_obj: ObjectDef) -> list[str]:
+    """
+    Normative-only check: report attribute bullets on an Input Data Element
+    or Parameter beyond PARAM_ATTR_KEYS (e.g. Mutability, which the draft
+    declares not applicable to operation inputs).
+    """
+    errors: list[str] = []
+    prefix = f"object '{norm_obj.identifier}'"
+    for op in norm_obj.operations:
+        for kind, (attr, tag, label, _) in _OP_ITEM_KINDS.items():
+            for item in getattr(op, attr):
+                for key, val in item.extra_attrs.items():
+                    errors.append(
+                        f"[{tag} ATTR NOT APPLICABLE] {prefix}, op "
+                        f"'{op.identifier or op.name}', {label} '{item.identifier}' "
+                        f"(normative line {item.line}): attribute '{key}' "
+                        f"('{val}') is not defined for a {label}."
+                    )
+    return errors
+
+
+def check_element_attrs(norm_obj: ObjectDef, norm_names: set[str]) -> list[str]:
+    """
+    Normative-only check of the element attributes the IANA tables do not
+    carry: an attribute bullet not defined in "Data Element Semantics"
+    ([ELEM ATTR UNKNOWN]), and a Direct Access / Visibility value outside
+    its enumeration, or Direct Access on a non-association Data Type
+    ([ELEM ATTR INVALID]; see _is_association_type, *norm_names* as there).
+    """
+    errors: list[str] = []
+    for e in norm_obj.elements:
+        where = (f"object '{norm_obj.identifier}', element '{e.identifier}' "
+                 f"(normative line {e.line})")
+        for key, val in e.extra_attrs.items():
+            errors.append(f"[ELEM ATTR UNKNOWN] {where}: attribute '{key}' "
+                          f"('{val}') is not a data element attribute.")
+        da = e.attr_values.get("direct access")
+        if da is not None and da not in DIRECT_ACCESS_VALUES:
+            errors.append(f"[ELEM ATTR INVALID] {where}: Direct Access '{da}' "
+                          f"is not one of: {', '.join(DIRECT_ACCESS_VALUES)}.")
+        if e.direct_access and not _is_association_type(e.data_type, norm_names):
+            errors.append(f"[ELEM ATTR INVALID] {where}: Direct Access applies "
+                          f"only to an association Data Type (a bracketed "
+                          f"notation, or a normative object's Name for a "
+                          f"Composition), not '{e.data_type}'.")
+        vis = e.attr_values.get("visibility")
+        if vis is not None and vis not in VISIBILITY_VALUES:
+            errors.append(f"[ELEM ATTR INVALID] {where}: Visibility '{vis}' "
+                          f"is not one of: {', '.join(sorted(VISIBILITY_VALUES))}.")
+    return errors
+
+
+def check_operation_io(norm_obj: ObjectDef, norm_names: set[str]) -> list[str]:
+    """
+    Normative-only check of operation Input/Output (after the Uniform
+    interface defaults are applied): notation problems found while parsing
+    ([OP IO INVALID]), an item target that is neither a normative object's
+    Name nor a keyword, "Owner Data Object" outside a Process Object, and an
+    operation left without Input or Output ([OP IO MISSING]).
+    """
+    errors: list[str] = []
+    for op in norm_obj.operations:
+        where = (f"object '{norm_obj.identifier}', op '{op.identifier or op.name}' "
+                 f"(normative line {op.line})")
+        for e in op.io_errors:
+            errors.append(f"[OP IO INVALID] {where}: {e}")
+        for field_name, items in (("Input", op.input), ("Output", op.output)):
+            if items is None:
+                errors.append(f"[OP IO MISSING] {where}: no {field_name} declared "
+                              f"and no Uniform interface default applies.")
+                continue
+            for io in items:
+                if io.kind in IO_DEFINITION_KINDS:
+                    continue
+                if io.target == "Owner Data Object" and norm_obj.obj_type != "Process":
+                    errors.append(f"[OP IO INVALID] {where}: {field_name} item "
+                                  f"'{io.kind}: Owner Data Object' outside a "
+                                  f"Process Object.")
+                elif (io.target not in IO_KEYWORD_TARGETS
+                        and _norm(io.target) not in norm_names):
+                    errors.append(f"[OP IO INVALID] {where}: {field_name} item "
+                                  f"'{io.kind}: {io.target}' names no normative "
+                                  f"object.")
+    return errors
+
+
 def check_operations(norm_obj: ObjectDef, iana_obj: ObjectDef) -> list[str]:
     errors: list[str] = []
     prefix = f"object '{norm_obj.identifier}'"
@@ -1972,54 +2623,17 @@ def check_operations(norm_obj: ObjectDef, iana_obj: ObjectDef) -> list[str]:
                 f"(IANA line {iop.line}): IANA Description field is empty."
             )
 
-        # Check parameters
-        iana_params = {p.identifier: p for p in iop.params}
-        norm_params = {p.identifier: p for p in nop.params}
-
-        for np in nop.params:
-            if np.identifier not in iana_params:
+        for sec_label, declared in (("Input Data Elements", iop.inputs_declared),
+                                    ("Parameters", iop.params_declared)):
+            if not declared:
                 errors.append(
-                    f"[PARAM MISSING IN IANA] {prefix}, operation '{nop.identifier}': "
-                    f"parameter '{np.identifier}' ('{np.name}') at normative line {np.line} "
-                    f"has no row in the IANA Parameters table."
-                )
-                continue
-            ip = iana_params[np.identifier]
-            if _norm(np.name) != _norm(ip.name):
-                errors.append(
-                    f"[PARAM NAME MISMATCH] {prefix}, op '{nop.identifier}', "
-                    f"param '{np.identifier}':\n"
-                    f"    normative (line {np.line}):  name='{np.name}'\n"
-                    f"    IANA     (line {ip.line}): name='{ip.name}'"
-                )
-            if _norm(np.cardinality) != _norm(ip.cardinality):
-                errors.append(
-                    f"[PARAM CARD MISMATCH] {prefix}, op '{nop.identifier}', "
-                    f"param '{np.identifier}':\n"
-                    f"    normative (line {np.line}):  cardinality='{np.cardinality}'\n"
-                    f"    IANA     (line {ip.line}): cardinality='{ip.cardinality}'"
-                )
-            if _norm_type(np.data_type) != _norm_type(ip.data_type):
-                errors.append(
-                    f"[PARAM TYPE MISMATCH] {prefix}, op '{nop.identifier}', "
-                    f"param '{np.identifier}':\n"
-                    f"    normative (line {np.line}):  data_type='{np.data_type}'\n"
-                    f"    IANA     (line {ip.line}): data_type='{ip.data_type}'"
-                )
-            if np.description and not ip.description:
-                errors.append(
-                    f"[PARAM DESC EMPTY] {prefix}, op '{nop.identifier}', "
-                    f"param '{np.identifier}' (IANA line {ip.line}): "
-                    f"IANA description cell is empty."
+                    f"[OP SECTION MISSING IN IANA] {prefix}, operation '{nop.identifier}' "
+                    f"(IANA line {iop.line}): no '{sec_label}' table or "
+                    f"'{sec_label}: (None)' declared."
                 )
 
-        for ip in iop.params:
-            if ip.identifier not in norm_params:
-                errors.append(
-                    f"[PARAM MISSING IN NORMATIVE] {prefix}, operation '{iop.identifier}': "
-                    f"IANA parameter '{ip.identifier}' ('{ip.name}') at line {ip.line} "
-                    f"has no matching normative parameter definition."
-                )
+        errors.extend(_check_op_items(prefix, nop, iop, "inputs"))
+        errors.extend(_check_op_items(prefix, nop, iop, "params"))
 
     for iop in iana_obj.operations:
         if iop.identifier not in norm_ops:
@@ -2101,31 +2715,38 @@ def generate_iana_table(obj: ObjectDef) -> str:
             out.append("")
             out.append(f"Description: {op.description}")
             out.append("")
-            if op.params:
-                pdesc_w = max(len("Description"), max(len(p.description) for p in op.params))
-                pid_w  = max(len("Identifier"), max(len(p.identifier) for p in op.params))
-                pnm_w  = max(len("Name"),       max(len(p.name)       for p in op.params))
-                pcd_w  = max(len("Card."),      max(len(p.cardinality) for p in op.params))
-                pty_w  = max(len("Data Type"),  max(len(p.data_type)   for p in op.params))
-
-                def _prow(id_: str, name: str, card: str, dtype: str,
-                          desc: str = "") -> str:
-                    return (f"| {id_:<{pid_w}} | {name:<{pnm_w}} | {card:<{pcd_w}}"
-                            f" | {dtype:<{pty_w}} | {desc:<{pdesc_w}} |")
-
-                psep = (f"| {'-' * pid_w} | {'-' * pnm_w} | {'-' * pcd_w}"
-                        f" | {'-' * pty_w} | {'-' * pdesc_w} |")
-
-                out.append("Parameters")
-                out.append(_prow("Identifier", "Name", "Card.", "Data Type", "Description"))
-                out.append(psep)
-                for p in op.params:
-                    out.append(_prow(p.identifier, p.name, p.cardinality,
-                                     p.data_type, p.description))
-            else:
-                out.append("Parameters: (None)")
+            out.extend(_generate_op_item_sections(op))
 
     return "\n".join(out)
+
+
+def _generate_op_item_table(title: str, items: list[ParamDef]) -> list[str]:
+    """Emit one IANA operation section: a titled table, or "<title>: (None)"."""
+    if not items:
+        return [f"{title}: (None)"]
+    desc_w = max(len("Description"), max(len(p.description) for p in items))
+    id_w   = max(len("Identifier"),  max(len(p.identifier)  for p in items))
+    nm_w   = max(len("Name"),        max(len(p.name)        for p in items))
+    cd_w   = max(len("Card."),       max(len(p.cardinality) for p in items))
+    ty_w   = max(len("Data Type"),   max(len(p.data_type)   for p in items))
+
+    def _row(id_: str, name: str, card: str, dtype: str, desc: str) -> str:
+        return (f"| {id_:<{id_w}} | {name:<{nm_w}} | {card:<{cd_w}}"
+                f" | {dtype:<{ty_w}} | {desc:<{desc_w}} |")
+
+    out = [title, _row("Identifier", "Name", "Card.", "Data Type", "Description"),
+           f"| {'-' * id_w} | {'-' * nm_w} | {'-' * cd_w}"
+           f" | {'-' * ty_w} | {'-' * desc_w} |"]
+    for p in items:
+        out.append(_row(p.identifier, p.name, p.cardinality, p.data_type,
+                        p.description))
+    return out
+
+
+def _generate_op_item_sections(op: OperationDef) -> list[str]:
+    """Emit the Input Data Elements and Parameters sections of an IANA operation."""
+    return (_generate_op_item_table("Input Data Elements", op.inputs) + [""]
+            + _generate_op_item_table("Parameters", op.params))
 
 
 def generate_iana_row(elem: ElementDef) -> str:
@@ -2149,35 +2770,13 @@ def generate_iana_op_block(op: OperationDef) -> str:
     out.append("")
     out.append(f"Description: {op.description}")
     out.append("")
-    if op.params:
-        pdesc_w = max(len("Description"), max(len(p.description) for p in op.params))
-        pid_w = max(len("Identifier"), max(len(p.identifier) for p in op.params))
-        pnm_w = max(len("Name"),       max(len(p.name)       for p in op.params))
-        pcd_w = max(len("Card."),      max(len(p.cardinality) for p in op.params))
-        pty_w = max(len("Data Type"),  max(len(p.data_type)   for p in op.params))
-
-        def _prow(id_: str, name: str, card: str, dtype: str,
-                  desc: str = "") -> str:
-            return (f"| {id_:<{pid_w}} | {name:<{pnm_w}} | {card:<{pcd_w}}"
-                    f" | {dtype:<{pty_w}} | {desc:<{pdesc_w}} |")
-
-        psep = (f"| {'-' * pid_w} | {'-' * pnm_w} | {'-' * pcd_w}"
-                f" | {'-' * pty_w} | {'-' * pdesc_w} |")
-
-        out.append("Parameters")
-        out.append(_prow("Identifier", "Name", "Card.", "Data Type", "Description"))
-        out.append(psep)
-        for p in op.params:
-            out.append(_prow(p.identifier, p.name, p.cardinality,
-                             p.data_type, p.description))
-    else:
-        out.append("Parameters: (None)")
+    out.extend(_generate_op_item_sections(op))
     return "\n".join(out)
 
 
 def generate_iana_param_row(param: ParamDef) -> str:
     """
-    Generate a single IANA Parameters table row for a missing parameter.
+    Generate a single IANA Input Data Elements / Parameters table row.
     """
     return (f"| {param.identifier} | {param.name} | {param.cardinality}"
             f" | {param.data_type} | {param.description} |")
@@ -2194,7 +2793,8 @@ def _param_to_dict(p: ParamDef) -> dict:
         "cardinality": p.cardinality,
         "data_type": p.data_type,
         "description": p.description,
-        "constraints": p.constraints,
+        "constraints": list(p.constraints),
+        "restrictions": {},
         "notes": list(p.notes),
     }
 
@@ -2207,9 +2807,23 @@ def _element_to_dict(e: ElementDef) -> dict:
         "mutability": e.mutability,
         "data_type": e.data_type,
         "description": e.description,
-        "constraints": e.constraints,
+        "constraints": list(e.constraints),
+        "restrictions": {},
+        "direct_access": e.direct_access,
+        "visibility": e.visibility,
         "notes": list(e.notes),
     }
+
+
+def _io_to_list(items: list[IOItemDef] | None) -> list[dict] | None:
+    if items is None:
+        return None
+    return [{"kind": i.kind,
+             "definitions": [_param_to_dict(d) for d in i.definitions]}
+            if i.kind in IO_DEFINITION_KINDS
+            else {"kind": i.kind, "target": i.target, "elements": list(i.elements),
+                  "cardinality": i.cardinality}
+            for i in items]
 
 
 def _operation_to_dict(op: OperationDef) -> dict:
@@ -2218,10 +2832,18 @@ def _operation_to_dict(op: OperationDef) -> dict:
         "name": op.name,
         "description": op.description,
         "authorisation": list(op.authorisation),
-        "input": op.input,
-        "output": op.output,
+        "input": _io_to_list(op.input),
+        "output": _io_to_list(op.output),
         "notes": list(op.notes),
-        "params": [_param_to_dict(p) for p in op.params],
+    }
+
+
+def _table_to_dict(t: TableDef) -> dict:
+    return {
+        "caption": t.caption,
+        "anchor": t.anchor,
+        "columns": list(t.columns),
+        "rows": [dict(r) for r in t.rows],
     }
 
 
@@ -2230,6 +2852,8 @@ def _subsection_to_dict(sub: SubsectionDef) -> dict:
         "heading": sub.heading,
         "anchor": sub.anchor,
         "notes": list(sub.notes),
+        "tables": [_table_to_dict(t) for t in sub.tables],
+        "subsections": [_subsection_to_dict(s) for s in sub.subsections],
     }
 
 
@@ -2246,6 +2870,8 @@ def _object_to_dict(obj: ObjectDef) -> dict:
         "identifier": obj.identifier,
         "name": obj.name,
         "object_type": obj.obj_type,
+        "unique_identifier": obj.unique_identifier,
+        "owner": obj.owner,
         "extends": obj.extends,
         "description": obj.description,
         "preamble": list(obj.preamble),
@@ -2253,18 +2879,33 @@ def _object_to_dict(obj: ObjectDef) -> dict:
         "operations": [_operation_to_dict(op) for op in obj.operations],
         "subsections": [_subsection_to_dict(s) for s in obj.subsections],
         "supported_processes": [_supported_process_to_dict(p) for p in obj.supported_processes],
+        "conditions": [],
+    }
+
+
+def _common_type_to_dict(t: CommonTypeDef) -> dict:
+    return {
+        "name": t.name,
+        "anchor": t.anchor,
+        "description": list(t.description),
+        "restrictions": {},
     }
 
 
 def build_yaml_model(normative: list[ObjectDef],
-                      section_notes: dict[str, list[str]]) -> dict:
+                      section_notes: dict[str, list[str]],
+                      common_types: list[CommonTypeDef] = ()) -> dict:
     """
-    Assemble the plain-dict YAML model from parsed normative objects and
-    section-level intro prose. Keys: section_notes, components, processes,
-    resources — see object_model_template.yaml for the full field reference.
+    Assemble the plain-dict YAML model from parsed normative objects, the
+    Common Data Types and section-level intro prose. Keys: section_notes,
+    common_data_types, components, processes, resources — see
+    object_model_template.yaml for the full field reference. Every
+    restrictions/conditions field starts empty; apply_prose_mappings()
+    fills them.
     """
     model: dict = {
         "section_notes": dict(section_notes),
+        "common_data_types": [_common_type_to_dict(t) for t in common_types],
         "components": [],
         "processes": [],
         "resources": [],
@@ -2277,16 +2918,235 @@ def build_yaml_model(normative: list[ObjectDef],
     return model
 
 
-def render_yaml(normative: list[ObjectDef],
-                 section_notes: dict[str, list[str]]) -> str:
+def yaml_export_errors(normative: list[ObjectDef]) -> list[str]:
     """
-    Render the full structured object model as a YAML document, prefixed
-    verbatim with the header comment block from YAML_TEMPLATE_FILE.
+    Attribute bullets the YAML model has no field for: unknown element
+    attributes ([ELEM ATTR UNKNOWN]) and inapplicable input/parameter
+    attributes ([INPUT|PARAM ATTR NOT APPLICABLE]). The export refuses to
+    run while any exist, since they mean the draft holds information the
+    export routine does not cover.
     """
+    errors: list[str] = []
+    norm_names = {_norm(o.name) for o in normative}
+    for obj in normative:
+        errors.extend(e for e in check_element_attrs(obj, norm_names)
+                      if e.startswith("[ELEM ATTR UNKNOWN]"))
+        errors.extend(check_operation_item_attrs(obj))
+    return errors
+
+
+# Keys a prose mapping may set on the element / input / parameter / Common
+# Data Type that holds the fragment ("set"), and on the object that holds
+# that element or input ("object"). allowed_values_from is resolved against
+# the draft's own tables and exported as allowed_values.
+RESTRICTION_KEYS = ("base_type", "allowed_values", "allowed_values_from", "range",
+                    "pattern", "min_length", "max_length", "key_pattern",
+                    "value_range")
+RANGE_KEYS = ("min", "max")
+OBJECT_MAPPING_KEYS = ("conditions",)
+CONDITION_KEYS = ("if", "require", "forbid")
+MAPPING_ENTRY_KEYS = ("text", "set", "object", "note")
+
+
+def _require_yaml() -> None:
     if yaml is None:
         print("ERROR: PyYAML is required for --yaml-out (pip install pyyaml).",
               file=sys.stderr)
         sys.exit(1)
+
+
+def load_prose_mappings(path: Path) -> tuple[list[dict], list[str]]:
+    """
+    Read the "mappings:" list of the prose-mapping file and validate its
+    shape. Returns (mappings, errors); a mapping with an error is dropped.
+    """
+    _require_yaml()
+    if not path.exists():
+        return [], [f"[MAPPING INVALID] {path.name}: file not found"]
+    return validate_prose_mappings(yaml.safe_load(path.read_text()), path.name)
+
+
+def validate_prose_mappings(data, source: str) -> tuple[list[dict], list[str]]:
+    """Shape check of a loaded prose-mapping document (see load_prose_mappings)."""
+    entries = data.get("mappings") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return [], [f"[MAPPING INVALID] {source}: top-level 'mappings' list missing"]
+
+    mappings: list[dict] = []
+    errors: list[str] = []
+    seen: set[str] = set()
+    for n, m in enumerate(entries, 1):
+        where = f"[MAPPING INVALID] {source} entry {n}"
+        problems: list[str] = []
+        if not isinstance(m, dict):
+            errors.append(f"{where}: not a mapping")
+            continue
+        text = m.get("text")
+        if not isinstance(text, str) or not text.strip():
+            problems.append("'text' must be a non-empty string")
+        elif text in seen:
+            problems.append("duplicate 'text'")
+        problems += [f"unknown key '{k}'" for k in m if k not in MAPPING_ENTRY_KEYS]
+        if "set" not in m and "object" not in m:
+            problems.append("needs 'set' and/or 'object'")
+        restrictions = m.get("set", {})
+        if not isinstance(restrictions, dict):
+            problems.append("'set' must be a mapping")
+        else:
+            problems += [f"unknown 'set' key '{k}'" for k in restrictions
+                         if k not in RESTRICTION_KEYS]
+            for key in ("range", "value_range"):
+                if key in restrictions and (
+                        not isinstance(restrictions[key], dict)
+                        or any(k not in RANGE_KEYS for k in restrictions[key])):
+                    problems.append(f"'{key}' takes only {'/'.join(RANGE_KEYS)}")
+            for ref in restrictions.get("allowed_values_from", []):
+                if not isinstance(ref, dict) or set(ref) != {"table", "column"}:
+                    problems.append("'allowed_values_from' entries need table and column")
+        obj_fields = m.get("object", {})
+        if not isinstance(obj_fields, dict):
+            problems.append("'object' must be a mapping")
+        else:
+            problems += [f"unknown 'object' key '{k}'" for k in obj_fields
+                         if k not in OBJECT_MAPPING_KEYS]
+            for cond in obj_fields.get("conditions", []):
+                if (not isinstance(cond, dict) or "if" not in cond
+                        or any(k not in CONDITION_KEYS for k in cond)):
+                    problems.append("each condition needs 'if' plus 'require'/'forbid'")
+        if problems:
+            errors.extend(f"{where}: {p}" for p in problems)
+            continue
+        seen.add(text)
+        mappings.append(m)
+    return mappings, errors
+
+
+def _strip_fragment(value: str, text: str) -> str:
+    """value with the verbatim fragment text (and one adjoining space) removed."""
+    for variant in (" " + text, text + " ", text):
+        if variant in value:
+            return value.replace(variant, "", 1).strip()
+    return value
+
+
+def _mapping_holders(model: dict) -> list[tuple[dict, dict | None, str]]:
+    """
+    Every place a prose fragment may be mapped from: (holder, object, label)
+    for each element, each operation input/parameter definition and each
+    Common Data Type. object is the dict owning the holder (None for a
+    Common Data Type).
+    """
+    holders: list[tuple[dict, dict | None, str]] = []
+    for t in model["common_data_types"]:
+        holders.append((t, None, f"common data type '{t['name']}'"))
+    for key in OBJ_TYPE_TO_YAML_KEY.values():
+        for obj in model[key]:
+            for e in obj["elements"]:
+                holders.append((e, obj, f"{obj['identifier']}.{e['identifier']}"))
+            for op in obj["operations"]:
+                for item in (op["input"] or []):
+                    for d in item.get("definitions", []):
+                        holders.append((d, obj, f"{obj['identifier']}.{op['identifier']}"
+                                                f".{d['identifier']}"))
+    return holders
+
+
+def _remove_fragment(holder: dict, text: str) -> bool:
+    """Remove text from the holder's description/constraints; True if found."""
+    found = False
+    desc = holder.get("description")
+    if isinstance(desc, str) and text in desc:
+        holder["description"] = _strip_fragment(desc, text)
+        found = True
+    for field_name in ("description", "constraints"):
+        entries = holder.get(field_name)
+        if not isinstance(entries, list):
+            continue
+        kept = []
+        for entry in entries:
+            if text in entry:
+                found = True
+                entry = _strip_fragment(entry, text)
+            if entry:
+                kept.append(entry)
+        holder[field_name] = kept
+    return found
+
+
+def _table_index(model: dict) -> dict[str, dict]:
+    """Every exported table, keyed by its anchor without the "{#" / "}"."""
+    index: dict[str, dict] = {}
+
+    def walk(subsections: list[dict]) -> None:
+        for sub in subsections:
+            for t in sub["tables"]:
+                if t["anchor"]:
+                    index[t["anchor"].strip("{}#")] = t
+            walk(sub["subsections"])
+
+    for key in OBJ_TYPE_TO_YAML_KEY.values():
+        for obj in model[key]:
+            walk(obj["subsections"])
+    return index
+
+
+def apply_prose_mappings(model: dict, mappings: list[dict]) -> list[str]:
+    """
+    Replace each mapping's verbatim text, wherever it occurs in an element,
+    input, parameter or Common Data Type description/constraint, by the
+    structured fields the mapping names: "set" goes into that holder's
+    restrictions, "object" into the owning object (conditions are
+    appended). Returns errors: a fragment found nowhere (stale mapping), an
+    unresolvable table reference, conflicting values for one restriction,
+    or object fields on a Common Data Type.
+    """
+    errors: list[str] = []
+    holders = _mapping_holders(model)
+    tables = _table_index(model)
+    for m in mappings:
+        text = m["text"]
+        short = text if len(text) <= 60 else text[:57] + "..."
+        restrictions = dict(m.get("set", {}))
+        refs = restrictions.pop("allowed_values_from", None)
+        if refs:
+            values: list[str] = []
+            for ref in refs:
+                table = tables.get(ref["table"])
+                if table is None or ref["column"] not in table["columns"]:
+                    errors.append(f"[MAPPING INVALID] '{short}': no table "
+                                  f"'{ref['table']}' with column '{ref['column']}'")
+                    continue
+                values += [row[ref["column"]] for row in table["rows"]]
+            restrictions["allowed_values"] = values
+        matched = False
+        for holder, obj, label in holders:
+            if not _remove_fragment(holder, text):
+                continue
+            matched = True
+            for key, value in restrictions.items():
+                if key in holder["restrictions"] and holder["restrictions"][key] != value:
+                    errors.append(f"[MAPPING CONFLICT] {label}: '{key}' set to "
+                                  f"different values")
+                holder["restrictions"][key] = copy.deepcopy(value)
+            for key, value in m.get("object", {}).items():
+                if obj is None:
+                    errors.append(f"[MAPPING INVALID] {label}: 'object' fields "
+                                  f"need an owning object")
+                    continue
+                obj[key].extend(copy.deepcopy(value))
+        if not matched:
+            errors.append(f"[MAPPING STALE] '{short}': text not found in any "
+                          f"description or constraint")
+    return errors
+
+
+def render_yaml(model: dict) -> str:
+    """
+    Render the YAML model (build_yaml_model, with apply_prose_mappings
+    applied) as a YAML document, prefixed verbatim with the header comment
+    block from YAML_TEMPLATE_FILE.
+    """
+    _require_yaml()
 
     header_lines: list[str] = []
     if YAML_TEMPLATE_FILE.exists():
@@ -2297,7 +3157,6 @@ def render_yaml(normative: list[ObjectDef],
                 # Reached the template's placeholder data (section_notes: {}, …)
                 break
 
-    model = build_yaml_model(normative, section_notes)
     body = yaml.safe_dump(model, sort_keys=False, allow_unicode=True,
                            width=100, default_flow_style=False)
 
@@ -2308,12 +3167,67 @@ def render_yaml(normative: list[ObjectDef],
 # Entry point
 # ---------------------------------------------------------------------------
 
+UNIFORM_INTERFACE_HEADING = "### Uniform interface"
+
+
+def parse_uniform_interface(lines: list[str],
+                            iana_start: int) -> dict[str, OperationDef]:
+    """
+    The Uniform interface defaults: every heading one level below
+    "### Uniform interface" (e.g. "#### Create") is one default, keyed by
+    the lower-cased heading text (the operation Identifier it applies to,
+    the same derivation IANA operations without an "Operation Identifier"
+    use). Its body is parsed like any operation body.
+    """
+    defaults: dict[str, OperationDef] = {}
+    for i in range(iana_start):
+        if lines[i].rstrip() != UNIFORM_INTERFACE_HEADING:
+            continue
+        section_end = iana_start
+        for k in range(i + 1, iana_start):
+            if re.match(r"^#{1,3} [^#]", lines[k]):
+                section_end = k
+                break
+        for h_line, h_end, h_text, _anchor in _find_sibling_headings(
+                lines, i + 1, section_end, level=4):
+            (_desc, _auth, op_input, op_output, io_errors,
+             _desc_end, _ranges) = _parse_operation_body_fields(lines, h_line + 1, h_end)
+            defaults[h_text.lower()] = OperationDef(
+                name=h_text, identifier=h_text.lower(), line=h_line + 1,
+                input=op_input, output=op_output, io_errors=io_errors)
+        break
+    return defaults
+
+
+def apply_uniform_interface(normative: list[ObjectDef],
+                            defaults: dict[str, OperationDef]) -> None:
+    """
+    Give each Data Object (Resource) operation the Uniform interface default
+    Input/Output for its Identifier where it declares none. Notation
+    problems of a default are attached to the operations that use it.
+    """
+    for obj in normative:
+        if obj.obj_type != "Resource":
+            continue
+        for op in obj.operations:
+            default = defaults.get(op.identifier)
+            if default is None:
+                continue
+            for field_name in ("input", "output"):
+                if getattr(op, field_name) is None:
+                    setattr(op, field_name, copy.deepcopy(getattr(default, field_name)))
+                    op.io_errors.extend(f"Uniform interface default: {e}"
+                                        for e in default.io_errors
+                                        if e.lower().startswith(field_name))
+
+
 def parse_document(
     path: Path,
-) -> tuple[list[ObjectDef], list[ObjectDef], dict[str, list[str]]]:
+) -> tuple[list[ObjectDef], list[ObjectDef], dict[str, list[str]], list[CommonTypeDef]]:
     """
     Shared entry point for both the IANA consistency check and the YAML
-    export: parses the draft once and returns (normative, iana, section_notes).
+    export: parses the draft once and returns (normative, iana,
+    section_notes, common_types).
     """
     lines = path.read_text().splitlines()
 
@@ -2326,39 +3240,58 @@ def parse_document(
         print(f"ERROR: '{IANA_SECTION_MARKER}' not found.", file=sys.stderr)
         sys.exit(1)
 
-    normative     = parse_normative_objects(lines, iana_start)
+    group_notes: dict[str, list[str]] = {}
+    normative     = parse_normative_objects(lines, iana_start, group_notes)
+    apply_uniform_interface(normative, parse_uniform_interface(lines, iana_start))
     iana          = parse_iana_objects(lines, iana_start)
     section_notes = parse_section_notes(lines, iana_start)
-    return normative, iana, section_notes
+    section_notes.update(group_notes)
+    common_types  = parse_common_data_types(lines, iana_start)
+    return normative, iana, section_notes, common_types
+
+
+# Report verbosity levels, least to most verbose. Each level includes the
+# output of every level before it: "error" reports consistency errors only,
+# "warning" adds the orphan-prose warnings, "info" adds the object inventories.
+REPORT_LEVELS = ("error", "warning", "info")
 
 
 def run_consistency_check(normative: list[ObjectDef], iana: list[ObjectDef],
-                           generate: bool) -> tuple[list[str], bool]:
+                           generate: bool, level: str = "error",
+                           warnings: list[str] | None = None) -> tuple[list[str], bool]:
     """
     Run the full consistency check and return (report_lines, ok).
 
-    ok is True iff no consistency errors were found. report_lines is the
-    complete human-readable report (object/element inventories, errors, and
-    optionally generated IANA markup), suitable for printing to stdout or
-    writing to a file.
+    ok is True iff no consistency errors were found; warnings never affect
+    it. report_lines is the human-readable report, filtered by level (see
+    REPORT_LEVELS): consistency errors (plus generated IANA markup when
+    requested) are always included, `warnings` (orphan-prose warnings) from
+    "warning" upwards, and the object inventories only at "info". It is
+    suitable for printing to stdout or writing to a file.
     """
+    rank = REPORT_LEVELS.index(level)
     out: list[str] = []
 
-    out.append(f"Normative objects found ({len(normative)}):")
-    for o in normative:
-        out.append(f"  line {o.line:4d}  id={o.identifier!r:30s}  name={o.name!r}"
-                    f"  elements={len(o.elements)}  ops={len(o.operations)}")
+    if rank >= REPORT_LEVELS.index("info"):
+        out.append(f"Normative objects found ({len(normative)}):")
+        for o in normative:
+            out.append(f"  line {o.line:4d}  id={o.identifier!r:30s}  name={o.name!r}"
+                        f"  elements={len(o.elements)}  ops={len(o.operations)}")
 
-    out.append(f"\nIANA objects found ({len(iana)}):")
-    for o in iana:
-        out.append(f"  line {o.line:4d}  id={o.identifier!r:30s}  name={o.name!r}"
-                    f"  elements={len(o.elements)}  ops={len(o.operations)}")
+        out.append(f"\nIANA objects found ({len(iana)}):")
+        for o in iana:
+            out.append(f"  line {o.line:4d}  id={o.identifier!r:30s}  name={o.name!r}"
+                        f"  elements={len(o.elements)}  ops={len(o.operations)}")
+        out.append("")
 
     errors = check_objects(normative, iana)
 
     norm_names = {_norm(o.name) for o in normative}
     for norm_obj in normative:
         errors.extend(check_supported_processes(norm_obj, norm_names))
+        errors.extend(check_operation_item_attrs(norm_obj))
+        errors.extend(check_element_attrs(norm_obj, norm_names))
+        errors.extend(check_operation_io(norm_obj, norm_names))
 
     iana_by_id  = {o.identifier: o for o in iana}
     elem_errors: list[tuple[ObjectDef, list[str]]] = []
@@ -2380,7 +3313,6 @@ def run_consistency_check(normative: list[ObjectDef], iana: list[ObjectDef],
             op_errors.append((norm_obj, obj_op_errors))
         errors.extend(obj_op_errors)
 
-    out.append("")
     if errors:
         out.append(f"CONSISTENCY ERRORS ({len(errors)}):")
         for e in errors:
@@ -2471,54 +3403,42 @@ def run_consistency_check(normative: list[ObjectDef], iana: list[ObjectDef],
                         out.append("")
                         out.append(generate_iana_op_block(op))
 
-            # Missing operation parameters → single row per parameter
-            for norm_obj, obj_errors in op_errors:
-                iana_obj = iana_by_id.get(norm_obj.identifier)
-                iana_ops = {op.identifier: op for op in iana_obj.operations} if iana_obj else {}
-                for nop in norm_obj.operations:
-                    iop = iana_ops.get(nop.identifier)
-                    if iop is None:
+            # Missing / empty-description operation inputs → single row each
+            for kind, (attr, tag, _label, table) in _OP_ITEM_KINDS.items():
+                for norm_obj, obj_errors in op_errors:
+                    iana_obj = iana_by_id.get(norm_obj.identifier)
+                    if iana_obj is None:
                         continue
-                    iana_param_ids = {p.identifier for p in iop.params}
-                    missing_params = [
-                        p for p in nop.params
-                        if p.identifier not in iana_param_ids
-                    ]
-                    if missing_params:
-                        out.append("")
-                        out.append(f"--- [PARAM MISSING IN IANA] object '{norm_obj.identifier}', "
-                                    f"operation '{nop.identifier}' ---")
-                        for param in missing_params:
-                            out.append(generate_iana_param_row(param))
+                    iana_op_by_id = {op.identifier: op for op in iana_obj.operations}
+                    for nop in norm_obj.operations:
+                        iop = iana_op_by_id.get(nop.identifier)
+                        if iop is None:
+                            continue
+                        iana_items = {p.identifier: p for p in getattr(iop, attr)}
+                        missing = [p for p in getattr(nop, attr)
+                                   if p.identifier not in iana_items]
+                        empty_desc = [p for p in getattr(nop, attr)
+                                      if p.description and p.identifier in iana_items
+                                      and not iana_items[p.identifier].description]
+                        for title, items in (("MISSING IN IANA", missing),
+                                             ("DESC EMPTY", empty_desc)):
+                            if items:
+                                out.append("")
+                                out.append(f"--- [{tag} {title}] object "
+                                           f"'{norm_obj.identifier}', operation "
+                                           f"'{nop.identifier}' ({table} table) ---")
+                                for item in items:
+                                    out.append(generate_iana_param_row(item))
+    else:
+        out.append("OK: all normative object and element definitions match their IANA entries.")
 
-            # Parameters with empty IANA description → corrected row
-            for norm_obj, obj_errors in op_errors:
-                iana_obj = iana_by_id.get(norm_obj.identifier)
-                if iana_obj is None:
-                    continue
-                iana_op_by_id = {op.identifier: op for op in iana_obj.operations}
-                for nop in norm_obj.operations:
-                    iop = iana_op_by_id.get(nop.identifier)
-                    if iop is None:
-                        continue
-                    iana_param_by_id = {p.identifier: p for p in iop.params}
-                    empty_desc_params = [
-                        np for np in nop.params
-                        if np.description
-                        and np.identifier in iana_param_by_id
-                        and not iana_param_by_id[np.identifier].description
-                    ]
-                    if empty_desc_params:
-                        out.append("")
-                        out.append(f"--- [PARAM DESC EMPTY] object '{norm_obj.identifier}', "
-                                    f"operation '{nop.identifier}' ---")
-                        for param in empty_desc_params:
-                            out.append(generate_iana_param_row(param))
+    if warnings and rank >= REPORT_LEVELS.index("warning"):
+        out.append("")
+        out.append(f"ORPHAN-PROSE WARNINGS ({len(warnings)}):")
+        for w in warnings:
+            out.append(f"  - {w}")
 
-        return out, False
-
-    out.append("OK: all normative object and element definitions match their IANA entries.")
-    return out, True
+    return out, not errors
 
 
 # ---------------------------------------------------------------------------
@@ -2759,24 +3679,24 @@ def _test_subsection_parsing_preserves_order_and_folds_bullets():
 
 def _test_param_attrs_tolerate_blank_lines_and_asides_between_bullets():
     """
-    Blank lines and "A>" asides are a valid pattern between a transient
-    operation parameter's own attribute bullets too, not just element
+    Blank lines and "A>" asides are a valid pattern between an operation
+    input or parameter's own attribute bullets too, not just element
     attributes - must not break or misattribute parameter parsing.
     """
     lines = [
-        "* Hosts Filter",
-        "  * Identifier: hostsFilter",
+        "    * Hosts Filter",
+        "      * Identifier: hostsFilter",
         "",
         "A> TODO: reconsider default value",
         "",
-        "  * Cardinality: 0-1",
-        "  A> TBD: data type still under review",
-        "  * Data Type: String",
-        "  * Description: Controls which host information is returned.",
+        "      * Cardinality: 0-1",
+        "      A> TBD: data type still under review",
+        "      * Data Type: String",
+        "      * Description: Controls which host information is returned.",
     ]
-    params = _parse_normative_params_from_bullets(lines, 0, len(lines))
-    assert len(params) == 1, params
-    p = params[0]
+    p, errors = _parse_io_definition(lines, 0, len(lines), "Hosts Filter")
+    assert errors == [] and p is not None, errors
+    assert p.name == "Hosts Filter"
     assert p.identifier == "hostsFilter"
     assert p.cardinality == "0-1", p.cardinality
     assert p.data_type == "String", p.data_type
@@ -2789,7 +3709,7 @@ def _test_operation_description_authorisation_input_output():
     Regression test based on the Transfer Process Object's Read/Delete/
     Approve operations: description is plain prose after "* Identifier:"
     (never a "* Description:" bullet), Authorisation is a nested bullet
-    list, Input/Output are single-line values.
+    list, Input/Output use the item notation ("(None)" or nested items).
     """
     lines = [
         "#### Read (Transfer Query) {#transfer-read}",
@@ -2803,8 +3723,10 @@ def _test_operation_description_authorisation_input_output():
         "  * This operation MUST be accessible to both the sponsoring client and the gaining client.",
         "  * Server policy determines whether other clients may query transfer status and what information is returned.",
         "",
-        "* Input: None",
-        "* Output: Transfer Process Object",
+        "* Input: (None)",
+        "* Output:",
+        "  * Object: Transfer Process Object",
+        "    * Elements: read-write, read-only",
         "",
         "#### Delete (Transfer Cancel) {#transfer-delete}",
     ]
@@ -2824,8 +3746,10 @@ def _test_operation_description_authorisation_input_output():
         "This operation MUST be accessible to both the sponsoring client and the gaining client.",
         "Server policy determines whether other clients may query transfer status and what information is returned.",
     ], op.authorisation
-    assert op.input == "None"
-    assert op.output == "Transfer Process Object"
+    assert op.input == []
+    assert op.output == [IOItemDef(kind="Object", target="Transfer Process Object",
+                                   elements=["read-write", "read-only"])], op.output
+    assert op.io_errors == []
     assert op.notes == []
 
 
@@ -3148,6 +4072,57 @@ def _test_check_supported_processes_resolves_names_and_extends():
     assert check_supported_processes(obj, norm_names_ok) == []
 
 
+def _test_walk_envelope_group_heading_recurses_and_keeps_intro():
+    """
+    An H2 with no object header but with H3 children (e.g. "## Messages",
+    "## Discovery") is a group heading: its children are objects, at any
+    depth, and its intro prose lands in group_notes. Prose between an
+    object's heading and its "* Name:" bullet does not hide the object and
+    is kept as the start of its preamble.
+    """
+    lines = [
+        "# Component Objects",
+        "",
+        "## Plain Object",
+        "",
+        "* Name: Plain Object",
+        "* Identifier: plain",
+        "* Description: Plain.",
+        "",
+        "## Discovery",
+        "",
+        "Objects used by discovery.",
+        "",
+        "### Version Object",
+        "",
+        "The Version Object describes a version.",
+        "",
+        "* Name: Discovery Version Object",
+        "* Identifier: discoveryVersion",
+        "* Description: A version.",
+        "",
+        "### Nested Group",
+        "",
+        "#### Deep Object",
+        "",
+        "* Name: Deep Object",
+        "* Identifier: deep",
+        "* Description: Deep.",
+        "",
+        "## Not An Object",
+        "",
+        "Just prose.",
+    ]
+    group_notes: dict[str, list[str]] = {}
+    objects = _walk_normative_objects(lines, 0, len(lines), obj_type="Component",
+                                      group_notes=group_notes)
+    by_id = {o.identifier: o for o in objects}
+    assert set(by_id) == {"plain", "discoveryVersion", "deep"}, set(by_id)
+    assert group_notes == {"## Discovery": ["Objects used by discovery."]}, group_notes
+    assert by_id["discoveryVersion"].preamble[0] == "The Version Object describes a version.", \
+        by_id["discoveryVersion"].preamble
+
+
 def _test_walk_normative_objects_skips_aside_before_header():
     """
     Regression test for the "Disclose Object" bug: an "A>" aside line
@@ -3353,10 +4328,201 @@ def _test_parse_document_covers_organisation_and_user():
     """End-to-end: the real draft's Organisation and User objects are parsed."""
     if not DRAFT_FILE.exists():
         return  # skip when not run from src/
-    normative, _iana, _section_notes = parse_document(DRAFT_FILE)
+    normative, _iana, _section_notes, _common_types = parse_document(DRAFT_FILE)
     ids = {o.identifier for o in normative}
     assert "organisation" in ids, sorted(ids)
     assert "user" in ids, sorted(ids)
+
+
+def _test_operation_inputs_and_params_sections():
+    """
+    Input Data Elements and Parameters are listed under "Input Data
+    Elements:" / "Parameters:" items of "* Input:", laid out like an
+    object's Data Elements (nested constraint lists included); they fill
+    op.inputs / op.params, attributes beyond PARAM_ATTR_KEYS are kept in
+    extra_attrs, a former lead-in sentence is plain orphan prose (never a
+    marker), and a definition item in Output is reported.
+    """
+    lines = [
+        "#### Reject {#x-reject}",
+        "",
+        "* Identifier: xReject",
+        "",
+        "The Reject operation declines a pending request.",
+        "",
+        "* Input:",
+        "  * Reference: Owner Data Object",
+        "  * Input Data Elements:",
+        "    * Reason",
+        "      * Identifier: reason",
+        "      * Cardinality: 0-1",
+        "      * Data Type: String",
+        "      * Constraints:",
+        "        * MUST NOT be empty.",
+        "        * At most 255 characters.",
+        "    * Note",
+        "      * Identifier: note",
+        "      * Cardinality: 0-1",
+        "      * Data Type: String",
+        "  * Parameters:",
+        "    * Verbosity",
+        "      * Identifier: verbosity",
+        "      * Cardinality: 0-1",
+        "      * Mutability: create-only",
+        "      * Data Type: String",
+        "",
+        "The following parameters are defined for this operation:",
+        "",
+        "* Output:",
+        "  * Object: Widget Process Object",
+        "    * Elements: read-write, read-only",
+        "    * Cardinality: 0-1",
+        "  * Parameters:",
+        "    * Stray",
+        "      * Identifier: stray",
+        "",
+    ]
+    heading_re = re.compile(r"^#### (.+?)(?:\s*\{[^}]*\})?\s*$")
+    op = _parse_normative_operations_nested(lines, 0, len(lines), heading_re)[0]
+    assert op.description == "The Reject operation declines a pending request.", op.description
+    assert [io.kind for io in op.input] == [
+        "Reference", "Input Data Elements", "Parameters"], op.input
+    assert op.output[0] == IOItemDef(kind="Object", target="Widget Process Object",
+                                     elements=["read-write", "read-only"],
+                                     cardinality="0-1"), op.output
+    assert len(op.io_errors) == 1 and "Input only" in op.io_errors[0], op.io_errors
+    assert [p.identifier for p in op.inputs] == ["reason", "note"], op.inputs
+    assert op.inputs[0].name == "Reason"
+    assert [p.identifier for p in op.params] == ["verbosity"], op.params
+    assert op.inputs[0].constraints == ["MUST NOT be empty.", "At most 255 characters."]
+    assert op.inputs[0].extra_attrs == {}
+    assert op.params[0].extra_attrs == {"mutability": "create-only"}
+    assert op.notes == ["The following parameters are defined for this operation:"], op.notes
+
+
+def _test_iana_operation_sections_parsed_and_absence_recorded():
+    lines = [
+        "Operation: Read",
+        "",
+        "Operation Identifier: read",
+        "",
+        "Description: Reads it.",
+        "",
+        "Input Data Elements: (None)",
+        "",
+        "Parameters",
+        "| Identifier | Name | Card. | Data Type | Description |",
+        "| ---------- | ---- | ----- | --------- | ----------- |",
+        "| verbosity  | Verbosity | 0-1 | String | Output detail. |",
+        "",
+        "Operation: Delete",
+        "",
+        "Operation Identifier: delete",
+        "",
+        "Description: Deletes it.",
+        "",
+        "Input Data Elements",
+        "| Identifier | Name | Card. | Data Type | Description |",
+        "| ---------- | ---- | ----- | --------- | ----------- |",
+        "| reason     | Reason | 0-1 | String | Why. |",
+        "",
+    ]
+    ops = _parse_iana_operations(lines, 0, len(lines))
+    read, delete = ops
+    assert read.inputs == [] and read.inputs_declared
+    assert [p.identifier for p in read.params] == ["verbosity"] and read.params_declared
+    assert [p.identifier for p in delete.inputs] == ["reason"] and delete.inputs_declared
+    assert delete.params == [] and not delete.params_declared
+
+
+def _test_check_operations_inputs_params_kind_and_sections():
+    def _p(id_):
+        return ParamDef(identifier=id_, name=id_.title(), cardinality="0-1",
+                        data_type="String", line=1, description="D.")
+    norm = ObjectDef(name="W", identifier="w", source="normative", line=1,
+                     operations=[OperationDef(name="Op", identifier="op", line=1,
+                                              inputs=[_p("reason"), _p("onlyNorm")],
+                                              params=[_p("filter")])])
+    iana = ObjectDef(name="W", identifier="w", source="iana", line=1,
+                     operations=[OperationDef(name="Op", identifier="op", line=2,
+                                              inputs=[_p("filter"), _p("onlyIana")],
+                                              params=[_p("reason")],
+                                              params_declared=False)])
+    errors = check_operations(norm, iana)
+    tags = sorted(e.split("]")[0] + "]" for e in errors)
+    assert tags == sorted([
+        "[OP SECTION MISSING IN IANA]",
+        "[INPUT KIND MISMATCH]",          # reason: input normatively, param in IANA
+        "[INPUT MISSING IN IANA]",        # onlyNorm
+        "[INPUT MISSING IN NORMATIVE]",   # onlyIana
+        "[PARAM KIND MISMATCH]",          # filter: param normatively, input in IANA
+    ]), errors
+
+
+def _test_check_operation_item_attrs_reports_inapplicable_attrs():
+    obj = ObjectDef(name="W", identifier="w", source="normative", line=1,
+                    operations=[OperationDef(name="Op", identifier="op", line=1,
+                                             params=[ParamDef(identifier="t", name="T",
+                                                              cardinality="0-1",
+                                                              data_type="String", line=5,
+                                                              extra_attrs={"mutability": "create-only"})])])
+    errors = check_operation_item_attrs(obj)
+    assert len(errors) == 1 and errors[0].startswith("[PARAM ATTR NOT APPLICABLE]"), errors
+
+
+def _test_yaml_export_errors_on_unexported_attrs():
+    """
+    Attribute bullets the YAML has no field for block the export: an
+    unknown element attribute and an inapplicable parameter attribute are
+    both reported; invalid Direct Access/Visibility values are not (they
+    are check errors, but the fields exist).
+    """
+    obj = ObjectDef(
+        name="W", identifier="w", source="normative", line=1,
+        elements=[ElementDef(identifier="e", name="E", cardinality="1",
+                             mutability="read-write", data_type="Integer", line=2,
+                             extra_attrs={"colour": "red"},
+                             attr_values={"visibility": "sometimes"})],
+        operations=[OperationDef(name="Op", identifier="op", line=3,
+                                 params=[ParamDef(identifier="t", name="T",
+                                                  cardinality="0-1", data_type="String",
+                                                  line=4,
+                                                  extra_attrs={"mutability": "create-only"})])])
+    errors = yaml_export_errors([obj])
+    assert len(errors) == 2, errors
+    assert errors[0].startswith("[ELEM ATTR UNKNOWN]"), errors
+    assert errors[1].startswith("[PARAM ATTR NOT APPLICABLE]"), errors
+    assert yaml_export_errors([ObjectDef(name="W", identifier="w",
+                                         source="normative", line=1)]) == []
+
+
+def _test_run_consistency_check_level_filters_report():
+    obj = ObjectDef(name="W", identifier="w", source="normative", line=1)
+    norm, iana = [obj], [ObjectDef(name="W", identifier="w", source="iana", line=2)]
+    warns = ["line 1: orphan prose"]
+    by_level = {lvl: "\n".join(run_consistency_check(norm, iana, False, lvl, warns)[0])
+                for lvl in REPORT_LEVELS}
+    assert "ORPHAN-PROSE" not in by_level["error"], by_level["error"]
+    assert "objects found" not in by_level["error"], by_level["error"]
+    assert "orphan prose" in by_level["warning"], by_level["warning"]
+    assert "objects found" not in by_level["warning"], by_level["warning"]
+    assert "orphan prose" in by_level["info"] and "IANA objects found" in by_level["info"]
+    assert all(t.startswith("OK:") for t in (by_level["error"], by_level["warning"]))
+    bad = [ObjectDef(name="X", identifier="x", source="normative", line=1)]
+    lines, ok = run_consistency_check(bad, iana, False, "error", warns)
+    assert not ok and lines[0].startswith("CONSISTENCY ERRORS"), lines
+    _, ok = run_consistency_check(norm, iana, False, "info", warns)
+    assert ok  # warnings never affect the result
+
+
+def _test_generate_iana_op_block_emits_both_sections():
+    op = OperationDef(name="Op", identifier="op", line=1, description="Does it.",
+                      params=[ParamDef(identifier="f", name="F", cardinality="0-1",
+                                       data_type="String", line=1, description="Filter.")])
+    block = generate_iana_op_block(op).split("\n")
+    assert "Input Data Elements: (None)" in block, block
+    assert "Parameters" in block, block
+    assert any(r.startswith("| f ") for r in block), block
 
 
 def _test_build_yaml_model_structure():
@@ -3369,18 +4535,32 @@ def _test_build_yaml_model_structure():
                               notes=["Extra note."])],
         operations=[OperationDef(identifier="create", name="Create", line=3,
                                   description="Creates it.", notes=[],
-                                  params=[ParamDef(identifier="p1", name="P1",
-                                                    cardinality="0-1", data_type="String",
-                                                    line=4, description="", constraints=[],
-                                                    notes=[])])],
+                                  input=[IOItemDef(kind="Reference", target="This Object"),
+                                         IOItemDef(kind="Parameters",
+                                                   definitions=[ParamDef(
+                                                       identifier="p1", name="P1",
+                                                       cardinality="0-1", data_type="String",
+                                                       line=4)])])],
         preamble=["Intro sentence."],
     )
     model = build_yaml_model([obj], {"# Component Objects": ["Section intro."]})
     assert model["components"][0]["identifier"] == "widget"
     assert model["components"][0]["elements"][0]["constraints"] == ["MUST be positive."]
     assert model["components"][0]["elements"][0]["notes"] == ["Extra note."]
-    assert model["components"][0]["operations"][0]["params"][0]["identifier"] == "p1"
+    op = model["components"][0]["operations"][0]
+    assert op["input"][0] == {"kind": "Reference", "target": "This Object",
+                              "elements": [], "cardinality": "1"}, op["input"]
+    assert op["input"][1]["kind"] == "Parameters", op["input"]
+    assert op["input"][1]["definitions"][0]["identifier"] == "p1"
+    assert "extra_attributes" not in op["input"][1]["definitions"][0]
+    assert "extra_attributes" not in model["components"][0]["elements"][0]
+    assert "inputs" not in op and "params" not in op, op
+    assert op["output"] is None
     assert model["components"][0]["supported_processes"] == []
+    assert model["components"][0]["conditions"] == []
+    assert model["components"][0]["elements"][0]["restrictions"] == {}
+    assert op["input"][1]["definitions"][0]["restrictions"] == {}
+    assert model["common_data_types"] == []
     assert model["section_notes"]["# Component Objects"] == ["Section intro."]
     assert model["processes"] == []
     assert model["resources"] == []
@@ -3393,10 +4573,402 @@ def _test_render_yaml_roundtrips_and_has_header_comment():
         name="Widget Object", identifier="widget", source="normative", line=1,
         obj_type="Component", description="A widget.",
     )
-    text = render_yaml([obj], {})
+    text = render_yaml(build_yaml_model([obj], {}))
     assert text.lstrip().startswith("#"), "expected header comment block"
     parsed = yaml.safe_load(text)
     assert parsed["components"][0]["identifier"] == "widget"
+
+
+def _test_unique_identifier_and_owner_from_structure():
+    """
+    "* Unique Identifier:" is exported as unique_identifier ("(None)" and
+    absence both give ""), and an embedded Process Object's owner is the
+    Data Object whose "## Processes" section contains it.
+    """
+    lines = [
+        "# Widget Data Object",
+        "",
+        "## Object Description",
+        "",
+        "* Name: Widget Data Object",
+        "* Identifier: widget",
+        "* Unique Identifier: name",
+        "* Description: A widget.",
+        "",
+        "## Processes",
+        "",
+        "### Widget Create Process Object",
+        "",
+        "* Name: Widget Create Process Object",
+        "* Identifier: widgetCreateProcess",
+        "* Unique Identifier: (None)",
+        "* Description: Created implicitly.",
+        "* Data Elements:",
+        "  * Foo",
+        "    * Identifier: foo",
+    ]
+    ids = {o.identifier: o for o in
+           _walk_normative_objects(lines, 0, len(lines), obj_type="Resource")}
+    assert ids["widget"].unique_identifier == "name", ids["widget"]
+    assert ids["widget"].owner == ""
+    proc = ids["widgetCreateProcess"]
+    assert proc.unique_identifier == "", proc.unique_identifier
+    assert proc.owner == "widget", proc.owner
+
+
+def _test_element_direct_access_visibility_and_attr_checks():
+    """
+    Direct Access / Visibility are parsed with the draft's defaults; an
+    unknown attribute bullet is kept and reported; invalid values and
+    Direct Access on a non-association type are reported.
+    """
+    lines = [
+        "* Data Elements:",
+        "  * Hosts",
+        "    * Identifier: hosts",
+        "    * Data Type: Aggregation[Host Data Object]",
+        "    * Direct Access: true",
+        "    * Visibility: onDemand",
+        "  * Size",
+        "    * Identifier: size",
+        "    * Data Type: Integer",
+        "  * Parts",
+        "    * Identifier: parts",
+        "    * Data Type: Part Object",
+        "    * Direct Access: true",
+        "  * Bad",
+        "    * Identifier: bad",
+        "    * Data Type: Integer",
+        "    * Direct Access: true",
+        "    * Visibility: sometimes",
+        "    * Colour: red",
+    ]
+    elements = _parse_normative_elements_nested(lines, 0, len(lines))
+    hosts, size, parts, bad = elements
+    assert hosts.direct_access is True and hosts.visibility == "onDemand"
+    assert size.direct_access is False and size.visibility == "default"
+    assert size.extra_attrs == {}
+    assert bad.extra_attrs == {"colour": "red"}, bad.extra_attrs
+    obj = ObjectDef(name="W", identifier="w", source="normative", line=1,
+                    elements=elements)
+    # "Part Object" is a normative object, so a bare reference to it is a
+    # Composition and may carry Direct Access; "Integer" is not.
+    errors = check_element_attrs(obj, {"Part Object"})
+    assert sum("[ELEM ATTR UNKNOWN]" in e for e in errors) == 1, errors
+    assert sum("[ELEM ATTR INVALID]" in e for e in errors) == 2, errors
+    assert all("'bad'" in e for e in errors), errors
+
+
+def _test_nested_elements_stop_at_heading():
+    """
+    Regression test: the last element of a "* Data Elements:" list must not
+    absorb the object's following subsections as its notes.
+    """
+    lines = [
+        "* Data Elements:",
+        "  * Due",
+        "    * Identifier: due",
+        "    * Data Type: Timestamp",
+        "",
+        "### Status Values",
+        "",
+        "Some prose.",
+        "",
+        "  * Not An Element",
+        "    * Identifier: nope",
+    ]
+    elements = _parse_normative_elements_nested(lines, 0, len(lines))
+    assert [e.identifier for e in elements] == ["due"], elements
+    assert elements[0].notes == [], elements[0].notes
+
+
+def _test_subsection_tables_and_nesting():
+    """
+    A generic subsection exports pipe tables (with caption and a next-line
+    anchor) structurally and deeper headings as nested subsections; a
+    fenced block and its caption are skipped, not mangled into notes.
+    """
+    lines = [
+        "* Name: Widget Status Object",
+        "* Identifier: widgetStatus",
+        "* Description: A status.",
+        "",
+        "### Status Values {#widget-status-values}",
+        "",
+        "Intro.",
+        "",
+        "| Status Value | Description |",
+        "|--------------|-------------|",
+        "| ok | Normal. |",
+        "| pendingDelete | Going away. |",
+        "Table: Widget Status Values",
+        "{#tbl-widget-status-values}",
+        "",
+        "#### Allowed Transitions",
+        "",
+        "```ascii",
+        "| a |  -->  | b |",
+        "```",
+        "Figure: Widget State Diagram {#fig-widget}",
+        "",
+        "Trailing.",
+    ]
+    subs = _parse_object_subsections(lines, 0, len(lines), obj_heading_level=2,
+                                     obj_type="Component", obj_id="widgetStatus")
+    assert len(subs) == 1, subs
+    sv = subs[0]
+    assert sv.notes == ["Intro."], sv.notes
+    assert len(sv.tables) == 1
+    t = sv.tables[0]
+    assert (t.caption, t.anchor) == ("Widget Status Values", "{#tbl-widget-status-values}")
+    assert t.columns == ["Status Value", "Description"]
+    assert t.rows == [{"Status Value": "ok", "Description": "Normal."},
+                      {"Status Value": "pendingDelete", "Description": "Going away."}]
+    assert len(sv.subsections) == 1
+    at = sv.subsections[0]
+    assert at.heading == "Allowed Transitions" and at.tables == []
+    assert at.notes == ["Trailing."], at.notes
+
+
+def _test_orphan_prose_skips_fenced_block():
+    lines = [
+        "Before.",
+        "",
+        "```ascii",
+        "+---+",
+        "| x |",
+        "+---+",
+        "```",
+        "Figure: Box",
+    ]
+    notes = extract_orphan_prose(lines, 0, len(lines), label="test", source_ref="line 1")
+    assert notes == ["Before."], notes
+
+
+def _test_parse_io_items_reports_notation_errors():
+    """
+    Input/Output items outside the notation are reported, never guessed:
+    free-text inline values, unknown kinds, missing or invalid Elements,
+    Elements on a Reference, Cardinality on a Reference, bad Cardinality, a
+    definition without an Identifier, a repeated or inline-valued or empty
+    Parameters item.
+    """
+    assert _parse_io_items([], 0, 0, "(None)", "Input") == ([], [])
+    _items, errs = _parse_io_items([], 0, 0, "Object identifier", "Input")
+    assert len(errs) == 1 and "inline value" in errs[0], errs
+    lines = [
+        "  * Owner Data Object reference",
+        "  * Reference: Widget Object",
+        "    * Elements: read-only",
+        "  * Object: Widget Object",
+        "  * Object: Widget Object",
+        "    * Elements: read-write, writable",
+        "    * Cardinality: 2",
+        "  * Reference: Widget Object",
+        "    * Cardinality: 0+",
+        "  * Parameters:",
+        "    * Nameless",
+        "      * Cardinality: 0-1",
+        "  * Parameters: Inline",
+    ]
+    items, errs = _parse_io_items(lines, 0, len(lines), "", "Input")
+    assert [i.kind for i in items] == ["Reference", "Object", "Object", "Reference",
+                                       "Parameters", "Parameters"], items
+    assert len(errs) == 10, errs
+    assert "has no Identifier" in errs[6], errs
+    assert "more than once" in errs[7] and "inline value" in errs[8], errs
+    assert "no definitions" in errs[9], errs
+    _items, errs = _parse_io_items(lines, 0, 0, "", "Input")
+    assert errs == ["blank value without a nested list of items."], errs
+
+
+def _test_uniform_interface_defaults_and_io_check():
+    """
+    The Uniform interface defaults are parsed from the headings under
+    "### Uniform interface" and applied to Data Object operations that
+    declare no Input/Output; an explicit attribute wins; targets are
+    resolved by object Name or keyword; an operation left without Input or
+    Output is reported.
+    """
+    lines = [
+        "### Uniform interface",
+        "",
+        "#### Read",
+        "",
+        "* Input:",
+        "  * Reference: This Object",
+        "* Output:",
+        "  * Object: This Object",
+        "    * Elements: read-write, read-only",
+        "",
+        "### Offline Review",
+        "",
+        "* Input: (None)",
+    ]
+    defaults = parse_uniform_interface(lines, len(lines))
+    assert set(defaults) == {"read"}, defaults
+    obj = ObjectDef(name="Widget Data Object", identifier="widget",
+                    source="normative", line=1, obj_type="Resource",
+                    operations=[OperationDef(name="Read", identifier="read", line=2,
+                                             input=[]),
+                                OperationDef(name="Poke", identifier="poke", line=3,
+                                             input=[IOItemDef(kind="Reference",
+                                                              target="Gadget Object")],
+                                             output=[IOItemDef(kind="Reference",
+                                                               target="Owner Data Object")])])
+    apply_uniform_interface([obj], defaults)
+    read, poke = obj.operations
+    assert read.input == [], read.input  # explicit "(None)" kept
+    assert read.output == defaults["read"].output, read.output
+    assert poke.output[0].target == "Owner Data Object"  # no default for "poke"
+    errors = check_operation_io(obj, {"Widget Data Object"})
+    assert len(errors) == 2, errors
+    assert "names no normative object" in errors[0], errors
+    assert "outside a Process Object" in errors[1], errors
+    obj.operations.append(OperationDef(name="Zap", identifier="zap", line=4))
+    errors = check_operation_io(obj, {"Widget Data Object", "Gadget Object"})
+    assert sum("[OP IO MISSING]" in e for e in errors) == 2, errors
+
+
+def _test_parse_common_data_types():
+    lines = [
+        "# Common Data Types",                    # 0
+        "",
+        "Intro sentence.",
+        "",
+        "## Identifier",                          # 4
+        "",
+        "Identifiers are strings.",
+        "",
+        "## Phone Number {#phone}",               # 8
+        "",
+        "Phone numbers begin with a plus.",
+        "",
+        "A> TBC: aside dropped.",
+        "",
+        "# Associations",                         # 14
+        "",
+        "## Aggregation",
+    ]
+    types = parse_common_data_types(lines, len(lines))
+    assert [t.name for t in types] == ["Identifier", "Phone Number"], types
+    assert types[0].description == ["Identifiers are strings."], types[0]
+    assert types[1].anchor == "{#phone}" and types[1].line == 9, types[1]
+    assert types[1].description == ["Phone numbers begin with a plus."], types[1]
+    assert parse_common_data_types(lines[14:], len(lines) - 14) == []
+
+
+def _mapping_test_model() -> dict:
+    status = ObjectDef(
+        name="Widget Status Object", identifier="widgetStatus", source="normative",
+        line=1, obj_type="Component",
+        elements=[ElementDef(identifier="label", name="Label", cardinality="1",
+                             mutability="read-write", data_type="String", line=2,
+                             constraints=["Only values in [Values](#v) are allowed."])],
+        subsections=[SubsectionDef(heading="Status Values", anchor="{#v}", line=3,
+                                   tables=[TableDef(caption="Values", anchor="{#tbl-v}",
+                                                    line=4, columns=["Status Value", "Description"],
+                                                    rows=[{"Status Value": "ok", "Description": "-"},
+                                                          {"Status Value": "hold", "Description": "-"}])])])
+    widget = ObjectDef(
+        name="Widget Process Object", identifier="widgetProcess", source="normative",
+        line=5, obj_type="Process",
+        elements=[
+            ElementDef(identifier="dir", name="Direction", cardinality="0-1",
+                       mutability="create-only", data_type="String", line=6,
+                       constraints=['MUST be "a" or "b".', "Server policy applies."]),
+            ElementDef(identifier="other", name="Other", cardinality="0-1",
+                       mutability="create-only", data_type="String", line=7,
+                       description="The other party. REQUIRED when dir is a."),
+        ],
+        operations=[OperationDef(name="Create", identifier="create", line=8,
+                                 input=[IOItemDef(kind="Parameters", definitions=[
+                                     ParamDef(identifier="size", name="Size", cardinality="1",
+                                              data_type="Integer", line=9,
+                                              constraints=["MUST be positive."])])])])
+    common = [CommonTypeDef(name="Phone Number", anchor="", line=10,
+                            description=["Derived from E.164.  Begins with a plus."])]
+    return build_yaml_model([status, widget], {}, common)
+
+
+def _test_apply_prose_mappings_replaces_fragments_with_structure():
+    model = _mapping_test_model()
+    errors = apply_prose_mappings(model, [
+        {"text": 'MUST be "a" or "b".', "set": {"allowed_values": ["a", "b"]}},
+        {"text": "Only values in [Values](#v) are allowed.",
+         "set": {"allowed_values_from": [{"table": "tbl-v", "column": "Status Value"}]}},
+        {"text": "REQUIRED when dir is a.",
+         "object": {"conditions": [{"if": {"dir": "a"}, "require": ["other"]}]}},
+        {"text": "MUST be positive.", "set": {"range": {"min": 1}}},
+        {"text": "Begins with a plus.", "set": {"base_type": "String", "pattern": r"^\+"}},
+    ])
+    assert errors == [], errors
+    label = model["components"][0]["elements"][0]
+    assert label["restrictions"] == {"allowed_values": ["ok", "hold"]}, label
+    assert label["constraints"] == [], label
+    widget = model["processes"][0]
+    direction, other = widget["elements"]
+    assert direction["restrictions"] == {"allowed_values": ["a", "b"]}, direction
+    assert direction["constraints"] == ["Server policy applies."], direction
+    assert other["description"] == "The other party.", other
+    assert other["restrictions"] == {}, other
+    assert widget["conditions"] == [{"if": {"dir": "a"}, "require": ["other"]}], widget
+    param = widget["operations"][0]["input"][0]["definitions"][0]
+    assert param["restrictions"] == {"range": {"min": 1}} and param["constraints"] == [], param
+    phone = model["common_data_types"][0]
+    assert phone["description"] == ["Derived from E.164."], phone
+    assert phone["restrictions"] == {"base_type": "String", "pattern": r"^\+"}, phone
+    assert model["components"][0]["conditions"] == []
+
+
+def _test_apply_prose_mappings_reports_stale_conflict_and_bad_refs():
+    model = _mapping_test_model()
+    errors = apply_prose_mappings(model, [
+        {"text": "No such sentence.", "set": {"pattern": "x"}},
+        {"text": 'MUST be "a" or "b".', "set": {"allowed_values": ["a", "b"]}},
+        {"text": "Server policy applies.", "set": {"allowed_values": ["c"]}},
+        {"text": "Only values in [Values](#v) are allowed.",
+         "set": {"allowed_values_from": [{"table": "tbl-missing", "column": "Status Value"}]}},
+        {"text": "Begins with a plus.", "object": {"conditions": [{"if": {"x": "y"}}]}},
+    ])
+    assert sum("[MAPPING STALE]" in e for e in errors) == 1, errors
+    assert sum("[MAPPING CONFLICT] widgetProcess.dir" in e for e in errors) == 1, errors
+    assert sum("no table 'tbl-missing'" in e for e in errors) == 1, errors
+    assert sum("need an owning object" in e for e in errors) == 1, errors
+
+
+def _test_validate_prose_mappings_rejects_bad_entries():
+    mappings, errors = validate_prose_mappings({"mappings": [
+        {"text": "Fine.", "set": {"pattern": "x"}, "note": "kept"},
+        {"text": "Fine.", "set": {"pattern": "y"}},
+        {"text": "No target."},
+        {"text": "Bad key.", "set": {"enum": ["a"]}},
+        {"text": "Bad range.", "set": {"range": {"lo": 1}}},
+        {"text": "Bad ref.", "set": {"allowed_values_from": [{"table": "t"}]}},
+        {"text": "Bad condition.", "object": {"conditions": [{"require": ["a"]}]}},
+        {"text": "Bad entry key.", "set": {}, "where": "x"},
+    ]}, "test")
+    assert [m["text"] for m in mappings] == ["Fine."], mappings
+    for needle in ("duplicate 'text'", "needs 'set' and/or 'object'",
+                   "unknown 'set' key 'enum'", "'range' takes only",
+                   "need table and column", "each condition needs",
+                   "unknown key 'where'"):
+        assert sum(needle in e for e in errors) == 1, (needle, errors)
+    assert validate_prose_mappings([], "test") == (
+        [], ["[MAPPING INVALID] test: top-level 'mappings' list missing"])
+
+
+def _test_prose_mappings_file_applies_cleanly_to_draft():
+    """End-to-end: every fragment in prose_mappings.yaml is found in the real draft."""
+    if yaml is None or not DRAFT_FILE.exists():
+        return  # skip without PyYAML or when not run from src/
+    normative, _iana, section_notes, common_types = parse_document(DRAFT_FILE)
+    mappings, errors = load_prose_mappings(PROSE_MAPPINGS_FILE)
+    model = build_yaml_model(normative, section_notes, common_types)
+    errors += apply_prose_mappings(model, mappings)
+    assert errors == [], errors
+    assert {t["name"] for t in model["common_data_types"]} >= {
+        "Identifier", "Client Identifier", "Phone Number"}, model["common_data_types"]
 
 
 _SELF_TESTS = [
@@ -3409,6 +4981,11 @@ _SELF_TESTS = [
     _test_param_attrs_tolerate_blank_lines_and_asides_between_bullets,
     _test_operation_description_authorisation_input_output,
     _test_operation_description_multi_paragraph_and_trailing_notes,
+    _test_operation_inputs_and_params_sections,
+    _test_iana_operation_sections_parsed_and_absence_recorded,
+    _test_check_operations_inputs_params_kind_and_sections,
+    _test_check_operation_item_attrs_reports_inapplicable_attrs,
+    _test_generate_iana_op_block_emits_both_sections,
     _test_subsection_parsing_preserves_order_and_folds_bullets,
     _test_subsection_operations_heading_excluded_for_process,
     _test_subsection_component_never_has_operations,
@@ -3421,6 +4998,7 @@ _SELF_TESTS = [
     _test_parse_object_header_captures_extends,
     _test_parse_object_header_unique_identifier_does_not_end_header,
     _test_check_supported_processes_resolves_names_and_extends,
+    _test_walk_envelope_group_heading_recurses_and_keeps_intro,
     _test_walk_normative_objects_skips_aside_before_header,
     _test_object_header_tolerates_blank_lines_and_asides_between_attrs,
     _test_walk_normative_objects_flat_data_object,
@@ -3431,6 +5009,20 @@ _SELF_TESTS = [
     _test_parse_document_covers_organisation_and_user,
     _test_build_yaml_model_structure,
     _test_render_yaml_roundtrips_and_has_header_comment,
+    _test_run_consistency_check_level_filters_report,
+    _test_yaml_export_errors_on_unexported_attrs,
+    _test_unique_identifier_and_owner_from_structure,
+    _test_element_direct_access_visibility_and_attr_checks,
+    _test_nested_elements_stop_at_heading,
+    _test_subsection_tables_and_nesting,
+    _test_orphan_prose_skips_fenced_block,
+    _test_parse_io_items_reports_notation_errors,
+    _test_uniform_interface_defaults_and_io_check,
+    _test_parse_common_data_types,
+    _test_apply_prose_mappings_replaces_fragments_with_structure,
+    _test_apply_prose_mappings_reports_stale_conflict_and_bad_refs,
+    _test_validate_prose_mappings_rejects_bad_entries,
+    _test_prose_mappings_file_applies_cleanly_to_draft,
 ]
 
 
@@ -3490,6 +5082,12 @@ def main() -> int:
              "including prose not covered by structured fields) to PATH as YAML.",
     )
     parser.add_argument(
+        "--level", choices=REPORT_LEVELS, default="error",
+        help="Report verbosity: 'error' = consistency errors only (default); "
+             "'warning' = also orphan-prose warnings; 'info' = also the "
+             "normative/IANA object inventories.",
+    )
+    parser.add_argument(
         "--self-test", action="store_true",
         help="Run the in-file test suite and exit (ignores all other flags).",
     )
@@ -3502,12 +5100,13 @@ def main() -> int:
         print(f"ERROR: file not found: {DRAFT_FILE}", file=sys.stderr)
         return 1
 
-    normative, iana, section_notes = parse_document(DRAFT_FILE)
+    normative, iana, section_notes, common_types = parse_document(DRAFT_FILE)
 
     exit_code = 0
 
     if args.check:
-        report_lines, ok = run_consistency_check(normative, iana, args.generate)
+        report_lines, ok = run_consistency_check(normative, iana, args.generate,
+                                                  args.level, PROSE_WARNINGS)
         report_text = "\n".join(report_lines)
         if args.iana_out:
             args.iana_out.write_text(report_text + "\n")
@@ -3518,11 +5117,25 @@ def main() -> int:
             exit_code = 1
 
     if args.yaml_out:
-        yaml_text = render_yaml(normative, section_notes)
-        args.yaml_out.write_text(yaml_text)
-        print(f"YAML object model written to {args.yaml_out}")
+        export_errors = yaml_export_errors(normative)
+        mappings, mapping_errors = load_prose_mappings(PROSE_MAPPINGS_FILE)
+        model = build_yaml_model(normative, section_notes, common_types)
+        export_errors += mapping_errors + apply_prose_mappings(model, mappings)
+        if export_errors:
+            print(f"ERROR: YAML not written — {len(export_errors)} problem(s) "
+                  f"with uncovered attributes or prose mappings:", file=sys.stderr)
+            for e in export_errors:
+                print(f"  - {e}", file=sys.stderr)
+            exit_code = 1
+        else:
+            yaml_text = render_yaml(model)
+            args.yaml_out.write_text(yaml_text)
+            print(f"YAML object model written to {args.yaml_out}")
 
-    if PROSE_WARNINGS:
+    # With --check the warnings are part of the report; without it there is
+    # no report to carry them, so fall back to stderr.
+    if (not args.check and PROSE_WARNINGS
+            and REPORT_LEVELS.index(args.level) >= REPORT_LEVELS.index("warning")):
         print(f"\n{len(PROSE_WARNINGS)} orphan-prose warning(s):", file=sys.stderr)
         for w in PROSE_WARNINGS:
             print(f"  - {w}", file=sys.stderr)
