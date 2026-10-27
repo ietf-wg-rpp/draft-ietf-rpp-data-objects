@@ -891,28 +891,40 @@ parameter and Common Data Type with `restrictions: {}` and every object
 with `conditions: []`; `apply_prose_mappings()` then, for each mapping:
 
 1. searches `text` as an exact substring of every element/input/parameter
-   `description` and `constraints` entry and every Common Data Type
-   `description` entry, in the whole model (text-only matching: no
+   `description` and `constraints` entry, every Common Data Type
+   `description` entry and every object subsection `notes` entry (any
+   depth), in the whole model (text-only matching: no
    location is named, so one sentence used by several elements needs one
    entry);
 2. removes it from each text it occurs in (with one adjoining space); a
    constraint or description entry left empty is dropped;
-3. merges `set` into that holder's `restrictions`, resolving
-   `allowed_values_from` (`[{table, column}]`, table by anchor without
-   `{#`/`}`) into `allowed_values` from the parsed subsection tables;
-4. appends `object.conditions` to the object owning the holder.
+3. merges `set` into that holder's `restrictions`, resolving each
+   `*_from` key (`VALUES_FROM_KEYS`: `allowed_values_from`,
+   `client_values_from`, `server_only_values_from`; each
+   `[{table, column, where?}]`, table by anchor without `{#`/`}`) into the
+   key without `_from` from the parsed subsection tables; the optional
+   `where: {column: [values]}` keeps only rows whose cell in each named
+   column is one of the listed values (used to split status values by
+   their `Set By` column into `client_values` and `server_only_values`);
+4. appends `object.conditions` to the object owning the holder, and sets
+   the boolean `object` flags (`OBJECT_FLAG_KEYS`:
+   `at_least_one_status_by_server`,
+   `status_not_required_for_client_request`) on it; a flag is present only
+   on objects a mapping matched. A subsection note takes only `object`
+   fields (it has no `restrictions`).
 
 The mappings change only the YAML model; the parsed `ObjectDef`s and the
 IANA check are not affected. `--yaml-out` fails (stderr, no file, exit 1)
 on:
 
 - `[MAPPING INVALID]` — file missing, bad shape, unknown key, duplicate
-  `text` (`validate_prose_mappings()`), an unresolvable table/column, or
-  `object` fields on a Common Data Type (which has no owning object);
+  `text` (`validate_prose_mappings()`), an unresolvable table/column,
+  `object` fields on a Common Data Type (which has no owning object), or
+  `set` fields matched in a subsection note;
 - `[MAPPING STALE]` — `text` found nowhere: the draft wording changed,
   so update or drop the entry;
-- `[MAPPING CONFLICT]` — two mappings set one restriction of one holder to
-  different values.
+- `[MAPPING CONFLICT]` — two mappings set one restriction of one holder,
+  or one flag of one object, to different values.
 
 Nothing in the structured fields is duplicated into `notes`/`preamble`/
 `section_notes`/`subsections` and vice versa — those fields hold only the

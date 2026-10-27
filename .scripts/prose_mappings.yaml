@@ -7,12 +7,14 @@
 # never interprets prose itself; it only looks for these exact strings.
 #
 # Matching: "text" is searched, as an exact substring, in every element,
-# operation input/parameter and Common Data Type description and in every
-# constraint, anywhere in the model. Each match is REMOVED from that text
+# operation input/parameter and Common Data Type description, in every
+# constraint and in every object subsection note, anywhere in the model. Each match is REMOVED from that text
 # (a constraint left empty is dropped) and replaced by:
-#   set:     fields merged into the holder's "restrictions" map
-#   object:  fields added to the object owning the holder (elements and
-#            inputs only); "conditions" entries are appended
+#   set:     fields merged into the holder's "restrictions" map (not
+#            allowed for a subsection note, which has no restrictions)
+#   object:  fields added to the object owning the holder (not for a
+#            Common Data Type); "conditions" entries are appended, flags
+#            are set
 #   note:    free text for maintainers; ignored by the script
 #
 # A fragment found nowhere fails --yaml-out ([MAPPING STALE]): when the draft
@@ -23,9 +25,16 @@
 # "set" keys:
 #   base_type            primitive type a Common Data Type is built on
 #   allowed_values       closed list of permitted values
-#   allowed_values_from  [{table, column}] - permitted values are that column
-#                        of the draft table with that anchor (without "{#}");
-#                        resolved at export time and emitted as allowed_values
+#   allowed_values_from  [{table, column, where?}] - permitted values are that
+#                        column of the draft table with that anchor (without
+#                        "{#}"); where: {column: [values]} keeps only rows whose
+#                        cell in that column is one of the values; resolved at
+#                        export time and emitted as allowed_values
+#   client_values / client_values_from
+#                        status values a client may add and remove (same
+#                        resolution as allowed_values_from)
+#   server_only_values / server_only_values_from
+#                        status values only the server adds and removes
 #   range                {min, max} of a scalar value (inclusive; either optional)
 #   pattern              regular expression the whole value matches
 #   min_length / max_length   length bounds of a string value
@@ -33,6 +42,10 @@
 #   value_range          {min, max} of every Dictionary value
 # "object" keys:
 #   conditions           [{if: {elementId: value}, require: [ids], forbid: [ids]}]
+#   at_least_one_status_by_server            true: the server always assigns
+#                        at least one of this status object's values
+#   status_not_required_for_client_request   true: a client may omit status
+#                        values when creating or updating the object
 
 mappings:
 
@@ -77,26 +90,67 @@ mappings:
       allowed_values_from:
         - {table: tbl-domain-status-values, column: Status Value}
         - {table: tbl-rgp-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-domain-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+        - {table: tbl-rgp-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-domain-status-values, column: Status Value, where: {Set By: [server]}}
+        - {table: tbl-rgp-status-values, column: Status Value, where: {Set By: [server]}}
 
   - text: "Only status values defined in [Status Values](#host-status-values) are allowed."
     set:
       allowed_values_from:
         - {table: tbl-host-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-host-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-host-status-values, column: Status Value, where: {Set By: [server]}}
 
   - text: "Only status values defined in [Status Values](#contact-status-values) are allowed."
     set:
       allowed_values_from:
         - {table: tbl-contact-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-contact-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-contact-status-values, column: Status Value, where: {Set By: [server]}}
 
   - text: "Only status values defined in [Status Values](#organisation-role-status-values) are allowed."
     set:
       allowed_values_from:
         - {table: tbl-organisation-role-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-organisation-role-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-organisation-role-status-values, column: Status Value, where: {Set By: [server]}}
 
   - text: "Only status values defined in [Status Values](#organisation-status-values) are allowed."
     set:
       allowed_values_from:
         - {table: tbl-organisation-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-organisation-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-organisation-status-values, column: Status Value, where: {Set By: [server]}}
+
+  - text: "Only status values defined in [Status Values](#user-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-user-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-user-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-user-status-values, column: Status Value, where: {Set By: [server]}}
+
+  # --- Status presence: server assigns, client may omit -------------------
+
+  - text: "A server MUST assign at least one status value to the object."
+    object:
+      at_least_one_status_by_server: true
+
+  - text: "A client is not required to provide a status value when creating or updating the object."
+    object:
+      status_not_required_for_client_request: true
 
   - text: "The keys MUST be valid DNS resource record type names in lower case."
     note: "RR type mnemonics (RFC 6895 registry): letters, digits and hyphens, e.g. nsap-ptr."

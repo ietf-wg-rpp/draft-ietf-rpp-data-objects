@@ -89,6 +89,13 @@
 #                   when every "if" element has the given value, the
 #                   "require" elements MUST and the "forbid" elements MUST
 #                   NOT be present. [] if none.
+#     at_least_one_status_by_server: (status Component Objects only, present
+#                   only when prose_mappings.yaml maps it) true when the
+#                   server always assigns at least one of the object's
+#                   status values.
+#     status_not_required_for_client_request: (same) true when a client
+#                   may omit status values when creating or updating the
+#                   object that holds them.
 #     supported_processes: the INHERITED-process bullet list from a Data
 #                   Object's "## Processes" section — the Process Objects it
 #                   supports UNMODIFIED. Processes it *extends* are not
@@ -195,6 +202,11 @@
 #   base_type             primitive type a Common Data Type is built on
 #   allowed_values        closed list of permitted values (for a status
 #                         label, resolved from the draft's status table)
+#   client_values         status values a client may add and remove (Set By
+#                         column "client" or "client, server")
+#   server_only_values    status values only the server adds and removes
+#                         (Set By column "server"); together with
+#                         client_values it partitions allowed_values
 #   range                 {min, max} of a scalar value, inclusive
 #   pattern               regular expression the whole value matches
 #   min_length/max_length length bounds of a string value

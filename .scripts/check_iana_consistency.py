@@ -2954,13 +2954,21 @@ def yaml_export_errors(normative: list[ObjectDef]) -> list[str]:
 
 # Keys a prose mapping may set on the element / input / parameter / Common
 # Data Type that holds the fragment ("set"), and on the object that holds
-# that element or input ("object"). allowed_values_from is resolved against
-# the draft's own tables and exported as allowed_values.
-RESTRICTION_KEYS = ("base_type", "allowed_values", "allowed_values_from", "range",
+# that element or input ("object"). Each "*_from" key is resolved against
+# the draft's own tables and exported under the key in VALUES_FROM_KEYS.
+VALUES_FROM_KEYS = {"allowed_values_from": "allowed_values",
+                    "client_values_from": "client_values",
+                    "server_only_values_from": "server_only_values"}
+RESTRICTION_KEYS = ("base_type", "allowed_values", "client_values",
+                    "server_only_values", *VALUES_FROM_KEYS, "range",
                     "pattern", "min_length", "max_length", "key_pattern",
                     "value_range")
 RANGE_KEYS = ("min", "max")
-OBJECT_MAPPING_KEYS = ("conditions",)
+# Boolean "object" flags: set (not appended) on the owning object, only when
+# a mapping matches, so they are absent from objects no mapping concerns.
+OBJECT_FLAG_KEYS = ("at_least_one_status_by_server",
+                    "status_not_required_for_client_request")
+OBJECT_MAPPING_KEYS = ("conditions", *OBJECT_FLAG_KEYS)
 CONDITION_KEYS = ("if", "require", "forbid")
 MAPPING_ENTRY_KEYS = ("text", "set", "object", "note")
 
@@ -3017,9 +3025,16 @@ def validate_prose_mappings(data, source: str) -> tuple[list[dict], list[str]]:
                         not isinstance(restrictions[key], dict)
                         or any(k not in RANGE_KEYS for k in restrictions[key])):
                     problems.append(f"'{key}' takes only {'/'.join(RANGE_KEYS)}")
-            for ref in restrictions.get("allowed_values_from", []):
-                if not isinstance(ref, dict) or set(ref) != {"table", "column"}:
-                    problems.append("'allowed_values_from' entries need table and column")
+            for key in VALUES_FROM_KEYS:
+                for ref in restrictions.get(key, []):
+                    if (not isinstance(ref, dict)
+                            or not {"table", "column"} <= set(ref) <= {"table", "column", "where"}):
+                        problems.append(f"'{key}' entries need table and column "
+                                        f"(and optionally where)")
+                    elif "where" in ref and (
+                            not isinstance(ref["where"], dict)
+                            or not all(isinstance(v, list) for v in ref["where"].values())):
+                        problems.append(f"'{key}' where maps a column to a list of values")
         obj_fields = m.get("object", {})
         if not isinstance(obj_fields, dict):
             problems.append("'object' must be a mapping")
@@ -3030,6 +3045,8 @@ def validate_prose_mappings(data, source: str) -> tuple[list[dict], list[str]]:
                 if (not isinstance(cond, dict) or "if" not in cond
                         or any(k not in CONDITION_KEYS for k in cond)):
                     problems.append("each condition needs 'if' plus 'require'/'forbid'")
+            problems += [f"'{k}' must be true or false" for k in OBJECT_FLAG_KEYS
+                         if k in obj_fields and not isinstance(obj_fields[k], bool)]
         if problems:
             errors.extend(f"{where}: {p}" for p in problems)
             continue
@@ -3046,36 +3063,48 @@ def _strip_fragment(value: str, text: str) -> str:
     return value
 
 
-def _mapping_holders(model: dict) -> list[tuple[dict, dict | None, str]]:
+def _mapping_holders(model: dict) -> list[tuple[dict, dict | None, str, tuple[str, ...]]]:
     """
-    Every place a prose fragment may be mapped from: (holder, object, label)
-    for each element, each operation input/parameter definition and each
-    Common Data Type. object is the dict owning the holder (None for a
-    Common Data Type).
+    Every place a prose fragment may be mapped from: (holder, object, label,
+    fields) for each element, each operation input/parameter definition,
+    each Common Data Type and each object subsection (at any depth).
+    object is the dict owning the holder (None for a Common Data Type);
+    fields are the holder's text fields searched for the fragment. A
+    subsection has no restrictions, so only "object" fields map from it.
     """
-    holders: list[tuple[dict, dict | None, str]] = []
+    holders: list[tuple[dict, dict | None, str, tuple[str, ...]]] = []
+    text_fields = ("description", "constraints")
     for t in model["common_data_types"]:
-        holders.append((t, None, f"common data type '{t['name']}'"))
+        holders.append((t, None, f"common data type '{t['name']}'", text_fields))
+
+    def walk(obj: dict, subsections: list[dict]) -> None:
+        for sub in subsections:
+            holders.append((sub, obj, f"{obj['identifier']} § {sub['heading']}",
+                            ("notes",)))
+            walk(obj, sub["subsections"])
+
     for key in OBJ_TYPE_TO_YAML_KEY.values():
         for obj in model[key]:
             for e in obj["elements"]:
-                holders.append((e, obj, f"{obj['identifier']}.{e['identifier']}"))
+                holders.append((e, obj, f"{obj['identifier']}.{e['identifier']}",
+                                text_fields))
             for op in obj["operations"]:
                 for item in (op["input"] or []):
                     for d in item.get("definitions", []):
                         holders.append((d, obj, f"{obj['identifier']}.{op['identifier']}"
-                                                f".{d['identifier']}"))
+                                                f".{d['identifier']}", text_fields))
+            walk(obj, obj["subsections"])
     return holders
 
 
-def _remove_fragment(holder: dict, text: str) -> bool:
-    """Remove text from the holder's description/constraints; True if found."""
+def _remove_fragment(holder: dict, text: str, fields: tuple[str, ...]) -> bool:
+    """Remove text from the holder's given text fields; True if found."""
     found = False
     desc = holder.get("description")
-    if isinstance(desc, str) and text in desc:
+    if "description" in fields and isinstance(desc, str) and text in desc:
         holder["description"] = _strip_fragment(desc, text)
         found = True
-    for field_name in ("description", "constraints"):
+    for field_name in fields:
         entries = holder.get(field_name)
         if not isinstance(entries, list):
             continue
@@ -3107,6 +3136,28 @@ def _table_index(model: dict) -> dict[str, dict]:
     return index
 
 
+def _resolve_table_values(refs: list[dict], tables: dict[str, dict], short: str,
+                          errors: list[str]) -> list[str]:
+    """
+    The "column" cells of each referenced table, in order, keeping only rows
+    whose cells match every "where" column (cell equal to one of the listed
+    values). An unknown table or column is reported as [MAPPING INVALID].
+    """
+    values: list[str] = []
+    for ref in refs:
+        table = tables.get(ref["table"])
+        where = ref.get("where", {})
+        missing = [c for c in [ref["column"], *where]
+                   if table is None or c not in table["columns"]]
+        if missing:
+            errors.append(f"[MAPPING INVALID] '{short}': no table "
+                          f"'{ref['table']}' with column '{missing[0]}'")
+            continue
+        values += [row[ref["column"]] for row in table["rows"]
+                   if all(row[c] in allowed for c, allowed in where.items())]
+    return values
+
+
 def apply_prose_mappings(model: dict, mappings: list[dict]) -> list[str]:
     """
     Replace each mapping's verbatim text, wherever it occurs in an element,
@@ -3124,23 +3175,22 @@ def apply_prose_mappings(model: dict, mappings: list[dict]) -> list[str]:
         text = m["text"]
         short = text if len(text) <= 60 else text[:57] + "..."
         restrictions = dict(m.get("set", {}))
-        refs = restrictions.pop("allowed_values_from", None)
-        if refs:
-            values: list[str] = []
-            for ref in refs:
-                table = tables.get(ref["table"])
-                if table is None or ref["column"] not in table["columns"]:
-                    errors.append(f"[MAPPING INVALID] '{short}': no table "
-                                  f"'{ref['table']}' with column '{ref['column']}'")
-                    continue
-                values += [row[ref["column"]] for row in table["rows"]]
-            restrictions["allowed_values"] = values
+        for from_key, to_key in VALUES_FROM_KEYS.items():
+            refs = restrictions.pop(from_key, None)
+            if refs:
+                restrictions[to_key] = _resolve_table_values(refs, tables, short, errors)
         matched = False
-        for holder, obj, label in holders:
-            if not _remove_fragment(holder, text):
+        for holder, obj, label, fields in holders:
+            if not _remove_fragment(holder, text, fields):
                 continue
             matched = True
-            for key, value in restrictions.items():
+            if restrictions and "restrictions" not in holder:
+                errors.append(f"[MAPPING INVALID] {label}: 'set' fields need an "
+                              f"element, input, parameter or Common Data Type")
+                restrictions_here: dict = {}
+            else:
+                restrictions_here = restrictions
+            for key, value in restrictions_here.items():
                 if key in holder["restrictions"] and holder["restrictions"][key] != value:
                     errors.append(f"[MAPPING CONFLICT] {label}: '{key}' set to "
                                   f"different values")
@@ -3150,10 +3200,16 @@ def apply_prose_mappings(model: dict, mappings: list[dict]) -> list[str]:
                     errors.append(f"[MAPPING INVALID] {label}: 'object' fields "
                                   f"need an owning object")
                     continue
-                obj[key].extend(copy.deepcopy(value))
+                if key in OBJECT_FLAG_KEYS:
+                    if key in obj and obj[key] != value:
+                        errors.append(f"[MAPPING CONFLICT] {obj['identifier']}: "
+                                      f"'{key}' set to different values")
+                    obj[key] = value
+                else:
+                    obj[key].extend(copy.deepcopy(value))
         if not matched:
             errors.append(f"[MAPPING STALE] '{short}': text not found in any "
-                          f"description or constraint")
+                          f"description, constraint or subsection note")
     return errors
 
 
@@ -4912,10 +4968,13 @@ def _mapping_test_model() -> dict:
                              mutability="read-write", data_type="String", line=2,
                              constraints=["Only values in [Values](#v) are allowed."])],
         subsections=[SubsectionDef(heading="Status Values", anchor="{#v}", line=3,
+                                   notes=["Values follow. Server assigns one. "
+                                          "Client may omit it."],
                                    tables=[TableDef(caption="Values", anchor="{#tbl-v}",
-                                                    line=4, columns=["Status Value", "Description"],
-                                                    rows=[{"Status Value": "ok", "Description": "-"},
-                                                          {"Status Value": "hold", "Description": "-"}])])])
+                                                    line=4, columns=["Status Value", "Set By", "Description"],
+                                                    rows=[{"Status Value": "ok", "Set By": "server", "Description": "-"},
+                                                          {"Status Value": "hold", "Set By": "client", "Description": "-"},
+                                                          {"Status Value": "lock", "Set By": "client, server", "Description": "-"}])])])
     widget = ObjectDef(
         name="Widget Process Object", identifier="widgetProcess", source="normative",
         line=5, obj_type="Process",
@@ -4942,15 +5001,28 @@ def _test_apply_prose_mappings_replaces_fragments_with_structure():
     errors = apply_prose_mappings(model, [
         {"text": 'MUST be "a" or "b".', "set": {"allowed_values": ["a", "b"]}},
         {"text": "Only values in [Values](#v) are allowed.",
-         "set": {"allowed_values_from": [{"table": "tbl-v", "column": "Status Value"}]}},
+         "set": {"allowed_values_from": [{"table": "tbl-v", "column": "Status Value"}],
+                 "client_values_from": [{"table": "tbl-v", "column": "Status Value",
+                                         "where": {"Set By": ["client", "client, server"]}}],
+                 "server_only_values_from": [{"table": "tbl-v", "column": "Status Value",
+                                              "where": {"Set By": ["server"]}}]}},
         {"text": "REQUIRED when dir is a.",
          "object": {"conditions": [{"if": {"dir": "a"}, "require": ["other"]}]}},
         {"text": "MUST be positive.", "set": {"range": {"min": 1}}},
         {"text": "Begins with a plus.", "set": {"base_type": "String", "pattern": r"^\+"}},
+        {"text": "Server assigns one.", "object": {"at_least_one_status_by_server": True}},
+        {"text": "Client may omit it.",
+         "object": {"status_not_required_for_client_request": True}},
     ])
     assert errors == [], errors
+    status = model["components"][0]
+    assert status["subsections"][0]["notes"] == ["Values follow."], status
+    assert status["at_least_one_status_by_server"] is True, status
+    assert status["status_not_required_for_client_request"] is True, status
     label = model["components"][0]["elements"][0]
-    assert label["restrictions"] == {"allowed_values": ["ok", "hold"]}, label
+    assert label["restrictions"] == {"allowed_values": ["ok", "hold", "lock"],
+                                     "client_values": ["hold", "lock"],
+                                     "server_only_values": ["ok"]}, label
     assert label["constraints"] == [], label
     widget = model["processes"][0]
     direction, other = widget["elements"]
@@ -4965,6 +5037,7 @@ def _test_apply_prose_mappings_replaces_fragments_with_structure():
     assert phone["description"] == ["Derived from E.164."], phone
     assert phone["restrictions"] == {"base_type": "String", "pattern": r"^\+"}, phone
     assert model["components"][0]["conditions"] == []
+    assert "at_least_one_status_by_server" not in widget, widget
 
 
 def _test_apply_prose_mappings_reports_stale_conflict_and_bad_refs():
@@ -4974,13 +5047,22 @@ def _test_apply_prose_mappings_reports_stale_conflict_and_bad_refs():
         {"text": 'MUST be "a" or "b".', "set": {"allowed_values": ["a", "b"]}},
         {"text": "Server policy applies.", "set": {"allowed_values": ["c"]}},
         {"text": "Only values in [Values](#v) are allowed.",
-         "set": {"allowed_values_from": [{"table": "tbl-missing", "column": "Status Value"}]}},
+         "set": {"allowed_values_from": [{"table": "tbl-missing", "column": "Status Value"}],
+                 "client_values_from": [{"table": "tbl-v", "column": "Status Value",
+                                         "where": {"Owner": ["client"]}}]}},
         {"text": "Begins with a plus.", "object": {"conditions": [{"if": {"x": "y"}}]}},
+        {"text": "Server assigns one.", "set": {"pattern": "x"},
+         "object": {"at_least_one_status_by_server": True}},
+        {"text": "Client may omit it.", "object": {"at_least_one_status_by_server": False}},
     ])
     assert sum("[MAPPING STALE]" in e for e in errors) == 1, errors
     assert sum("[MAPPING CONFLICT] widgetProcess.dir" in e for e in errors) == 1, errors
     assert sum("no table 'tbl-missing'" in e for e in errors) == 1, errors
+    assert sum("no table 'tbl-v' with column 'Owner'" in e for e in errors) == 1, errors
     assert sum("need an owning object" in e for e in errors) == 1, errors
+    assert sum("'set' fields need an element" in e for e in errors) == 1, errors
+    assert sum("[MAPPING CONFLICT] widgetStatus: 'at_least_one_status_by_server'" in e
+               for e in errors) == 1, errors
 
 
 def _test_validate_prose_mappings_rejects_bad_entries():
@@ -4991,14 +5073,18 @@ def _test_validate_prose_mappings_rejects_bad_entries():
         {"text": "Bad key.", "set": {"enum": ["a"]}},
         {"text": "Bad range.", "set": {"range": {"lo": 1}}},
         {"text": "Bad ref.", "set": {"allowed_values_from": [{"table": "t"}]}},
+        {"text": "Bad where.", "set": {"client_values_from": [
+            {"table": "t", "column": "c", "where": {"Set By": "client"}}]}},
         {"text": "Bad condition.", "object": {"conditions": [{"require": ["a"]}]}},
         {"text": "Bad entry key.", "set": {}, "where": "x"},
+        {"text": "Bad flag.", "object": {"at_least_one_status_by_server": "yes"}},
     ]}, "test")
     assert [m["text"] for m in mappings] == ["Fine."], mappings
     for needle in ("duplicate 'text'", "needs 'set' and/or 'object'",
                    "unknown 'set' key 'enum'", "'range' takes only",
-                   "need table and column", "each condition needs",
-                   "unknown key 'where'"):
+                   "need table and column", "where maps a column",
+                   "each condition needs",
+                   "unknown key 'where'", "must be true or false"):
         assert sum(needle in e for e in errors) == 1, (needle, errors)
     assert validate_prose_mappings([], "test") == (
         [], ["[MAPPING INVALID] test: top-level 'mappings' list missing"])
@@ -5013,6 +5099,17 @@ def _test_prose_mappings_file_applies_cleanly_to_draft():
     model = build_yaml_model(normative, section_notes, common_types)
     errors += apply_prose_mappings(model, mappings)
     assert errors == [], errors
+    split = [e["restrictions"] for obj in model["components"] for e in obj["elements"]
+             if "client_values" in e["restrictions"]]
+    assert len(split) == 6, split  # one per status component
+    for r in split:  # every status value is client-settable or server-only
+        assert sorted(r["allowed_values"]) == sorted(
+            r["client_values"] + r["server_only_values"]), r
+    flagged = sorted(o["identifier"] for o in model["components"]
+                     if o.get("at_least_one_status_by_server")
+                     and o.get("status_not_required_for_client_request"))
+    assert flagged == ["contactStatus", "domainStatus", "hostStatus",
+                       "organisationStatus", "userStatus"], flagged
     assert {t["name"] for t in model["common_data_types"]} >= {
         "Identifier", "Client Identifier", "Phone Number"}, model["common_data_types"]
 
