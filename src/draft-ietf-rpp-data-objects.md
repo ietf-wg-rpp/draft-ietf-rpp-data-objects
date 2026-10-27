@@ -1436,6 +1436,94 @@ The `linked` status MAY be combined with `clientLinkProhibited` or `serverLinkPr
 
 Other status combinations not expressly prohibited MAY be used.
 
+## User Status Object
+
+* Name: User Status Object
+* Identifier: userStatus
+* Description: Represents the status value associated with a User Data Object. A User Data Object MUST always have exactly one associated status value.
+* Data Elements:
+  * Label
+    * Identifier: label
+    * Cardinality: 1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: machine-readable enum label of a status
+    * Constraints:
+      * Only status values defined in [Status Values](#user-status-values) are allowed.
+  * Reason
+    * Identifier: reason
+    * Cardinality: 0-1
+    * Mutability: create-only
+    * Data Type: String
+    * Description: a human-readable text that describes the rationale for the status applied to the object.
+    * Constraints: None
+
+### Status Values {#user-status-values}
+
+The `pending` status value is server-managed. The `suspended` and `deactivated` status values are server-managed and MAY additionally be client-managed by a client with permission to manage users in the owning organisation, based on server policy. The `active` status value is set and removed by the server as other status values are added or removed.
+
+| Status Value | Description |
+|--------------|-------------|
+| active | This is the normal status value for a user that is permitted to authenticate and act within the permissions of its roles. |
+| pending | The user has been created, but activation has not been completed by the server. Server operators can delay activation for a variety of reasons, such as to allow for verification of the user's details or human review. Requests authenticated as the user MUST be rejected. |
+| suspended | The user has been temporarily suspended. Requests authenticated as the user MUST be rejected. |
+| deactivated | The user has been deactivated. Requests authenticated as the user MUST be rejected. |
+Table: User Status Values
+{#tbl-user-status-values}
+
+### Allowed Transitions
+
+The following diagram describes the allowed status transitions for a user object.
+
+```ascii
+                    |
+                    v
+        +------------------------+
+        |  status: pending (1)   |
+        +------------------------+
+                    |  activation completed (2)
+                    v
+   +--------+       (3)       +-----------+
+   | active |---------------->| suspended |
+   |        |<----------------|           |
+   +--------+       (4)       +-----------+
+        |                           |
+        | (5)                       | (5)
+        v                           v
+   +-------------------------------------+
+   |             deactivated             |
+   +-------------------------------------+
+                    |
+                    |  delete completed (6)
+                    v
+              +-----------+
+              |  Purged   |
+              +-----------+
+```
+Figure: User Object State Diagram
+{#fig-user-state-diagram}
+
+State descriptions:
+
+1. A create operation is received and processed. If the server defers activation, the object enters the `pending` state. If the server activates the user immediately, the object enters the `active` state directly.
+2. Activation completes and the `pending` status is replaced by `active`.
+3. A `suspended` status is set, replacing `active`.
+4. The `suspended` status is removed and the object returns to `active`, by the same parties that are allowed to set it.
+5. A `deactivated` status is set, from either `active` or `suspended`. Whether and how an object can leave the `deactivated` state is subject to server policy.
+6. A delete operation completes and the object is purged. A delete operation can be received in any state; only the transition from `deactivated` is depicted.
+
+### Pending Status Removal
+
+When activation has been completed, the `pending` status value MUST be replaced by `active`. The client that created the user MUST be notified using a service message that activation has been completed and that the status of the object has changed.
+
+### Status Exclusions
+
+| Status Value | MUST NOT be combined with |
+|--------------|----------------------------|
+| active, pending, suspended, deactivated | Each other (mutually exclusive); a user MUST have exactly one of these statuses |
+Table: User Status Exclusions
+{#tbl-user-status-exclusions}
+
 ## DNS Resource Record Object
 
 * Name: DNS Resource Record Object
@@ -3033,7 +3121,7 @@ The following data elements are defined for the Organisation Data Object.
     * An organisation MAY have multiple roles with different role types.
     * Role types are registered in the IANA "EPP Organisation Role Values" registry as defined in [@!RFC8543, section 7.3]. Initial values include `registrar`, `reseller`, `privacyproxy`, and `dns-operator`.
 
-* Parent Organisation ID
+* Parent Organisation
   * Identifier: parent
   * Cardinality: 0-1
   * Mutability: read-write
@@ -3274,13 +3362,13 @@ The following data elements are defined for the User Data Object.
   * Identifier: status
   * Cardinality: 1
   * Mutability: read-write
-  * Data Type: String
-    * Constraints: The value MUST be one of the status tokens defined in the IANA registry for user statuses.
-    * Constraints: Possible values include `active`, `suspended`, `deactivated`, and `pending`.
-  * Description: The status of the user
-  * Constraints: -
-* Organisation ID
-  * Identifier: organisationId
+  * Data Type: User Status Object
+  * Description: The current status of the user.
+  * Constraints:
+    * Allowed status values and transitions are specified in [User Status Values](#user-status-values).
+    * A client MUST NOT alter server status values set by the server itself.
+* Organisation
+  * Identifier: organisation
   * Cardinality: 1
   * Mutability: read-only
   * Data Type: Aggregation[Organisation Data Object]
@@ -3751,6 +3839,23 @@ Object Name: Organisation Status Object
 Object Type: Component
 
 Description: Represents one of the status values associated with an Organisation Data Object, as defined in [@!RFC8543, section 3.4]. An Organisation Data Object MUST always have at least one associated status value.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability  | Data Type | Description                                                                              |
+| ------------------ | ------------ | ----- | ----------- | --------- | ---------------------------------------------------------------------------------------- |
+| label              | Label        | 1     | create-only | String    | machine-readable enum label of a status                                                  |
+| reason             | Reason       | 0-1   | create-only | String    | a human-readable text that describes the rationale for the status applied to the object. |
+
+
+Object: userStatus
+
+Object Name: User Status Object
+
+Object Type: Component
+
+Description: Represents the status value associated with a User Data Object. A User Data Object MUST always have exactly one associated status value.
 
 Reference: [This-ID]
 
@@ -4360,7 +4465,7 @@ Data Elements
 | provMetadata | Provisioning Metadata  | 1     | read-only   | Provisioning Metadata Object                     | Standard metadata about the object's lifecycle and ownership.                               |
 | status       | Status                 | 1+    | read-write  | Organisation Status Object                       | The current operational status descriptors for the organisation.                            |
 | roles        | Roles                  | 1+    | read-write  | DictionaryComposition [Organisation Role Object] | One or more roles describing the organisation's relationship within the registry ecosystem. |
-| parent       | Parent Organisation ID | 0-1   | read-write  | Aggregation [Organisation Data Object]           | The parent organisation in a hierarchical organisation structure.                           |
+| parent       | Parent Organisation | 0-1   | read-write  | Aggregation [Organisation Data Object]           | The parent organisation in a hierarchical organisation structure.                           |
 | contactInfo  | Contact Information    | 0-1   | read-write  | External:RPP-JSContact-Profile:Card              | Contact information.                                                                        |
 | contacts     | Contacts               | 0+    | read-write  | LabelledAggregation[Contact Data Object]         | Identifiers of contact objects associated with the organisation.                            |
 | users        | Users                  | 0+    | read-write  | LabelledAggregation [User Data Object]           | Identifiers of user objects associated with the organisation.                               |
@@ -4482,14 +4587,14 @@ Description: Represents a user linked to an Organisation Data Object. Each user 
 Reference: [This-ID]
 
 Data Elements
-| Identifier     | Name            | Card. | Mutability  | Data Type                           | Description                                                                    |
-|----------------|-----------------|-------|-------------|-------------------------------------|--------------------------------------------------------------------------------|
-| id             | User Identifier | 1     | create-only | Identifier                          | A unique identifier for the user. MUST be globally unique in the server scope. |
-| details        | Details         | 1     | read-write  | External:RPP-JSContact-Profile:Card | The details of the user.                                                       |
-| status         | Status          | 1     | read-write  | String                              | The status of the user.                                                        |
-| processes      | Processes       | 0-1   | read-only   | Processes Object                    | Process Objects initiated on the user object.                                  |
-| description    | Description     | 0-1   | read-write  | String                              | A description of the user                                                      |
-| organisationId | Organisation ID | 1     | read-only   | Aggregation [Organisation Data Object]  | A reference to the owner organisation object.                                  |
+| Identifier   | Name            | Card. | Mutability  | Data Type                              | Description                                                                    |
+|--------------|-----------------|-------|-------------|----------------------------------------|--------------------------------------------------------------------------------|
+| id           | User Identifier | 1     | create-only | Identifier                             | A unique identifier for the user. MUST be globally unique in the server scope. |
+| details      | Details         | 1     | read-write  | External:RPP-JSContact-Profile:Card    | The details of the user.                                                       |
+| status       | Status          | 1     | read-write  | User Status Object                     | The current status of the user.                                                |
+| processes    | Processes       | 0-1   | read-only   | Processes Object                       | Process Objects initiated on the user object.                                  |
+| description  | Description     | 0-1   | read-write  | String                                 | A description of the user                                                      |
+| organisation | Organisation    | 1     | read-only   | Aggregation [Organisation Data Object] | A reference to the owner organisation object.                                  |
 
 Operations
 
@@ -4993,6 +5098,35 @@ The initial registrations for the RPP Organisation Status Values registry are th
 Table: Initial RPP Organisation Status Values Registrations
 {#tbl-organisation-status-registry}
 
+## RPP User Status Values Registry
+
+This document establishes the "RESTful Provisioning Protocol (RPP) User Status Values Registry".
+
+```text
+Name of the registry: RPP User Status Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable status label, for example "suspended".
+- `description`: A human-readable description of the status and the conditions under which it applies.
+- `reference`: A reference to the specification that defines the status value.
+
+### Initial Registrations
+
+The initial registrations for the RPP User Status Values registry are the status values defined in (#tbl-user-status-values), reproduced below with their reference.
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| active | This is the normal status value for a user that is permitted to authenticate and act within the permissions of its roles. | [This-ID] |
+| pending | The user has been created, but activation has not been completed by the server. Server operators can delay activation for a variety of reasons, such as to allow for verification of the user's details or human review. Requests authenticated as the user MUST be rejected. | [This-ID] |
+| suspended | The user has been temporarily suspended. Requests authenticated as the user MUST be rejected. | [This-ID] |
+| deactivated | The user has been deactivated. Requests authenticated as the user MUST be rejected. | [This-ID] |
+Table: Initial RPP User Status Values Registrations
+{#tbl-user-status-registry}
+
 ## URN Sub-namespace for RPP (urn:ietf:params:rpp)
 
 The IANA is requested to add the following value to the "IETF URN Sub-namespace for Registered Protocol Parameter Identifiers" registry, following the template in [@!RFC3553]:
@@ -5071,6 +5205,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition
 * Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
 * defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
