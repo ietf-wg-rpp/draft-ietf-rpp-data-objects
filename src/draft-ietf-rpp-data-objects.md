@@ -4293,7 +4293,10 @@ Operation Identifier: create
 
 Description: Initiates recovery of a domain name in the rgpRedemptionPeriod state by creating a Restore Process Object. This operation is OPTIONAL and is only available when the RGP feature is supported.
 
-Input Data Elements: (None)
+Input Data Elements
+| Identifier    | Name           | Card. | Data Type             | Description                                                                                                                                                                                                                                                                                                                                                                                  |
+|---------------|----------------|-------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| restoreReport | Restore Report | 0-1   | Restore Report Object | An OPTIONAL inline restore report. If provided, the server processes the request and the report atomically. If the server does not require a restore report, this element MUST NOT be present and the restore is completed immediately. If the server requires a report and this element is absent, the object transitions to `pendingRestore` state awaiting a subsequent Report operation. |
 
 Parameters: (None)
 
@@ -4313,7 +4316,10 @@ Operation Identifier: update
 
 Description: Submits or replaces the restore report for a domain name in the rgpPendingRestore state. This operation is OPTIONAL and is only available when the RGP feature is supported and the server requires a restore report.
 
-Input Data Elements: (None)
+Input Data Elements
+| Identifier    | Name           | Card. | Data Type             | Description                                                    |
+|---------------|----------------|-------|-----------------------|----------------------------------------------------------------|
+| restoreReport | Restore Report | 1     | Restore Report Object | The restore report to be submitted as part of the RGP process. |
 
 Parameters: (None)
 
