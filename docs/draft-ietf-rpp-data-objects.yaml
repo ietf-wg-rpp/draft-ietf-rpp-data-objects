@@ -1735,7 +1735,7 @@ components:
   supported_processes: []
   conditions: []
 - identifier: authInfo
-  name: Authorisation Information
+  name: Authorisation Information Object
   object_type: Component
   unique_identifier: ''
   owner: ''
@@ -1779,7 +1779,7 @@ components:
   supported_processes: []
   conditions: []
 - identifier: disclose
-  name: Disclose
+  name: Disclose Object
   object_type: Component
   unique_identifier: ''
   owner: ''
