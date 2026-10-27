@@ -51,7 +51,7 @@ original behaviour (consistency report to stdout, `--check` on by default).
 
 Exit code 0 = no errors (or `--no-check`); exit code 1 = at least one
 consistency error, or a `--yaml-out` export refused because of attributes
-it does not cover (see [YAML export](#yaml-export)). Orphan-prose warnings (see below) never affect the exit
+it does not cover or a prose-mapping error (see [YAML export](#yaml-export)). Orphan-prose warnings (see below) never affect the exit
 code.
 
 ### Report levels
@@ -105,6 +105,8 @@ captured there too. With `--no-check` there is no report; at `warning` or
 | `[OP MISSING IDENTIFIER]` | Normative operation heading has no `* Identifier:` bullet |
 | `[OP DESC EMPTY]` | IANA operation Description field is blank; normative has a description |
 | `[OP SECTION MISSING IN IANA]` | IANA operation declares neither a table nor `(None)` for `Input Data Elements` or for `Parameters` |
+| `[OP IO INVALID]` | Normative-only (`check_operation_io()`): an `Input`/`Output` value outside the "Operation Input and Output" notation, or an item target that is neither a normative object's Name nor `This Object` / `Owner Data Object` (the latter only in a Process Object) |
+| `[OP IO MISSING]` | Normative-only: an operation has no `Input` or no `Output`, neither declared nor given by a Uniform interface default |
 
 Note: `[OP MISSING IDENTIFIER]` is reported even when the parent object itself
 is `[MISSING IN IANA]`, so identifier gaps are always surfaced.
@@ -440,13 +442,27 @@ which is never exported: it blocks `--yaml-out` instead.
 
 ### What is NOT parsed (prose)
 
-The script never derives structure from prose. Information that the draft
-states only in prose — e.g. which status table a `label` element's values
-come from (a link inside a Constraints sentence), what a resource Create
-operation takes beyond its own elements, or which Process Object it
-implicitly initiates — is not exported as a structured field; it stays in
-`constraints`/`description`/`notes` as text. The fix is a structured
-bullet in the draft, not a heuristic in the script.
+The script never derives structure from prose by itself. Information that
+the draft states only in prose — e.g. what a resource Create operation
+takes beyond its own elements, or which Process Object it implicitly
+initiates — stays in `constraints`/`description`/`notes` as text. The fix
+is a structured bullet in the draft, not a heuristic in the script.
+
+The one exception is an explicit list of verbatim sentences in
+[prose_mappings.yaml](prose_mappings.yaml), each paired with the
+structured fields it stands for (see [Prose mappings](#prose-mappings)).
+The script only looks for those exact strings; it never interprets wording,
+keywords or link text.
+
+### Common Data Types
+
+Every H2 heading under `# Common Data Types` is parsed into a
+`CommonTypeDef` (`parse_common_data_types()`): `name` (heading text),
+`anchor`, `line`, and `description` (its body via
+`_parse_subsection_body()`: one entry per paragraph or top-level bullet,
+asides dropped). The section's own intro paragraph is not exported. Their
+syntax is prose only in the draft; structured `restrictions` come from
+prose mappings.
 
 ### Operation identifier requirement
 
@@ -458,27 +474,36 @@ emitted, even when the parent object has no IANA entry yet.
 
 ### Input data elements and parameters
 
-An operation's Input Data Elements and Parameters are bullet definitions
-following a **lead-in line** (`_op_section_marker_kind()`): a non-bullet,
-non-heading prose line in the operation body that ends with `:` and names
-exactly one of the kinds — "input data element(s)" or "parameter(s)"
-(case-insensitive). A line naming both kinds is ambiguous and stays orphan
-prose. Each section runs from its lead-in line to the next lead-in line or
-the end of the operation block, so both kinds may appear in one operation,
-in either order.
+An operation's Input Data Elements and Parameters are listed under an
+`* Input Data Elements:` / `* Parameters:` item of its `* Input:`
+attribute, laid out exactly like an object's `* Data Elements:` list: one
+`* <Name>` entry per definition, its attribute bullets one level deeper
+(`_parse_io_definition()`; indentation read from the source).
 
-Each definition bullet must have at minimum an `* Identifier:` sub-bullet;
+```
+* Input:
+  * Reference: This Object
+  * Parameters:
+    * Hosts Filter
+      * Identifier: hostsFilter
+      * Cardinality: 0-1
+      * ...
+```
+
+Each of the two items is allowed in Input only and at most once, with a
+blank inline value and at least one entry (`[OP IO INVALID]` otherwise). Their
+definitions also fill `OperationDef.inputs` / `params` for the IANA check.
+No sentence in the operation body is a marker: a former lead-in line such
+as "The following parameters are defined for this operation:" is plain
+orphan prose.
+
+Each definition must have at minimum an `* Identifier:` sub-bullet
+(`[OP IO INVALID]` otherwise);
 `* Cardinality:`, `* Data Type:`, `* Description:` and `* Constraints:`
 (`PARAM_ATTR_KEYS`) are captured when present. Any other attribute bullet
 is kept verbatim in `extra_attrs` and reported as
 `[INPUT|PARAM ATTR NOT APPLICABLE]`; it is never exported and blocks
-`--yaml-out`. Operation field bullets (`* Input:`,
-`* Output:`, `* Authorisation:`) inside a section are parsed as fields, not
-as definitions.
-
-Lead-in lines without the words above (e.g. the former "transient data
-element" wording) are not recognised: their bullets are not parsed as
-definitions and their text shows up as orphan prose.
+`--yaml-out`.
 
 ### Constraints (and other list-valued attributes)
 
@@ -518,21 +543,32 @@ differs from elements/objects:
 - **Description** is never a `* Description:` bullet (that form is
   element/object-only) — it is plain prose written directly after
   `* Identifier:`. Every prose paragraph between `* Identifier:` and the
-  first recognised field bullet below (or the first input/parameter lead-in
-  line) is the description, newline-joined if there is more than one
+  first recognised field bullet below is the description, newline-joined if there is more than one
   paragraph.
 - **`* Authorisation:`** always has a blank inline value followed by a
   nested bullet list — parsed the same way as a Constraints sub-list (one
   string per top-level bullet, deeper nesting such as "Pull transfer:" /
   "Push transfer:" sub-cases newline-folded into that entry). Its
   indentation is read from the source, not assumed.
-- **`* Input:`** / **`* Output:`** are captured as plain strings: the inline
-  value, or — when the inline value is blank — the items of the nested
-  bullet list, newline-joined.
-- Field bullets are recognised anywhere after the description, in any order
-  (e.g. `* Output:` after a list of input data elements).
-- Any prose after the description that is not a field bullet, lead-in line
-  or input/parameter definition (e.g. a further explanatory paragraph
+- **`* Input:`** / **`* Output:`** follow the draft's "Operation Input and
+  Output" notation and are parsed into `IOItemDef` lists
+  (`_parse_io_items()`): inline `(None)` gives `[]`; otherwise each nested
+  bullet `<Kind>: <target>` (`Reference`, `Object`) is one item,
+  with optional sub-bullets `* Elements: <mutability>, …` (Object,
+  required) and `* Cardinality: <card>` (Object only, default `1`); an
+  `Input Data Elements` / `Parameters` item carries definitions (see
+  [Input data elements and parameters](#input-data-elements-and-parameters)). Any
+  other form is recorded in `io_errors` and reported as `[OP IO INVALID]`;
+  free text is never interpreted. An absent attribute stays `None`.
+- **Uniform interface defaults.** `parse_uniform_interface()` parses the
+  headings under `### Uniform interface` (`#### Create`, …) the same way,
+  keyed by the lower-cased heading text. `apply_uniform_interface()` gives
+  every Data Object operation with that identifier the default Input
+  and/or Output it does not declare itself. Every operation must end up
+  with both (`[OP IO MISSING]`).
+- Field bullets are recognised anywhere after the description, in any order.
+- Any prose after the description that is not a field bullet with its
+  nested list (e.g. a further explanatory paragraph
   following Authorisation) is NOT part of the description — it stays in the
   operation's `notes`.
 
@@ -738,8 +774,8 @@ the list items at the source.
 | `_object_lead_prose()` | start of `ObjectDef.preamble` | from just after an object's heading to its `* Name:` bullet |
 | `_parse_object_body()` | `ObjectDef.preamble` | from the end of the object's header attribute bullets to its first element/operation |
 | `_parse_normative_elements_nested()` / `_parse_normative_elements_flat()` | `ElementDef.notes` | from just after the element header bullet to the next element (or block end) |
-| `_parse_normative_operations_nested()` (via `_parse_operation_body_fields()`) | `OperationDef.notes` | the operation body after the description, excluding field bullets (with nested lists), input/parameter lead-in lines and each parsed definition's own range |
-| `_parse_normative_params_from_bullets()` | `ParamDef.notes` (in `inputs` or `params`) | from just after the definition's header bullet to the next 0-indent bullet (or section end) |
+| `_parse_normative_operations_nested()` (via `_parse_operation_body_fields()`) | `OperationDef.notes` | the operation body after the description, excluding field bullets with their nested lists |
+| `_parse_io_definition()` | `ParamDef.notes` (an entry of an Input Data Elements / Parameters item) | the entry's own nested lines |
 | `_parse_subsection_body()` | `SubsectionDef.notes` | a generic subsection's body — prose paragraphs and 0-indent bullet lists, in document order (not `extract_orphan_prose`, which treats bullets as headers to skip; see **Generic subsections** above) |
 
 ### Warnings
@@ -764,7 +800,8 @@ model by `--check`, not re-exported) to `PATH` as YAML.
 
 ### Structure
 
-Top-level keys: `section_notes`, `components`, `processes`, `resources`.
+Top-level keys: `section_notes`, `common_data_types`, `components`,
+`processes`, `resources`.
 `components`/`processes`/`resources` each hold a list of objects, keyed by
 `ObjectDef.obj_type` via `OBJ_TYPE_TO_YAML_KEY` (note: `obj_type` reflects
 the object's *actual* type, not necessarily its enclosing H1 section — see
@@ -786,6 +823,7 @@ elements:
     data_type: String
     description: "..."
     constraints: []        # list of strings — see Constraints above
+    restrictions: {}       # structured rules from prose mappings
     direct_access: false   # "* Direct Access:"; false if absent
     visibility: default    # "* Visibility:"; "default" if absent
     notes: []              # orphan prose inside this element's own block
@@ -794,18 +832,23 @@ operations:
     name: Create Operation
     description: "..."     # prose after "* Identifier:" — see Operation body fields above
     authorisation: []      # list of strings — see Operation body fields above
-    input: ""
-    output: ""
+    input:                 # IOItemDef items; [] for "(None)"
+      - kind: Reference
+        target: This Object
+        elements: []
+        cardinality: "1"
+      - kind: Parameters   # or "Input Data Elements"
+        definitions:
+          - identifier: ...
+            name: ...
+            cardinality: "..."
+            data_type: "..."
+            description: "..."
+            constraints: []
+            restrictions: {}
+            notes: []
+    output: []
     notes: []              # orphan prose beyond description/authorisation/input/output
-    inputs:                # Input Data Elements
-      - identifier: ...
-        name: ...
-        cardinality: "..."
-        data_type: "..."
-        description: "..."
-        constraints: []
-        notes: []
-    params: []             # Parameters — same shape as inputs
 subsections:                # non-Data-Elements/Operations/Processes headings
   - heading: "RDATA Structures in EPP Profile"
     anchor: "{#rdata-structures}"
@@ -822,7 +865,50 @@ supported_processes:        # inherited-process bullets from the object's "## Pr
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
     constraints: []          # list of strings — same convention as element/param Constraints
     notes: []                # orphan prose inside this entry's own block
+conditions: []              # cross-element rules from prose mappings
 ```
+
+Each `common_data_types` entry:
+
+```yaml
+name: Phone Number
+anchor: ""
+description: ["Telephone number syntax is derived from ..."]
+restrictions: {base_type: String, pattern: '^\+[0-9]{1,3}\.[0-9]{1,14}(x[0-9]+)?$'}
+```
+
+### Prose mappings
+
+[prose_mappings.yaml](prose_mappings.yaml) (`PROSE_MAPPINGS_FILE`) holds a
+`mappings:` list; each entry has a verbatim `text`, and `set` and/or
+`object` (plus an optional `note` for maintainers). The file's header
+comment lists every key. `build_yaml_model()` starts every element, input,
+parameter and Common Data Type with `restrictions: {}` and every object
+with `conditions: []`; `apply_prose_mappings()` then, for each mapping:
+
+1. searches `text` as an exact substring of every element/input/parameter
+   `description` and `constraints` entry and every Common Data Type
+   `description` entry, in the whole model (text-only matching: no
+   location is named, so one sentence used by several elements needs one
+   entry);
+2. removes it from each text it occurs in (with one adjoining space); a
+   constraint or description entry left empty is dropped;
+3. merges `set` into that holder's `restrictions`, resolving
+   `allowed_values_from` (`[{table, column}]`, table by anchor without
+   `{#`/`}`) into `allowed_values` from the parsed subsection tables;
+4. appends `object.conditions` to the object owning the holder.
+
+The mappings change only the YAML model; the parsed `ObjectDef`s and the
+IANA check are not affected. `--yaml-out` fails (stderr, no file, exit 1)
+on:
+
+- `[MAPPING INVALID]` — file missing, bad shape, unknown key, duplicate
+  `text` (`validate_prose_mappings()`), an unresolvable table/column, or
+  `object` fields on a Common Data Type (which has no owning object);
+- `[MAPPING STALE]` — `text` found nowhere: the draft wording changed,
+  so update or drop the entry;
+- `[MAPPING CONFLICT]` — two mappings set one restriction of one holder to
+  different values.
 
 Nothing in the structured fields is duplicated into `notes`/`preamble`/
 `section_notes`/`subsections` and vice versa — those fields hold only the
@@ -838,6 +924,8 @@ holds information the export routine does not cover. `yaml_export_errors()`
 collects these; when there are any, `--yaml-out` prints them to stderr,
 writes no file and sets exit code 1, whether or not `--check` runs. Fix the
 draft, or extend the model (a new field) — never export them generically.
+Prose-mapping errors (see [Prose mappings](#prose-mappings)) block the
+export the same way.
 
 ### Header comment
 
@@ -872,8 +960,10 @@ list-parsing for nested and flat element/parameter layouts (including
 blank-line/`A>`-aside tolerance between attribute bullets (elements,
 parameters, and object headers); operation description/authorisation/
 input/output field parsing, including the multi-paragraph-description-vs-
-trailing-notes split; input data element / parameter lead-in detection,
-section splitting, out-of-order field bullets and `extra_attrs`; the
+trailing-notes split; Input Data Elements / Parameters items (several entries, nested
+constraints, rejection in Output, repeated/inline/empty items, a former
+lead-in line as orphan prose) and
+`extra_attrs`; the
 YAML export refusing uncovered attributes; IANA
 `Input Data Elements`/`Parameters` section parsing (including absence);
 the operation-input checks (kind mismatch, missing in either direction,
@@ -887,10 +977,14 @@ orphan-prose extraction (paragraph joining, aside skipping,
 empty-when-fully-structured, fenced blocks skipped); unique
 identifier and owner; Direct Access/Visibility parsing and the element
 attribute checks; the element list ending at a heading; subsection tables
-and nesting; Organisation/User section recognition; an
+and nesting; Input/Output notation parsing, the Uniform interface
+defaults and the operation Input/Output check; Organisation/User section recognition; an
 end-to-end check that the real draft's `organisation`/`user` objects parse;
-YAML model structure; and a YAML round-trip (render → `yaml.safe_load` →
-verify).
+YAML model structure; a YAML round-trip (render → `yaml.safe_load` →
+verify); Common Data Type parsing; prose mappings (fragment removal,
+restrictions, table-resolved `allowed_values`, conditions, stale/conflict/
+invalid errors, file-shape validation); and an end-to-end check that every
+entry of `prose_mappings.yaml` matches the real draft.
 
 When changing parsing behaviour or the YAML schema, add or update a `_test_*`
 function in the same change — do not verify by hand-running the script and
