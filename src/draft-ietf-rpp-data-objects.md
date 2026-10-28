@@ -849,25 +849,27 @@ with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
 do not begin with either "client" or "server" are server-managed. Status values that begin with "rgp" are related to the Redemption Grace Period (RGP) and are also server-managed. A client MUST NOT alter status values set by the server. A server MAY alter or override status values set by a client, subject to local server policies.
 
-| Status Value | Description |
-|--------------|-------------|
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
-| clientHold | DNS delegation information MUST NOT be published for the object. |
-| serverHold | DNS delegation information MUST NOT be published for the object. |
-| clientRenewProhibited | Requests to renew the object MUST be rejected. |
-| serverRenewProhibited | Requests to renew the object MUST be rejected. |
-| clientTransferProhibited | Requests to transfer the object MUST be rejected. |
-| serverTransferProhibited | Requests to transfer the object MUST be rejected. |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| inactive | Delegation information has not been associated with the object. This is the default status when a domain object is first created and there are no associated host objects for the DNS delegation. This status can also be set by the server when all host-object associations are removed. |
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingRenew | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits. A server MUST assign at least one status value to the object. A client is not required to provide a status value when creating or updating the object.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. |
+| clientHold | client | DNS delegation information MUST NOT be published for the object. |
+| serverHold | server | DNS delegation information MUST NOT be published for the object. |
+| clientRenewProhibited | client | Requests to renew the object MUST be rejected. |
+| serverRenewProhibited | server | Requests to renew the object MUST be rejected. |
+| clientTransferProhibited | client | Requests to transfer the object MUST be rejected. |
+| serverTransferProhibited | server | Requests to transfer the object MUST be rejected. |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. |
+| inactive | server | Delegation information has not been associated with the object. This is the default status when a domain object is first created and there are no associated host objects for the DNS delegation. This status can also be set by the server when all host-object associations are removed. |
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingRenew | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingTransfer | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
 Table: Domain Name Status Values
 {#tbl-domain-status-values}
 
@@ -962,15 +964,17 @@ Other status combinations not expressly prohibited MAY be used.
 
 Status values that begin with "rgp" are related to the Redemption Grace Period (RGP) and are server-managed.
 
-| Status Value | Description |
-|--------------|-------------|
-| rgpAddPeriod | This grace period is provided after the initial registration of a domain name. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the registration. |
-| rgpAutoRenewPeriod | This grace period is provided after a domain name registration period expires and is extended (renewed) automatically by the registry. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. |
-| rgpRenewPeriod | This grace period is provided after a domain name registration period is explicitly extended (renewed) by the registrar. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. |
-| rgpTransferPeriod | This grace period is provided after the successful transfer of domain name registration sponsorship from one registrar to another registrar. If the domain name is deleted by the new sponsoring registrar during this period, the registry provides a credit to the registrar for the cost of the transfer. |
-| rgpRedemptionPeriod | This status value is used to describe a domain for which a delete operation has been received, but the domain has not yet been purged because an opportunity exists to restore the domain and abort the deletion process. |
-| rgpPendingRestore | This status value is used to describe a domain that is in the process of being restored after being in the rgpRedemptionPeriod state. |
-| rgpPendingDelete | This status value is used to describe a domain that has entered the purge processing state after completing the rgpRedemptionPeriod state.  A domain in this status MUST also be in the pendingDelete status described above. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| rgpAddPeriod | server | This grace period is provided after the initial registration of a domain name. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the registration. |
+| rgpAutoRenewPeriod | server | This grace period is provided after a domain name registration period expires and is extended (renewed) automatically by the registry. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. |
+| rgpRenewPeriod | server | This grace period is provided after a domain name registration period is explicitly extended (renewed) by the registrar. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. |
+| rgpTransferPeriod | server | This grace period is provided after the successful transfer of domain name registration sponsorship from one registrar to another registrar. If the domain name is deleted by the new sponsoring registrar during this period, the registry provides a credit to the registrar for the cost of the transfer. |
+| rgpRedemptionPeriod | server | This status value is used to describe a domain for which a delete operation has been received, but the domain has not yet been purged because an opportunity exists to restore the domain and abort the deletion process. |
+| rgpPendingRestore | server | This status value is used to describe a domain that is in the process of being restored after being in the rgpRedemptionPeriod state. |
+| rgpPendingDelete | server | This status value is used to describe a domain that has entered the purge processing state after completing the rgpRedemptionPeriod state.  A domain in this status MUST also be in the pendingDelete status described above. |
 Table: Redemption Grace Period Status Values
 {#tbl-rgp-status-values}
 
@@ -1054,18 +1058,20 @@ with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
 do not begin with either "client" or "server" are server-managed. A client MUST NOT alter status values set by the server. A server MAY alter or override status values set by a client, subject to local server policies.
 
-| Status Value | Description |
-|--------------|-------------|
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| linked | The host object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. |
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingTransfer | A transform command has been processed for the object's superordinate domain object (i.e. a transfer of the domain object is pending), but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits. A server MUST assign at least one status value to the object. A client is not required to provide a status value when creating or updating the object.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. |
+| linked | server | The host object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. |
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingTransfer | server | A transform command has been processed for the object's superordinate domain object (i.e. a transfer of the domain object is pending), but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
 Table: Host Status Values
 {#tbl-host-status-values}
 
@@ -1178,20 +1184,22 @@ with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
 do not begin with either "client" or "server" are server-managed. A client MUST NOT alter status values set by the server. A server MAY alter or override status values set by a client, subject to local server policies.
 
-| Status Value | Description |
-|--------------|-------------|
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
-| clientTransferProhibited | Requests to transfer the object MUST be rejected. |
-| serverTransferProhibited | Requests to transfer the object MUST be rejected. |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| linked | The contact object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. |
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits. A server MUST assign at least one status value to the object. A client is not required to provide a status value when creating or updating the object.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. |
+| clientTransferProhibited | client | Requests to transfer the object MUST be rejected. |
+| serverTransferProhibited | server | Requests to transfer the object MUST be rejected. |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. |
+| linked | server | The contact object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. |
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingTransfer | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
 Table: Contact Status Values
 {#tbl-contact-status-values}
 
@@ -1305,12 +1313,14 @@ with "client".  Corresponding status values that can be added or
 removed by a server are prefixed with "server".  Status values that
 do not begin with either "client" or "server" are server-managed.
 
-| Status Value | Description |
-|--------------|-------------|
-| clientLinkProhibited | Requests to add new links to the role MUST be rejected. |
-| serverLinkProhibited | Requests to add new links to the role MUST be rejected. |
-| linked | The role has at least one active association with another object. This value is set and removed by the server and is not explicitly set by the client. |
-| ok | This is the normal status value for a role that has no active prohibitions. This value is set and removed by the server as other status values are added or removed. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| clientLinkProhibited | client | Requests to add new links to the role MUST be rejected. |
+| serverLinkProhibited | server | Requests to add new links to the role MUST be rejected. |
+| linked | server | The role has at least one active association with another object. This value is set and removed by the server and is not explicitly set by the client. |
+| ok | server | This is the normal status value for a role that has no active prohibitions. This value is set and removed by the server as other status values are added or removed. |
 Table: Organisation Role Status Values
 {#tbl-organisation-role-status-values}
 
@@ -1385,21 +1395,23 @@ Other status combinations not expressly prohibited MAY be used.
 
 Status values that can be added or removed by a client are prefixed with "client".  Corresponding status values that can be added or removed by a server are prefixed with "server".  The `hold` and `terminated` status values are server-managed when the organisation has no parent organisation and otherwise MAY be client-managed based on server policy.  Other status values that do not begin with either "client" or "server" are server-managed.
 
-| Status Value | Description |
-|--------------|-------------|
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
-| hold | Organisation transform commands and new links MUST be rejected. |
-| terminated | The organisation has been terminated and MUST NOT be linked. Organisation transform commands and new links MUST be rejected. |
-| linked | The organisation object has at least one active association with another object. This value is not explicitly set by the client. Servers SHOULD provide services to determine existing object associations. |
-| clientLinkProhibited | Requests to add new links to the organisation MUST be rejected. |
-| serverLinkProhibited | Requests to add new links to the organisation MUST be rejected. |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. |
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits. A server MUST assign at least one status value to the object. A client is not required to provide a status value when creating or updating the object.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. |
+| hold | client, server | Organisation transform commands and new links MUST be rejected. |
+| terminated | client, server | The organisation has been terminated and MUST NOT be linked. Organisation transform commands and new links MUST be rejected. |
+| linked | server | The organisation object has at least one active association with another object. This value is not explicitly set by the client. Servers SHOULD provide services to determine existing object associations. |
+| clientLinkProhibited | client | Requests to add new links to the organisation MUST be rejected. |
+| serverLinkProhibited | server | Requests to add new links to the organisation MUST be rejected. |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. |
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. |
 Table: Organisation Status Values
 {#tbl-organisation-status-values}
 
@@ -1506,12 +1518,14 @@ Other status combinations not expressly prohibited MAY be used.
 
 The `pending` status value is server-managed. The `suspended` and `deactivated` status values are server-managed and MAY additionally be client-managed by a client with permission to manage users in the owning organisation, based on server policy. The `active` status value is set and removed by the server as other status values are added or removed.
 
-| Status Value | Description |
-|--------------|-------------|
-| active | This is the normal status value for a user that is permitted to authenticate and act within the permissions of its roles. |
-| pending | The user has been created, but activation has not been completed by the server. Server operators can delay activation for a variety of reasons, such as to allow for verification of the user's details or human review. Requests authenticated as the user MUST be rejected. |
-| suspended | The user has been temporarily suspended. Requests authenticated as the user MUST be rejected. |
-| deactivated | The user has been deactivated. Requests authenticated as the user MUST be rejected. |
+The Set By column identifies the entity that adds and removes each status value: `client`, `server`, or `client, server` for a value that the server manages and that a client can also manage where server policy permits. A server MUST assign at least one status value to the object. A client is not required to provide a status value when creating or updating the object.
+
+| Status Value | Set By | Description |
+|--------------|--------|-------------|
+| active | server | This is the normal status value for a user that is permitted to authenticate and act within the permissions of its roles. |
+| pending | server | The user has been created, but activation has not been completed by the server. Server operators can delay activation for a variety of reasons, such as to allow for verification of the user's details or human review. Requests authenticated as the user MUST be rejected. |
+| suspended | client, server | The user has been temporarily suspended. Requests authenticated as the user MUST be rejected. |
+| deactivated | client, server | The user has been deactivated. Requests authenticated as the user MUST be rejected. |
 Table: User Status Values
 {#tbl-user-status-values}
 
@@ -5025,38 +5039,39 @@ Fields to be registered:
 
 - `value`: The machine-readable status label, for example "clientDeleteProhibited".
 - `description`: A human-readable description of the status and the conditions under which it applies.
+- `set-by`: The entity that adds and removes the status value: "client", "server", or "client, server" for a value that the server manages and that a client can also manage where server policy permits.
 - `reference`: A reference to the specification that defines the status value.
 
 ### Initial Registrations
 
 The initial registrations for the RPP Domain Name Status Values registry are the status values defined in (#tbl-domain-status-values), reproduced below with their reference.
 
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| clientHold | DNS delegation information MUST NOT be published for the object. | [This-ID] |
-| serverHold | DNS delegation information MUST NOT be published for the object. | [This-ID] |
-| clientRenewProhibited | Requests to renew the object MUST be rejected. | [This-ID] |
-| serverRenewProhibited | Requests to renew the object MUST be rejected. | [This-ID] |
-| clientTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
-| serverTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| inactive | Delegation information has not been associated with the object. This is the default status when a domain object is first created and there are no associated host objects for the DNS delegation. This status can also be set by the server when all host-object associations are removed. | [This-ID] |
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingRenew | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| rgpAddPeriod | This grace period is provided after the initial registration of a domain name. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the registration. | [This-ID] |
-| rgpAutoRenewPeriod | This grace period is provided after a domain name registration period expires and is extended (renewed) automatically by the registry. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. | [This-ID] |
-| rgpRenewPeriod | This grace period is provided after a domain name registration period is explicitly extended (renewed) by the registrar. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. | [This-ID] |
-| rgpTransferPeriod | This grace period is provided after the successful transfer of domain name registration sponsorship from one registrar to another registrar. If the domain name is deleted by the new sponsoring registrar during this period, the registry provides a credit to the registrar for the cost of the transfer. | [This-ID] |
-| rgpRedemptionPeriod | This status value is used to describe a domain for which a delete operation has been received, but the domain has not yet been purged because an opportunity exists to restore the domain and abort the deletion process. | [This-ID] |
-| rgpPendingRestore | This status value is used to describe a domain that is in the process of being restored after being in the rgpRedemptionPeriod state. | [This-ID] |
-| rgpPendingDelete | This status value is used to describe a domain that has entered the purge processing state after completing the rgpRedemptionPeriod state.  A domain in this status MUST also be in the pendingDelete status described above. | [This-ID] |
+| Value | Set By | Description | Reference |
+|-------|--------|-------------|-----------|
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. | [This-ID] |
+| clientHold | client | DNS delegation information MUST NOT be published for the object. | [This-ID] |
+| serverHold | server | DNS delegation information MUST NOT be published for the object. | [This-ID] |
+| clientRenewProhibited | client | Requests to renew the object MUST be rejected. | [This-ID] |
+| serverRenewProhibited | server | Requests to renew the object MUST be rejected. | [This-ID] |
+| clientTransferProhibited | client | Requests to transfer the object MUST be rejected. | [This-ID] |
+| serverTransferProhibited | server | Requests to transfer the object MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| inactive | server | Delegation information has not been associated with the object. This is the default status when a domain object is first created and there are no associated host objects for the DNS delegation. This status can also be set by the server when all host-object associations are removed. | [This-ID] |
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingRenew | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingTransfer | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| rgpAddPeriod | server | This grace period is provided after the initial registration of a domain name. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the registration. | [This-ID] |
+| rgpAutoRenewPeriod | server | This grace period is provided after a domain name registration period expires and is extended (renewed) automatically by the registry. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. | [This-ID] |
+| rgpRenewPeriod | server | This grace period is provided after a domain name registration period is explicitly extended (renewed) by the registrar. If the domain name is deleted by the registrar during this period, the registry provides a credit to the registrar for the cost of the renewal. | [This-ID] |
+| rgpTransferPeriod | server | This grace period is provided after the successful transfer of domain name registration sponsorship from one registrar to another registrar. If the domain name is deleted by the new sponsoring registrar during this period, the registry provides a credit to the registrar for the cost of the transfer. | [This-ID] |
+| rgpRedemptionPeriod | server | This status value is used to describe a domain for which a delete operation has been received, but the domain has not yet been purged because an opportunity exists to restore the domain and abort the deletion process. | [This-ID] |
+| rgpPendingRestore | server | This status value is used to describe a domain that is in the process of being restored after being in the rgpRedemptionPeriod state. | [This-ID] |
+| rgpPendingDelete | server | This status value is used to describe a domain that has entered the purge processing state after completing the rgpRedemptionPeriod state.  A domain in this status MUST also be in the pendingDelete status described above. | [This-ID] |
 Table: Initial RPP Domain Name Status Values Registrations
 {#tbl-domain-status-registry}
 
@@ -5074,24 +5089,25 @@ Fields to be registered:
 
 - `value`: The machine-readable status label, for example "clientDeleteProhibited".
 - `description`: A human-readable description of the status and the conditions under which it applies.
+- `set-by`: The entity that adds and removes the status value: "client", "server", or "client, server" for a value that the server manages and that a client can also manage where server policy permits.
 - `reference`: A reference to the specification that defines the status value.
 
 ### Initial Registrations
 
 The initial registrations for the RPP Host Status Values registry are the status values defined in (#tbl-host-status-values), reproduced below with their reference.
 
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| linked | The host object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingTransfer | A transform command has been processed for the object's superordinate domain object (i.e. a transfer of the domain object is pending), but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| Value | Set By | Description | Reference |
+|-------|--------|-------------|-----------|
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| linked | server | The host object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingTransfer | server | A transform command has been processed for the object's superordinate domain object (i.e. a transfer of the domain object is pending), but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
 Table: Initial RPP Host Status Values Registrations
 {#tbl-host-status-registry}
 
@@ -5109,26 +5125,27 @@ Fields to be registered:
 
 - `value`: The machine-readable status label, for example "clientDeleteProhibited".
 - `description`: A human-readable description of the status and the conditions under which it applies.
+- `set-by`: The entity that adds and removes the status value: "client", "server", or "client, server" for a value that the server manages and that a client can also manage where server policy permits.
 - `reference`: A reference to the specification that defines the status value.
 
 ### Initial Registrations
 
 The initial registrations for the RPP Contact Status Values registry are the status values defined in (#tbl-contact-status-values), reproduced below with their reference.
 
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| clientTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
-| serverTransferProhibited | Requests to transfer the object MUST be rejected. | [This-ID] |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| linked | The contact object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingTransfer | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| Value | Set By | Description | Reference |
+|-------|--------|-------------|-----------|
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. | [This-ID] |
+| clientTransferProhibited | client | Requests to transfer the object MUST be rejected. | [This-ID] |
+| serverTransferProhibited | server | Requests to transfer the object MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| linked | server | The contact object has at least one active association with another object, such as a domain object. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingTransfer | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
 Table: Initial RPP Contact Status Values Registrations
 {#tbl-contact-status-registry}
 
@@ -5146,18 +5163,19 @@ Fields to be registered:
 
 - `value`: The machine-readable status label, for example "clientLinkProhibited".
 - `description`: A human-readable description of the status and the conditions under which it applies.
+- `set-by`: The entity that adds and removes the status value: "client", "server", or "client, server" for a value that the server manages and that a client can also manage where server policy permits.
 - `reference`: A reference to the specification that defines the status value.
 
 ### Initial Registrations
 
 The initial registrations for the RPP Organisation Role Status Values registry are the status values defined in (#tbl-organisation-role-status-values), reproduced below with their reference.
 
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| clientLinkProhibited | Requests to add new links to the role MUST be rejected. | [This-ID] |
-| serverLinkProhibited | Requests to add new links to the role MUST be rejected. | [This-ID] |
-| linked | The role has at least one active association with another object. This value is set and removed by the server and is not explicitly set by the client. | [This-ID] |
-| ok | This is the normal status value for a role that has no active prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| Value | Set By | Description | Reference |
+|-------|--------|-------------|-----------|
+| clientLinkProhibited | client | Requests to add new links to the role MUST be rejected. | [This-ID] |
+| serverLinkProhibited | server | Requests to add new links to the role MUST be rejected. | [This-ID] |
+| linked | server | The role has at least one active association with another object. This value is set and removed by the server and is not explicitly set by the client. | [This-ID] |
+| ok | server | This is the normal status value for a role that has no active prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
 Table: Initial RPP Organisation Role Status Values Registrations
 {#tbl-organisation-role-status-registry}
 
@@ -5175,27 +5193,28 @@ Fields to be registered:
 
 - `value`: The machine-readable status label, for example "clientDeleteProhibited".
 - `description`: A human-readable description of the status and the conditions under which it applies.
+- `set-by`: The entity that adds and removes the status value: "client", "server", or "client, server" for a value that the server manages and that a client can also manage where server policy permits.
 - `reference`: A reference to the specification that defines the status value.
 
 ### Initial Registrations
 
 The initial registrations for the RPP Organisation Status Values registry are the status values defined in (#tbl-organisation-status-values), reproduced below with their reference.
 
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| ok | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
-| hold | Organisation transform commands and new links MUST be rejected. | [This-ID] |
-| terminated | The organisation has been terminated and MUST NOT be linked. Organisation transform commands and new links MUST be rejected. | [This-ID] |
-| linked | The organisation object has at least one active association with another object. This value is not explicitly set by the client. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
-| clientLinkProhibited | Requests to add new links to the organisation MUST be rejected. | [This-ID] |
-| serverLinkProhibited | Requests to add new links to the organisation MUST be rejected. | [This-ID] |
-| clientUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| serverUpdateProhibited | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
-| clientDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| serverDeleteProhibited | Requests to delete the object MUST be rejected. | [This-ID] |
-| pendingCreate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingUpdate | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
-| pendingDelete | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| Value | Set By | Description | Reference |
+|-------|--------|-------------|-----------|
+| ok | server | This is the normal status value for an object that has no pending operations or prohibitions. This value is set and removed by the server as other status values are added or removed. | [This-ID] |
+| hold | client, server | Organisation transform commands and new links MUST be rejected. | [This-ID] |
+| terminated | client, server | The organisation has been terminated and MUST NOT be linked. Organisation transform commands and new links MUST be rejected. | [This-ID] |
+| linked | server | The organisation object has at least one active association with another object. This value is not explicitly set by the client. Servers SHOULD provide services to determine existing object associations. | [This-ID] |
+| clientLinkProhibited | client | Requests to add new links to the organisation MUST be rejected. | [This-ID] |
+| serverLinkProhibited | server | Requests to add new links to the organisation MUST be rejected. | [This-ID] |
+| clientUpdateProhibited | client | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| serverUpdateProhibited | server | Requests to update the object (other than to remove this status) MUST be rejected. | [This-ID] |
+| clientDeleteProhibited | client | Requests to delete the object MUST be rejected. | [This-ID] |
+| serverDeleteProhibited | server | Requests to delete the object MUST be rejected. | [This-ID] |
+| pendingCreate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingUpdate | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
+| pendingDelete | server | A transform command has been processed for the object, but the action has not been completed by the server. Server operators can delay action completion for a variety of reasons, such as to allow for human review or third-party action. | [This-ID] |
 Table: Initial RPP Organisation Status Values Registrations
 {#tbl-organisation-status-registry}
 
@@ -5213,18 +5232,19 @@ Fields to be registered:
 
 - `value`: The machine-readable status label, for example "suspended".
 - `description`: A human-readable description of the status and the conditions under which it applies.
+- `set-by`: The entity that adds and removes the status value: "client", "server", or "client, server" for a value that the server manages and that a client can also manage where server policy permits.
 - `reference`: A reference to the specification that defines the status value.
 
 ### Initial Registrations
 
 The initial registrations for the RPP User Status Values registry are the status values defined in (#tbl-user-status-values), reproduced below with their reference.
 
-| Value | Description | Reference |
-|-------|-------------|-----------|
-| active | This is the normal status value for a user that is permitted to authenticate and act within the permissions of its roles. | [This-ID] |
-| pending | The user has been created, but activation has not been completed by the server. Server operators can delay activation for a variety of reasons, such as to allow for verification of the user's details or human review. Requests authenticated as the user MUST be rejected. | [This-ID] |
-| suspended | The user has been temporarily suspended. Requests authenticated as the user MUST be rejected. | [This-ID] |
-| deactivated | The user has been deactivated. Requests authenticated as the user MUST be rejected. | [This-ID] |
+| Value | Set By | Description | Reference |
+|-------|--------|-------------|-----------|
+| active | server | This is the normal status value for a user that is permitted to authenticate and act within the permissions of its roles. | [This-ID] |
+| pending | server | The user has been created, but activation has not been completed by the server. Server operators can delay activation for a variety of reasons, such as to allow for verification of the user's details or human review. Requests authenticated as the user MUST be rejected. | [This-ID] |
+| suspended | client, server | The user has been temporarily suspended. Requests authenticated as the user MUST be rejected. | [This-ID] |
+| deactivated | client, server | The user has been deactivated. Requests authenticated as the user MUST be rejected. | [This-ID] |
 Table: Initial RPP User Status Values Registrations
 {#tbl-user-status-registry}
 
@@ -5328,6 +5348,8 @@ A> TODO: write security considerations, if any
 * defined a structured notation for operation input and output and applied it to the uniform interface, all process operations, the domain create operation and the discovery read operation
 * removed the redefined processId data element from the Domain Transfer Process Object
 * moved input data elements and parameters into the Input attribute of operations
+* added a Set By column to status value tables and a set-by field to the status value registries (Issue #186)
+* stated that the server assigns at least one status value on create (Issue #186)
 
 {toc="exclude"}
 {numbered="false"}
