@@ -153,6 +153,14 @@ checked against the draft's own "Data Element Semantics" definitions only
 `supported_processes` and `extends` are normative-model concepts only; neither
 has an IANA table counterpart, so there is no `MISSING IN IANA` variant for them.
 
+### Object attribute level (normative-only, no IANA table involved)
+
+| Code | Meaning |
+| ---- | ------- |
+| `[OBJ ATTR INVALID]` | An object's `* Abstract:` attribute has a value other than `true` or `false` |
+
+`abstract` is likewise a normative-model concept only, with no IANA counterpart.
+
 ---
 
 ## Normative sections parsed
@@ -382,7 +390,11 @@ to the Process Object, by Name — there is no `Identifier` attribute, which
 would be a redundant second lookup key alongside the one `Extends:` already
 uses. `resolve_process_name()` accepts the short form, so `Renew Process`
 resolves to the object named `Renew Process Object`
-(`[PROCESS MISSING IN NORMATIVE]` if unresolved).
+(`[PROCESS MISSING IN NORMATIVE]` if unresolved). Cross-reference markup in
+the bullet text (`(#anchor)`, `[](#anchor)`) is ignored when resolving, and
+the YAML export drops it from `name`, together with any other bracketed
+part. Operation names are exported the same way: the heading
+`Delete (Transfer Cancel)` becomes `name: Delete`.
 
 The only attribute a bullet may carry is `Constraints` (optional), with the
 same list-valued convention as element/param Constraints (inline value,
@@ -860,6 +872,7 @@ subsections:                # non-Data-Elements/Operations/Processes headings
           - {Status Value: ok, Description: "..."}
     subsections: []          # deeper headings, same shape, recursively
 extends: ""                 # Object NAME this object extends, from "* Extends:"; "" if none
+abstract: false             # true iff "* Abstract: true" (object used only as a base object)
 supported_processes:        # inherited-process bullets from the object's "## Processes"
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
     constraints: []          # list of strings — same convention as element/param Constraints

@@ -228,6 +228,7 @@ The following rules apply:
 * Inherited content: a derived object has all data elements of its base object, including their cardinality, mutability, data type and constraints, and supports all operations of its base object. Inherited data elements and operations are not repeated in the derived object's definition.
 * Additions: a derived object MAY define additional data elements and operations. It MUST NOT define a data element whose identifier is already defined by any of its ancestors. A derived object MAY modify the inherited operation input and output data as needed.
 * Polymorphism: where a data element or operation refers to a base object, any object that directly or indirectly extends the base object MAY be used in its place.
+* Abstract objects: an object MAY be declared abstract using the `Abstract` keyword in the preamble of its definition, with the value `true`. When the `Abstract` keyword is absent or set to `false`, the object is not abstract. An abstract object serves only as a base object for its derived objects. Wherever a data element or operation refers to an abstract object, an instance of a non-abstract object that directly or indirectly extends it is used in its place. A client MUST NOT provide, and a server MUST NOT return, an instance whose own type is an abstract object. The `Abstract` keyword is not inherited.
 
 ## Reserved Property Names
 
@@ -1689,7 +1690,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
 
 ## Authorisation Information Object
 
-* Name: Authorisation Information
+* Name: Authorisation Information Object
 * Identifier: authInfo
 * Description: Contains information used to authorise operations on a data object. It may hold different kinds of authorisation information.
 * Data Elements:
@@ -1716,7 +1717,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
 
 A> TODO: Model Disclose in universal (extendible) way
 
-* Name: Disclose
+* Name: Disclose Object
 * Identifier: disclose
 * Description: TBD
 
@@ -1845,6 +1846,7 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 * Name: Base Process Object
 * Identifier: baseProcess
+* Abstract: true
 * Description: Base structure for all Process Objects, containing the data elements common to every process. Each Process Object extends this object.
 * Data Elements:
   * Process ID
@@ -1863,6 +1865,7 @@ The Message Components define the structure and data elements for all message ob
 
 * Name: Base Message Object
 * Identifier: baseMessage
+* Abstract: true
 * Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
 * Data Elements:
   * Object Type
@@ -1884,13 +1887,6 @@ The Message Components define the structure and data elements for all message ob
       * For both "domainName", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
       * For "contact" the `objectId` must be a valid contact identifier.
       * When the message is not related to a specific object, the `objectId` field may be empty.
-  * Process
-    * Identifier: process
-    * Cardinality: 0-1
-    * Mutability: read-only
-    * Data Type: Aggregation[Base Process Object]
-    * Description: The transfer process the message pertains to.
-    * Constraints: Not all messages may be related to a specific process, and in such cases, this field may be empty.
 
 ### Review Response Object
 
@@ -1932,10 +1928,17 @@ The Review Response Object defines the data elements for returning the result of
   * Message
     * Identifier: message
     * Cardinality: 1
-    * Mutability: create-only
+    * Mutability: read-only
     * Data Type: String
     * Description: Human-readable message associated with the review response.
     * Constraints: (None)
+  * Process
+    * Identifier: process
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Base Process Object
+    * Description: The process whose operation was subject to the offline review.
+    * Constraints: Present when the reviewed operation was performed through a Process Object (create, renew, transfer, or restore) and the server exposes that Process Object; absent otherwise, including for update and delete operations.
 
 ### Transfer Request Message Object
 
@@ -1966,6 +1969,13 @@ The Review Response Object defines the data elements for returning the result of
     * Description: The deadline for responding before the server takes an automated action.
     * Constraints:
       * The action date MUST be later than the request date and is subject to server policy.
+  * Process
+    * Identifier: process
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Transfer Process Object
+    * Description: The transfer process the message pertains to.
+    * Constraints: Absent if the server does not expose the Transfer Process Object.
 
 ### Transfer Outcome Message Object
 
@@ -2002,6 +2012,13 @@ The Review Response Object defines the data elements for returning the result of
     * Data Type: Timestamp
     * Description: The end of the object's validity period if the operation causes a change in the validity period.
     * Constraints: (None)
+  * Process
+    * Identifier: process
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: Transfer Process Object
+    * Description: The transfer process the message pertains to.
+    * Constraints: Absent if the server does not expose the Transfer Process Object.
 
 ### Expiration Deletion Message Object
 
@@ -2770,11 +2787,15 @@ The error response SHOULD indicate the related subordinate host objects.
 
 ## Processes
 
-The Domain Name Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Domain Name Data Object supports the following Process Objects (#process-objects) unmodified:
 
-* Renew Process
+* Renew Process 
 * Restore Process
   * Constraints: OPTIONAL; available only when the RGP feature is supported.
+
+The Domain Name Data Object supports the following Process Objects extended by an object-specific definition:
+* Domain Create Process (#domain-create-process)
+* Domain Transfer Process (#domain-transfer-process)
 
 ### Domain Create Process Object {#domain-create-process}
 
@@ -3012,11 +3033,11 @@ The error response SHOULD indicate the existing object associations.
 
 ## Processes
 
-The Contact Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Contact Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
 
-Renewal semantics do not apply to contact objects.
+The Contact Data Object supports no Process Objects extended by an object-specific definition.
 
 # Host Data Object
 
@@ -3133,13 +3154,12 @@ The error response SHOULD indicate the related associated objects.
 
 ## Processes
 
-The Host Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
-
-* Restore Process
-  * Constraints: OPTIONAL; available only when the RGP feature for the Host Data Object is supported by the server.
+The Host Data Object Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
   * Constraints: Host objects MUST NOT be transferred directly. They are transferred implicitly when their superordinate domain object is transferred.
+
+The Host Data Object supports no Process Objects (#process-objects) extended by an object-specific definition.
 
 # Organisation Data Object
 
@@ -3828,7 +3848,7 @@ Data Elements
 
 Object: authInfo
 
-Object Name: Authorisation Information
+Object Name: Authorisation Information Object
 
 Object Type: Component
 
@@ -4006,11 +4026,125 @@ Description: Base structure for all message objects, containing common data elem
 Reference: [This-ID]
 
 Data Elements
-| Element Identifier | Element Name      | Card. | Mutability | Data Type                       | Description                                                                          |
-| ------------------ | ----------------- | ----- | ---------- | ------------------------------- | ------------------------------------------------------------------------------------ |
-| objectType         | Object Type       | 0-1   | read-only  | String                          | The object identifier of the object affected by the requested action.                |
-| objectId           | Object Identifier | 0-1   | read-only  | String                          | The unique identifier of the object affected by the requested operation.             |
-| process            | Process           | 0-1   | read-only  | Aggregation [Base Process Object] | The process the message pertains to. Empty if the message is not related to a process. |
+| Element Identifier | Element Name      | Card. | Mutability | Data Type | Description                                                              |
+| ------------------ | ----------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------ |
+| objectType         | Object Type       | 0-1   | read-only  | String    | The object identifier of the object affected by the requested action.    |
+| objectId           | Object Identifier | 0-1   | read-only  | String    | The unique identifier of the object affected by the requested operation. |
+
+Object: reviewResponseMessage
+
+Object Name: Review Response Object
+
+Object Type: Component
+
+Extends: baseMessage
+
+Description: Notification of the result of an offline-review of a requested operation.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier  | Element Name          | Card. | Mutability  | Data Type           | Description                                                               |
+|---------------------|-----------------------|-------|-------------|---------------------|---------------------------------------------------------------------------|
+| approved            | Approval Result       | 1     | read-only   | Boolean             | Whether the requested action was approved and completed.                  |
+| clientTransactionId | Client Transaction ID | 0-1   | read-only   | String              | The client transaction identifier from the original request, if supplied. |
+| serverTransactionId | Server Transaction ID | 1     | read-only   | String              | The server transaction identifier returned for the original request.      |
+| completionDate      | Completion Date       | 1     | read-only   | Timestamp           | The date and time when review of the requested action was completed.      |
+| message             | Message               | 1     | read-only   | String              | Human-readable message associated with the review response.               |
+| process             | Process               | 0-1   | read-only   | Base Process Object | The process whose operation was subject to the offline review.            |
+
+Object: transferRequestMessage
+
+Object Name: Transfer Request Message Object
+
+Object Type: Component
+
+Extends: baseMessage
+
+Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name    | Card. | Mutability | Data Type               | Description                                                              |
+|--------------------|-----------------|-------|------------|-------------------------|--------------------------------------------------------------------------|
+| status             | Transfer Status | 1     | read-only  | String                  | The current state of the transfer request.                               |
+| requestDate        | Request Date    | 1     | read-only  | Timestamp               | The date and time the transfer was requested.                            |
+| actionDate         | Action Date     | 0-1   | read-only  | Timestamp               | The deadline for responding before the server takes an automated action. |
+| process            | Process         | 0-1   | read-only  | Transfer Process Object | The transfer process the message pertains to.                            |
+
+Object: transferOutcomeMessage
+
+Object Name: Transfer Outcome Message Object
+
+Object Type: Component
+
+Extends: baseMessage
+
+Description: Notification for a client affected by the completion of a transfer request.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name    | Card. | Mutability | Data Type               | Description                                                                                      |
+|--------------------|-----------------|-------|------------|-------------------------|--------------------------------------------------------------------------------------------------|
+| trStatus           | Transfer Status | 1     | read-only  | String                  | The final state of the transfer request.                                                         |
+| requestDate        | Request Date    | 1     | read-only  | Timestamp               | The date and time the transfer was requested.                                                    |
+| actionDate         | Action Date     | 1     | read-only  | Timestamp               | The date and time the transfer request was resolved.                                             |
+| expiryDate         | Expiry Date     | 0-1   | read-only  | Timestamp               | The end of the object's validity period if the operation causes a change in the validity period. |
+| process            | Process         | 0-1   | read-only  | Transfer Process Object | The transfer process the message pertains to.                                                    |
+
+Object: expirationDeletionMessage
+
+Object Name: Expiration Deletion Message Object
+
+Object Type: Component
+
+Extends: baseMessage
+
+Description: Notification for the sponsoring client that an object was deleted following expiration.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name  | Card. | Mutability | Data Type | Description                                    |
+| ------------------ | ------------- | ----- | ---------- | --------- | ---------------------------------------------- |
+| deletionDate       | Deletion Date | 1     | read-only  | Timestamp | The date and time the server deleted the object. |
+
+Object: autoRenewalMessage
+
+Object Name: Auto-Renewal Message Object
+
+Object Type: Component
+
+Extends: baseMessage
+
+Description: Notification for the sponsoring client that the server automatically renewed an object.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                    |
+| ------------------ | ------------ | ----- | ---------- | --------- | ---------------------------------------------- |
+| renewalDate        | Renewal Date | 1     | read-only  | Timestamp | The date and time the server renewed the object. |
+| expiryDate         | Expiry Date  | 1     | read-only  | Timestamp | The new expiration date of the object.         |
+
+Object: serviceNoticeMessage
+
+Object Name: Service Notice Message Object
+
+Object Type: Component
+
+Extends: baseMessage
+
+Description: Generic text based message containing information not covered by any other message type.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                     |
+| ------------------ | ------------ | ----- | ---------- | --------- | --------------------------------------------------------------- |
+| message            | Message      | 1     | read-only  | String    | Human-readable service information for the receiving organisation. |
 
 Object: transferProcess
 
@@ -4226,7 +4360,7 @@ Parameters: (None)
 
 Object: disclose
 
-Object Name: Disclose
+Object Name: Disclose Object
 
 Object Type: Component
 
@@ -4867,107 +5001,6 @@ Input Data Elements: (None)
 
 Parameters: (None)
 
-Object: reviewResponseMessage
-
-Object Name: Review Response Object
-
-Object Type: Component
-
-Description: Notification of the result of an offline-review of a requested operation.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier  | Element Name          | Card. | Mutability  | Data Type | Description                                                               |
-| ------------------- | --------------------- | ----- | ----------- | --------- | ------------------------------------------------------------------------- |
-| approved            | Approval Result       | 1     | read-only   | Boolean   | Whether the requested action was approved and completed.                  |
-| clientTransactionId | Client Transaction ID | 0-1   | read-only   | String    | The client transaction identifier from the original request, if supplied. |
-| serverTransactionId | Server Transaction ID | 1     | read-only   | String    | The server transaction identifier returned for the original request.      |
-| completionDate      | Completion Date       | 1     | read-only   | Timestamp | The date and time when review of the requested action was completed.      |
-| message             | Message               | 1     | create-only | String    | Human-readable message associated with the review response.               |
-
-Object: transferRequestMessage
-
-Object Name: Transfer Request Message Object
-
-Object Type: Component
-
-Description: Notification for losing client of started transfer request, where the client expected to act on the pending transfer request.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                              |
-| ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------ |
-| status             | Transfer Status | 1     | read-only  | String    | The current state of the transfer request.                               |
-| requestDate        | Request Date    | 1     | read-only  | Timestamp | The date and time the transfer was requested.                            |
-| actionDate         | Action Date     | 0-1   | read-only  | Timestamp | The deadline for responding before the server takes an automated action. |
-
-Object: transferOutcomeMessage
-
-Object Name: Transfer Outcome Message Object
-
-Object Type: Component
-
-Description: Notification for a client affected by the completion of a transfer request.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name    | Card. | Mutability | Data Type | Description                                                                                      |
-| ------------------ | --------------- | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------------ |
-| trStatus           | Transfer Status | 1     | read-only  | String    | The final state of the transfer request.                                                         |
-| requestDate        | Request Date    | 1     | read-only  | Timestamp | The date and time the transfer was requested.                                                    |
-| actionDate         | Action Date     | 1     | read-only  | Timestamp | The date and time the transfer request was resolved.                                             |
-| expiryDate         | Expiry Date     | 0-1   | read-only  | Timestamp | The end of the object's validity period if the operation causes a change in the validity period. |
-
-Object: expirationDeletionMessage
-
-Object Name: Expiration Deletion Message Object
-
-Object Type: Component
-
-Description: Notification for the sponsoring client that an object was deleted following expiration.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name  | Card. | Mutability | Data Type | Description                                      |
-| ------------------ | ------------- | ----- | ---------- | --------- | ------------------------------------------------ |
-| deletionDate       | Deletion Date | 1     | read-only  | Timestamp | The date and time the server deleted the object. |
-
-Object: autoRenewalMessage
-
-Object Name: Auto-Renewal Message Object
-
-Object Type: Component
-
-Description: Notification for the sponsoring client that the server automatically renewed an object.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                      |
-| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------ |
-| renewalDate        | Renewal Date | 1     | read-only  | Timestamp | The date and time the server renewed the object. |
-| expiryDate         | Expiry Date  | 1     | read-only  | Timestamp | The new expiration date of the object.           |
-
-Object: serviceNoticeMessage
-
-Object Name: Service Notice Message Object
-
-Object Type: Component
-
-Description: Generic text based message containing information not covered by any other message type.
-
-Reference: [This-ID]
-
-Data Elements
-| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                        |
-| ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------ |
-| message            | Message      | 1     | read-only  | String    | Human-readable service information for the receiving organisation. |
-
-
 ## RPP User Role Values Registry
 
 This document establishes the "RESTful Provisioning Protocol (RPP) User Role Values Registry". This registry serves as a catalogue of all user role values used within RPP.
@@ -5286,12 +5319,15 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188
+* Clarification on Processes supported and extended by a Data Object
 * moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update
 * Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition
 * fixed User Object delete operation constraint that prevented any user from being deleted
 * Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
 * defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
 * allowed extensions to define new processes
+* moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA (Issue #179)
 * create-only definition clarified about reading (Issue #80)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
@@ -5310,6 +5346,7 @@ A> TODO: write security considerations, if any
 * moved input data elements and parameters into the Input attribute of operations
 * added a Set By column to status value tables and a set-by field to the status value registries (Issue #186)
 * stated that the server assigns at least one status value on create (Issue #186)
+* renamed Authorisation Information and Disclose component objects to "… Object" to match their references
 
 {toc="exclude"}
 {numbered="false"}

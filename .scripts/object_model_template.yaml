@@ -96,6 +96,10 @@
 #     status_not_required_for_client_request: (same) true when a client
 #                   may omit status values when creating or updating the
 #                   object that holds them.
+#     abstract:     true if the object's preamble has "* Abstract: true" —
+#                   the object is used only as a base object and no instance
+#                   ever has it as its own type (e.g. Base Process Object).
+#                   false when the attribute is absent or "false".
 #     supported_processes: the INHERITED-process bullet list from a Data
 #                   Object's "## Processes" section — the Process Objects it
 #                   supports UNMODIFIED. Processes it *extends* are not
@@ -108,6 +112,8 @@
 #                                 would be a redundant second key). The
 #                                 short form is accepted: "Renew Process"
 #                                 refers to "Renew Process Object".
+#                                 Bracketed parts (e.g. an "(#anchor)"
+#                                 reference) are dropped.
 #                     constraints: list of strings — same convention as an
 #                                 element's Constraints
 #                     notes:      orphan prose inside this entry's own block.
@@ -143,7 +149,8 @@
 #
 #   Each operation entry:
 #     identifier, name: as defined in the operation heading /
-#       "* Identifier:" bullet
+#       "* Identifier:" bullet; bracketed parts of the heading are
+#       dropped ("Delete (Transfer Cancel)" -> "Delete")
 #     description:  plain prose describing the operation (this document's
 #                   convention: NOT a "* Description:" bullet, which is
 #                   element/object-only — every operation's description is
