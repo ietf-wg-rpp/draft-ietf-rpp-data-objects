@@ -174,8 +174,6 @@
 #                     target:      an object Name, "This Object" (the object
 #                                  defining the operation) or "Owner Data
 #                                  Object" (of a Process Object)
-#                     elements:    Mutability values of the included data
-#                                  elements; [] for a Reference
 #                     cardinality: number of representations ("1" unless
 #                                  an Object item says otherwise)
 #                   An "Input Data Elements" (content the operation acts

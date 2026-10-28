@@ -206,7 +206,6 @@ class IOItemDef:
     draft's "Operation Input and Output" section:
 
       * Object: Transfer Process Object     <- kind: target
-        * Elements: create-only, read-write
         * Cardinality: 0+
       * Parameters:                          <- kind, then definitions laid
         * Hosts Filter                          out like "* Data Elements:"
@@ -216,7 +215,6 @@ class IOItemDef:
     kind: str          # one of IO_KINDS or IO_DEFINITION_KINDS
     target: str = ""   # an object Name, "This Object", "Owner Data Object";
                        # "" for a definition kind
-    elements: list[str] = field(default_factory=list)  # Mutability values
     cardinality: str = "1"
     # "Input Data Elements" / "Parameters" items: the definitions.
     definitions: list["ParamDef"] = field(default_factory=list)
@@ -1021,7 +1019,6 @@ IO_KINDS = ("Reference", "Object")
 # "* Data Elements:"; allowed in Input only, at most once each.
 IO_DEFINITION_KINDS = ("Input Data Elements", "Parameters")
 IO_KEYWORD_TARGETS = ("This Object", "Owner Data Object")
-MUTABILITY_VALUES = ("create-only", "read-only", "read-write")
 CARDINALITY_VALUES = ("1", "0-1", "0+", "1+")
 _IO_ITEM_RE = re.compile(r"^( *)\* ([\w ]+?):\s*(.*?)\s*$")
 
@@ -1033,8 +1030,8 @@ def _parse_io_items(lines: list[str], start: int, end: int, inline_val: str,
     other inline value is not the notation. Otherwise lines[start:end] is
     the nested item list; each bullet at its first line's indentation is
     one item "<Kind>: <target>":
-    - Reference / Object: sub-bullets "* Elements: ..." and
-      (Object only) "* Cardinality: ...".
+    - Reference: no sub-bullets.
+    - Object: an optional "* Cardinality: ..." sub-bullet.
     - Input Data Elements / Parameters (Input only, at most once each): a
       blank value, then one "* <Name>" entry per definition one level deeper,
       each parsed by _parse_io_definition.
@@ -1093,18 +1090,10 @@ def _parse_io_items(lines: list[str], start: int, end: int, inline_val: str,
                 continue
             m_sub = _IO_ITEM_RE.match(sub)
             key = m_sub.group(2) if m_sub and len(m_sub.group(1)) > indent else ""
-            if key == "Elements" and kind != "Reference":
-                io.elements = [v.strip() for v in m_sub.group(3).split(",") if v.strip()]
-            elif key == "Cardinality" and kind == "Object":
+            if key == "Cardinality" and kind == "Object":
                 io.cardinality = m_sub.group(3)
             else:
                 errors.append(f"'{sub.strip()}' is not a sub-attribute of a {kind} item.")
-        if kind != "Reference" and not io.elements:
-            errors.append(f"{kind} item '{io.target}' has no Elements.")
-        bad = [e for e in io.elements if e not in MUTABILITY_VALUES]
-        if bad:
-            errors.append(f"{kind} item '{io.target}': Elements {bad} are "
-                          f"not Mutability values.")
         if io.cardinality not in CARDINALITY_VALUES:
             errors.append(f"{kind} item '{io.target}': Cardinality "
                           f"'{io.cardinality}' is not one of: "
@@ -2868,8 +2857,7 @@ def _io_to_list(items: list[IOItemDef] | None) -> list[dict] | None:
     return [{"kind": i.kind,
              "definitions": [_param_to_dict(d) for d in i.definitions]}
             if i.kind in IO_DEFINITION_KINDS
-            else {"kind": i.kind, "target": i.target, "elements": list(i.elements),
-                  "cardinality": i.cardinality}
+            else {"kind": i.kind, "target": i.target, "cardinality": i.cardinality}
             for i in items]
 
 
@@ -3831,7 +3819,6 @@ def _test_operation_description_authorisation_input_output():
         "* Input: (None)",
         "* Output:",
         "  * Object: Transfer Process Object",
-        "    * Elements: read-write, read-only",
         "",
         "#### Delete (Transfer Cancel) {#transfer-delete}",
     ]
@@ -3852,8 +3839,7 @@ def _test_operation_description_authorisation_input_output():
         "Server policy determines whether other clients may query transfer status and what information is returned.",
     ], op.authorisation
     assert op.input == []
-    assert op.output == [IOItemDef(kind="Object", target="Transfer Process Object",
-                                   elements=["read-write", "read-only"])], op.output
+    assert op.output == [IOItemDef(kind="Object", target="Transfer Process Object")], op.output
     assert op.io_errors == []
     assert op.notes == []
 
@@ -4559,7 +4545,6 @@ def _test_operation_inputs_and_params_sections():
         "",
         "* Output:",
         "  * Object: Widget Process Object",
-        "    * Elements: read-write, read-only",
         "    * Cardinality: 0-1",
         "  * Parameters:",
         "    * Stray",
@@ -4572,7 +4557,6 @@ def _test_operation_inputs_and_params_sections():
     assert [io.kind for io in op.input] == [
         "Reference", "Input Data Elements", "Parameters"], op.input
     assert op.output[0] == IOItemDef(kind="Object", target="Widget Process Object",
-                                     elements=["read-write", "read-only"],
                                      cardinality="0-1"), op.output
     assert len(op.io_errors) == 1 and "Input only" in op.io_errors[0], op.io_errors
     assert [p.identifier for p in op.inputs] == ["reason", "note"], op.inputs
@@ -4733,7 +4717,7 @@ def _test_build_yaml_model_structure():
     assert model["components"][0]["elements"][0]["notes"] == ["Extra note."]
     op = model["components"][0]["operations"][0]
     assert op["input"][0] == {"kind": "Reference", "target": "This Object",
-                              "elements": [], "cardinality": "1"}, op["input"]
+                              "cardinality": "1"}, op["input"]
     assert op["input"][1]["kind"] == "Parameters", op["input"]
     assert op["input"][1]["definitions"][0]["identifier"] == "p1"
     assert "extra_attributes" not in op["input"][1]["definitions"][0]
@@ -4932,8 +4916,8 @@ def _test_orphan_prose_skips_fenced_block():
 def _test_parse_io_items_reports_notation_errors():
     """
     Input/Output items outside the notation are reported, never guessed:
-    free-text inline values, unknown kinds, missing or invalid Elements,
-    Elements on a Reference, Cardinality on a Reference, bad Cardinality, a
+    free-text inline values, unknown kinds, an Elements sub-bullet (no
+    longer part of the notation), Cardinality on a Reference, bad Cardinality, a
     definition without an Identifier, a repeated or inline-valued or empty
     Parameters item.
     """
@@ -4958,10 +4942,11 @@ def _test_parse_io_items_reports_notation_errors():
     items, errs = _parse_io_items(lines, 0, len(lines), "", "Input")
     assert [i.kind for i in items] == ["Reference", "Object", "Object", "Reference",
                                        "Parameters", "Parameters"], items
-    assert len(errs) == 10, errs
-    assert "has no Identifier" in errs[6], errs
-    assert "more than once" in errs[7] and "inline value" in errs[8], errs
-    assert "no definitions" in errs[9], errs
+    assert len(errs) == 9, errs
+    assert "not a sub-attribute" in errs[1] and "not a sub-attribute" in errs[2], errs
+    assert "has no Identifier" in errs[5], errs
+    assert "more than once" in errs[6] and "inline value" in errs[7], errs
+    assert "no definitions" in errs[8], errs
     _items, errs = _parse_io_items(lines, 0, 0, "", "Input")
     assert errs == ["blank value without a nested list of items."], errs
 
@@ -4983,7 +4968,6 @@ def _test_uniform_interface_defaults_and_io_check():
         "  * Reference: This Object",
         "* Output:",
         "  * Object: This Object",
-        "    * Elements: read-write, read-only",
         "",
         "### Offline Review",
         "",

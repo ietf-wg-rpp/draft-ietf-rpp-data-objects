@@ -250,10 +250,9 @@ Wherever "Object Authorisation" is mentioned, it means that an operation MAY acc
 
 The input and output of an operation are declared by the `Input` and `Output` attributes of the operation definition. The value of each attribute is either a literal `(None)` or a list of items, each of one of the following kinds:
 
-* Reference: a reference to the context of  operation or process. It can contain either the type of a reference or a literal value `This Object` for the object that defines the operation, or literal value `Owner Data Object` for the Owner Data Object of a Process Object. This value may be defined more than once, for example if a reference can be only resolved in a context of other reference (for example Process can be only resolved in context of its Owner Data Object).
-* Object: The name of the object type in the input or output:
-  * Elements: a comma-separated list of the Mutability values (`create-only`, `read-only`, `read-write`) of the data elements included in the representation.
-  * Cardinality: the number of representations, in the notation defined in (#data-element-semantics). The default value is `1`.
+* Reference: a reference to the context of operation or process. It can contain either a literal value `This Object` for the object that defines the operation, or literal value `Owner Data Object` for the Owner Data Object of a Process Object.
+* Object: The name of the object type in the input or output. It can contain either the type or a literal value `This Object` for the object type that defines the operation, or literal value `Owner Data Object` for the type of Owner Data Object of a Process Object. It specifies an additional attribute:
+  * Cardinality: [OPTIONAL] the number of representations, in the notation defined in (#data-element-semantics). The default value is `1`.
 
 * Input Data Elements: the input data elements of the operation, listed in the same form as the Data Elements of an object: each entry is the Name of an input data element, followed by its attributes as defined in (#data-element-semantics), except Mutability, Direct Access and Visibility. It is allowed in Input only, at most once.
 * Parameters: the parameters of the operation, listed in the same form as Input Data Elements. It is allowed in Input only, at most once.
@@ -264,10 +263,8 @@ For example:
 * Input:
   * Reference: Owner Data Object
   * Object: Transfer Process Object
-    * Elements: create-only, read-write
 * Output:
   * Object: Transfer Process Object
-    * Elements: create-only, read-write, read-only
 ```
 
 ### Include Elements {#include-elements}
@@ -299,10 +296,8 @@ For the Create, Read, Query, Update and Delete operations of a Data Object, the 
 
 * Input:
   * Object: This Object
-    * Elements: create-only, read-write
 * Output:
   * Object: This Object
-    * Elements: create-only, read-write, read-only
 
 #### Read
 
@@ -310,7 +305,6 @@ For the Create, Read, Query, Update and Delete operations of a Data Object, the 
   * Reference: This Object
 * Output:
   * Object: This Object
-    * Elements: create-only, read-write, read-only
 
 The output Object MAY vary depending on the identity of the querying client, use of Object Authorisation information, and server policy towards unauthorised clients.
 
@@ -325,7 +319,6 @@ If the querying client is not the sponsoring client and the client does not prov
 * Input: (None)
 * Output:
   * Object: This Object
-    * Elements: create-only, read-write, read-only
     * Cardinality: 0+
 
 #### Update
@@ -333,10 +326,8 @@ If the querying client is not the sponsoring client and the client does not prov
 * Input:
   * Reference: This Object
   * Object: This Object
-    * Elements: read-write
 * Output:
   * Object: This Object
-    * Elements: create-only, read-write, read-only
 
 #### Delete
 
@@ -344,7 +335,6 @@ If the querying client is not the sponsoring client and the client does not prov
   * Reference: This Object
 * Output:
   * Object: This Object
-    * Elements: create-only, read-write, read-only
     * Cardinality: 0-1
 
 ### Offline Review
@@ -2305,10 +2295,8 @@ The Create operation initiates a transfer by creating a Transfer Process Object 
 * Input:
   * Reference: Owner Data Object
   * Object: Transfer Process Object
-    * Elements: create-only, read-write
 * Output:
   * Object: Transfer Process Object
-    * Elements: create-only, read-write, read-only
 
 #### Read (Transfer Query) {#transfer-read}
 
@@ -2321,11 +2309,9 @@ The Read operation allows a client to determine the real-time status of a pendin
   * Server policy determines whether other clients may query transfer status and what information is returned.
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Transfer Process Object
+  * Reference: This Object
 * Output:
   * Object: Transfer Process Object
-    * Elements: create-only, read-write, read-only
 
 #### Delete (Transfer Cancel) {#transfer-delete}
 
@@ -2337,11 +2323,9 @@ The Delete operation allows the initiating client to cancel its own pending tran
   * Only the initiating client (the client that originally requested the transfer).
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Transfer Process Object
+  * Reference: This Object
 * Output:
   * Object: Transfer Process Object
-    * Elements: create-only, read-write, read-only
     * Cardinality: 0-1
 
 #### Approve {#transfer-approve}
@@ -2357,11 +2341,9 @@ The Approve operation allows the appropriate client to accept a pending transfer
     * only the designated gaining client
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Transfer Process Object
+  * Reference: This Object
 * Output:
   * Object: Transfer Process Object
-    * Elements: create-only, read-write, read-only
 
 #### Reject {#transfer-reject}
 
@@ -2376,8 +2358,7 @@ The Reject operation allows the appropriate client to decline a pending transfer
     * only the designated gaining client
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Transfer Process Object
+  * Reference: This Object
   * Input Data Elements:
     * Reason
       * Identifier: reason
@@ -2388,7 +2369,6 @@ The Reject operation allows the appropriate client to decline a pending transfer
 
 * Output:
   * Object: Transfer Process Object
-    * Elements: create-only, read-write, read-only
 
 ## Restore Process Object
 
@@ -2454,7 +2434,6 @@ If the server requires a restore report and `restoreReport` is absent, the objec
 * Input:
   * Reference: Owner Data Object
   * Object: Restore Process Object
-    * Elements: create-only, read-write
   * Input Data Elements:
     * Restore Report
       * Identifier: restoreReport
@@ -2467,7 +2446,6 @@ If the server requires a restore report and `restoreReport` is absent, the objec
 
 * Output:
   * Object: Restore Process Object
-    * Elements: create-only, read-write, read-only
 
 #### Read (Restore Query) {#restore-read}
 
@@ -2479,11 +2457,9 @@ The Read operation allows the sponsoring client to retrieve the current state of
   * Only the sponsoring client is authorised to perform this operation.
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Restore Process Object
+  * Reference: This Object
 * Output:
   * Object: Restore Process Object
-    * Elements: create-only, read-write, read-only
 
 In EPP Compatibility Profile this operation is not supported.
 
@@ -2499,8 +2475,7 @@ The Update operation submits the restore report required by the RGP process for 
   * Only the sponsoring client is authorised to perform this operation.
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Restore Process Object
+  * Reference: This Object
   * Input Data Elements:
     * Restore Report
       * Identifier: restoreReport
@@ -2512,7 +2487,6 @@ The Update operation submits the restore report required by the RGP process for 
 
 * Output:
   * Object: Restore Process Object
-    * Elements: create-only, read-write, read-only
 
 ## Renew Process Object
 
@@ -2546,10 +2520,8 @@ The renew operation extends the validity period of an existing object by creatin
 * Input:
   * Reference: Owner Data Object
   * Object: Renew Process Object
-    * Elements: create-only, read-write
 * Output:
   * Object: Renew Process Object
-    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2575,10 +2547,8 @@ The Create operation is invoked implicitly as a side effect of the resource obje
 
 * Input:
   * Object: Create Process Object
-    * Elements: create-only, read-write
 * Output:
   * Object: Create Process Object
-    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Inherited from the resource object create operation that initiates this process.
@@ -2590,11 +2560,9 @@ The Create operation is invoked implicitly as a side effect of the resource obje
 The Read operation retrieves the result or status of the creation, if the server exposes the process resource.
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Create Process Object
+  * Reference: This Object
 * Output:
   * Object: Create Process Object
-    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2762,9 +2730,7 @@ The Create operation allows a client to provision a new Domain Name resource. Th
 
 * Input:
   * Object: This Object
-    * Elements: create-only, read-write
   * Object: Domain Create Process Object
-    * Elements: create-only, read-write
 
 The Create operation implicitly initiates the Domain Create Process Object (#domain-create-process), which carries the creation-specific inputs that are consumed during creation and not persisted as part of the domain object's state.
 
@@ -2857,10 +2823,8 @@ The Create operation is invoked implicitly as a side effect of the Domain Name D
 
 * Input:
   * Object: Domain Create Process Object
-    * Elements: create-only, read-write
 * Output:
   * Object: Domain Create Process Object
-    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Inherited from the Domain Name Data Object create operation that initiates this process.
@@ -2872,11 +2836,9 @@ The Create operation is invoked implicitly as a side effect of the Domain Name D
 The Read operation retrieves the result or status of the domain creation, if the server exposes the process resource.
 
 * Input:
-  * Reference: Owner Data Object
-  * Reference: Domain Create Process Object
+  * Reference: This Object
 * Output:
   * Object: Domain Create Process Object
-    * Elements: create-only, read-write, read-only
 
 * Authorisation:
   * Only the sponsoring client is authorised to perform this operation.
@@ -2918,10 +2880,8 @@ The Create operation initiates a transfer of the Domain Name Data Object by crea
 * Input:
   * Reference: Owner Data Object
   * Object: Domain Transfer Process Object
-    * Elements: create-only, read-write
 * Output:
   * Object: Domain Transfer Process Object
-    * Elements: create-only, read-write, read-only
 
 * Authorisation: as defined in (#transfer-create).
 
