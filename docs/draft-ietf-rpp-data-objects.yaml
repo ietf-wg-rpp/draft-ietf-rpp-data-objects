@@ -167,8 +167,6 @@
 #                     target:      an object Name, "This Object" (the object
 #                                  defining the operation) or "Owner Data
 #                                  Object" (of a Process Object)
-#                     elements:    Mutability values of the included data
-#                                  elements; [] for a Reference
 #                     cardinality: number of representations ("1" unless
 #                                  an Object item says otherwise)
 #                   An "Input Data Elements" (content the operation acts
@@ -2694,21 +2692,13 @@ processes:
     input:
     - kind: Reference
       target: Owner Data Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: Transfer Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: Transfer Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: transferRead
@@ -2721,20 +2711,11 @@ processes:
       returned.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     output:
     - kind: Object
       target: Transfer Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: transferDelete
@@ -2745,20 +2726,11 @@ processes:
     - Only the initiating client (the client that originally requested the transfer).
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     output:
     - kind: Object
       target: Transfer Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes: []
   - identifier: transferApprove
@@ -2773,20 +2745,11 @@ processes:
       * only the designated gaining client'
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     output:
     - kind: Object
       target: Transfer Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: transferReject
@@ -2801,12 +2764,7 @@ processes:
       * only the designated gaining client'
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     - kind: Input Data Elements
       definitions:
@@ -2822,10 +2780,6 @@ processes:
     output:
     - kind: Object
       target: Transfer Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -2936,13 +2890,9 @@ processes:
     input:
     - kind: Reference
       target: Owner Data Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: Restore Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     - kind: Input Data Elements
       definitions:
@@ -2964,10 +2914,6 @@ processes:
     output:
     - kind: Object
       target: Restore Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: read
@@ -2978,20 +2924,11 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Restore Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     output:
     - kind: Object
       target: Restore Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - In EPP Compatibility Profile this operation is not supported.
@@ -3009,12 +2946,7 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Restore Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     - kind: Input Data Elements
       definitions:
@@ -3030,10 +2962,6 @@ processes:
     output:
     - kind: Object
       target: Restore Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -3085,21 +3013,13 @@ processes:
     input:
     - kind: Reference
       target: Owner Data Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: Renew Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: Renew Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -3135,17 +3055,10 @@ processes:
     input:
     - kind: Object
       target: Create Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: Create Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: read
@@ -3156,20 +3069,11 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Create Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     output:
     - kind: Object
       target: Create Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -3212,17 +3116,10 @@ processes:
     input:
     - kind: Object
       target: Domain Create Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: Domain Create Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: read
@@ -3233,20 +3130,11 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Domain Create Process Object
-      elements: []
+      target: This Object
       cardinality: '1'
     output:
     - kind: Object
       target: Domain Create Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -3304,21 +3192,13 @@ processes:
     input:
     - kind: Reference
       target: Owner Data Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: Domain Transfer Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: Domain Transfer Process Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -3532,23 +3412,13 @@ resources:
     input:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     - kind: Object
       target: Domain Create Process Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - The Create operation implicitly initiates the Domain Create Process Object (#domain-create-process),
@@ -3580,7 +3450,6 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     - kind: Parameters
       definitions:
@@ -3597,10 +3466,6 @@ resources:
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: update
@@ -3612,20 +3477,13 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: This Object
-      elements:
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - At least one change to a read-write data element MUST be provided, unless the operation is extended.
@@ -3640,15 +3498,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes:
     - The server SHOULD reject a delete request if subordinate host objects are associated with the domain
@@ -3780,17 +3633,10 @@ resources:
     input:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - 'In EPP Compatibility Profile, the following data elements MUST be provided:'
@@ -3815,15 +3661,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - Authorisation Information (`authInfo`) MUST NOT be provided in the response if the querying client
@@ -3841,20 +3682,13 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: This Object
-      elements:
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - 'The following aspects of the contact object MAY be modified:'
@@ -3868,15 +3702,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes:
     - The server SHOULD reject a delete request if the contact object is associated with other known objects
@@ -3978,17 +3807,10 @@ resources:
     input:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - If the host name exists in a namespace for which the server is authoritative, then the superordinate
@@ -4007,15 +3829,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: update
@@ -4027,20 +3844,13 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: This Object
-      elements:
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - Host name changes MAY require the addition or removal of IP addresses to be accepted by the server.
@@ -4062,15 +3872,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes:
     - The server SHOULD reject a delete request if the host object is associated with any other object,
@@ -4226,17 +4031,10 @@ resources:
     input:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - An organisation object MUST include at least one role on creation. The server MAY defer completing
@@ -4251,15 +4049,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: update
@@ -4271,20 +4064,13 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: This Object
-      elements:
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - 'The following aspects of the organisation object MAY be modified:'
@@ -4299,15 +4085,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes:
     - An organisation object MUST NOT be deleted if it is associated with other known objects (e.g., domain
@@ -4388,17 +4169,10 @@ resources:
     input:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: read
@@ -4410,15 +4184,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes:
     - Organisation ID (`owner`) MUST NOT be provided in the response, since a client can only ever retrieve
@@ -4445,10 +4214,6 @@ resources:
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0+
     notes: []
   - identifier: delete
@@ -4461,15 +4226,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes: []
   subsections: []
@@ -4571,17 +4331,10 @@ resources:
     input:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: read
@@ -4593,15 +4346,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: update
@@ -4613,20 +4361,13 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     - kind: Object
       target: This Object
-      elements:
-      - read-write
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   - identifier: delete
@@ -4638,15 +4379,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: 0-1
     notes:
     - The server MUST reject this operation if the target User Object is the last user of the owning organisation
@@ -4802,10 +4538,6 @@ resources:
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
@@ -4939,15 +4671,10 @@ resources:
     input:
     - kind: Reference
       target: This Object
-      elements: []
       cardinality: '1'
     output:
     - kind: Object
       target: This Object
-      elements:
-      - create-only
-      - read-write
-      - read-only
       cardinality: '1'
     notes: []
   subsections: []
