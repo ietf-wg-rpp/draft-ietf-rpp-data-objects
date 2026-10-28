@@ -155,8 +155,8 @@
 #                   "Operation Input and Output" notation; [] for "(None)".
 #                   A Data Object operation that declares no Input gets the
 #                   Uniform interface default for its identifier. Each
-#                   Reference / Object / Changes item:
-#                     kind:        "Reference" | "Object" | "Changes"
+#                   Reference / Object item:
+#                     kind:        "Reference" | "Object"
 #                     target:      an object Name, "This Object" (the object
 #                                  defining the operation) or "Owner Data
 #                                  Object" (of a Process Object)
@@ -2418,11 +2418,7 @@ processes:
       returned.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     output:
@@ -2442,11 +2438,7 @@ processes:
     - Only the initiating client (the client that originally requested the transfer).
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     output:
@@ -2470,11 +2462,7 @@ processes:
       * only the designated gaining client'
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     output:
@@ -2498,11 +2486,7 @@ processes:
       * only the designated gaining client'
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Transfer Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     - kind: Input Data Elements
@@ -2651,11 +2635,7 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Restore Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     output:
@@ -2680,11 +2660,7 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Restore Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     - kind: Input Data Elements
@@ -2827,11 +2803,7 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Create Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     output:
@@ -2904,11 +2876,7 @@ processes:
     - Only the sponsoring client is authorised to perform this operation.
     input:
     - kind: Reference
-      target: Owner Data Object
-      elements: []
-      cardinality: '1'
-    - kind: Reference
-      target: Domain Create Process Object
+      target: This Object
       elements: []
       cardinality: '1'
     output:
@@ -3285,7 +3253,7 @@ resources:
       target: This Object
       elements: []
       cardinality: '1'
-    - kind: Changes
+    - kind: Object
       target: This Object
       elements:
       - read-write
@@ -3514,7 +3482,7 @@ resources:
       target: This Object
       elements: []
       cardinality: '1'
-    - kind: Changes
+    - kind: Object
       target: This Object
       elements:
       - read-write
@@ -3700,7 +3668,7 @@ resources:
       target: This Object
       elements: []
       cardinality: '1'
-    - kind: Changes
+    - kind: Object
       target: This Object
       elements:
       - read-write
@@ -3944,7 +3912,7 @@ resources:
       target: This Object
       elements: []
       cardinality: '1'
-    - kind: Changes
+    - kind: Object
       target: This Object
       elements:
       - read-write
@@ -4285,7 +4253,7 @@ resources:
       target: This Object
       elements: []
       cardinality: '1'
-    - kind: Changes
+    - kind: Object
       target: This Object
       elements:
       - read-write
