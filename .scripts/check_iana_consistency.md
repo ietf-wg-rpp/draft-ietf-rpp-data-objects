@@ -554,8 +554,8 @@ differs from elements/objects:
   Output" notation and are parsed into `IOItemDef` lists
   (`_parse_io_items()`): inline `(None)` gives `[]`; otherwise each nested
   bullet `<Kind>: <target>` (`Reference`, `Object`) is one item,
-  with optional sub-bullets `* Elements: <mutability>, …` (Object,
-  required) and `* Cardinality: <card>` (Object only, default `1`); an
+  with an optional sub-bullet `* Cardinality: <card>` (Object only,
+  default `1`); an
   `Input Data Elements` / `Parameters` item carries definitions (see
   [Input data elements and parameters](#input-data-elements-and-parameters)). Any
   other form is recorded in `io_errors` and reported as `[OP IO INVALID]`;
@@ -835,7 +835,6 @@ operations:
     input:                 # IOItemDef items; [] for "(None)"
       - kind: Reference
         target: This Object
-        elements: []
         cardinality: "1"
       - kind: Parameters   # or "Input Data Elements"
         definitions:
