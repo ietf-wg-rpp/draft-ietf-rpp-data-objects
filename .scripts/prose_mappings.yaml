@@ -1,0 +1,195 @@
+# Prose -> structure mappings for check_iana_consistency.py --yaml-out.
+#
+# Some facts in the draft exist only as prose (a Constraints sentence, a
+# Description sentence, a Common Data Type paragraph). This file is the one
+# sanctioned way to export them as structured fields: each entry names a
+# VERBATIM text fragment and the structured fields it stands for. The script
+# never interprets prose itself; it only looks for these exact strings.
+#
+# Matching: "text" is searched, as an exact substring, in every element,
+# operation input/parameter and Common Data Type description, in every
+# constraint and in every object subsection note, anywhere in the model. Each match is REMOVED from that text
+# (a constraint left empty is dropped) and replaced by:
+#   set:     fields merged into the holder's "restrictions" map (not
+#            allowed for a subsection note, which has no restrictions)
+#   object:  fields added to the object owning the holder (not for a
+#            Common Data Type); "conditions" entries are appended, flags
+#            are set
+#   note:    free text for maintainers; ignored by the script
+#
+# A fragment found nowhere fails --yaml-out ([MAPPING STALE]): when the draft
+# wording changes, update the text here (or drop the entry). Two mappings
+# setting the same restriction on one holder to different values fail too
+# ([MAPPING CONFLICT]).
+#
+# "set" keys:
+#   base_type            primitive type a Common Data Type is built on
+#   allowed_values       closed list of permitted values
+#   allowed_values_from  [{table, column, where?}] - permitted values are that
+#                        column of the draft table with that anchor (without
+#                        "{#}"); where: {column: [values]} keeps only rows whose
+#                        cell in that column is one of the values; resolved at
+#                        export time and emitted as allowed_values
+#   client_values / client_values_from
+#                        status values a client may add and remove (same
+#                        resolution as allowed_values_from)
+#   server_only_values / server_only_values_from
+#                        status values only the server adds and removes
+#   range                {min, max} of a scalar value (inclusive; either optional)
+#   pattern              regular expression the whole value matches
+#   min_length / max_length   length bounds of a string value
+#   key_pattern          regular expression every Dictionary key matches
+#   value_range          {min, max} of every Dictionary value
+# "object" keys:
+#   conditions           [{if: {elementId: value}, require: [ids], forbid: [ids]}]
+#   at_least_one_status_by_server            true: the server always assigns
+#                        at least one of this status object's values
+#   status_not_required_for_client_request   true: a client may omit status
+#                        values when creating or updating the object
+
+mappings:
+
+  # --- Y5: enumerations, ranges and patterns -------------------------------
+
+  - text: "The value MUST be from 1 to 99, inclusive."
+    set:
+      range: {min: 1, max: 99}
+
+  - text: 'The value MUST be one of: "y" (years) or "m" (months).'
+    set:
+      allowed_values: [y, m]
+
+  - text: 'The value MUST be one of: "pull" (initiated by the gaining client) or "push" (initiated by the sponsoring client).'
+    set:
+      allowed_values: [pull, push]
+
+  - text: 'The value MUST be one of: "pending", "clientApproved", "clientCancelled", "clientRejected", "serverApproved", "serverCancelled".'
+    set:
+      allowed_values: [pending, clientApproved, clientCancelled, clientRejected,
+                       serverApproved, serverCancelled]
+
+  - text: "The value MUST be one of `clientApproved`, `clientCancelled`, `clientRejected`, `serverApproved`, or `serverCancelled`."
+    set:
+      allowed_values: [clientApproved, clientCancelled, clientRejected,
+                       serverApproved, serverCancelled]
+
+  - text: "The value MUST be `pending`."
+    set:
+      allowed_values: [pending]
+
+  - text: 'The value MUST be one of: `"pendingRestore"`, `"restored"`, `"rgpPendingDelete"`'
+    set:
+      allowed_values: [pendingRestore, restored, rgpPendingDelete]
+
+  - text: "Possible values: `queued`, `delivered` and `removed`"
+    set:
+      allowed_values: [queued, delivered, removed]
+
+  - text: "Only status values defined in [Domain Status Values](#domain-status-values) and [Redemption Grace Period Status Values](#rgp-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-domain-status-values, column: Status Value}
+        - {table: tbl-rgp-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-domain-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+        - {table: tbl-rgp-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-domain-status-values, column: Status Value, where: {Set By: [server]}}
+        - {table: tbl-rgp-status-values, column: Status Value, where: {Set By: [server]}}
+
+  - text: "Only status values defined in [Status Values](#host-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-host-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-host-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-host-status-values, column: Status Value, where: {Set By: [server]}}
+
+  - text: "Only status values defined in [Status Values](#contact-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-contact-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-contact-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-contact-status-values, column: Status Value, where: {Set By: [server]}}
+
+  - text: "Only status values defined in [Status Values](#organisation-role-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-organisation-role-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-organisation-role-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-organisation-role-status-values, column: Status Value, where: {Set By: [server]}}
+
+  - text: "Only status values defined in [Status Values](#organisation-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-organisation-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-organisation-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-organisation-status-values, column: Status Value, where: {Set By: [server]}}
+
+  - text: "Only status values defined in [Status Values](#user-status-values) are allowed."
+    set:
+      allowed_values_from:
+        - {table: tbl-user-status-values, column: Status Value}
+      client_values_from:
+        - {table: tbl-user-status-values, column: Status Value, where: {Set By: [client, "client, server"]}}
+      server_only_values_from:
+        - {table: tbl-user-status-values, column: Status Value, where: {Set By: [server]}}
+
+  # --- Status presence: server assigns, client may omit -------------------
+
+  - text: "A server MUST assign at least one status value to the object."
+    object:
+      at_least_one_status_by_server: true
+
+  - text: "A client is not required to provide a status value when creating or updating the object."
+    object:
+      status_not_required_for_client_request: true
+
+  - text: "The keys MUST be valid DNS resource record type names in lower case."
+    note: "RR type mnemonics (RFC 6895 registry): letters, digits and hyphens, e.g. nsap-ptr."
+    set:
+      key_pattern: '^[a-z][a-z0-9-]*$'
+
+  - text: "The values MUST be positive Integers."
+    set:
+      value_range: {min: 1}
+
+  - text: "The values MUST be positive Integers (minimum value of 1)."
+    set:
+      value_range: {min: 1}
+
+  # --- Y6: conditional requirements ----------------------------------------
+
+  - text: "This element is REQUIRED for push transfers and MUST NOT be provided for pull transfers."
+    object:
+      conditions:
+        - if: {transferDir: push}
+          require: [gainingClientId]
+        - if: {transferDir: pull}
+          forbid: [gainingClientId]
+
+  # --- Y7: Common Data Types -----------------------------------------------
+
+  - text: "Client identifiers are character strings with a specified minimum length, a specified maximum length, and a specified format."
+    set:
+      base_type: String
+
+  - text: 'Client identifiers use the "clIDType" client identifier syntax described in [@!RFC5730].'
+    note: "RFC 5730 section 4.2, eppcom:clIDType: XML Schema token, minLength 3, maxLength 16."
+    set:
+      min_length: 3
+      max_length: 16
+      pattern: '^\S+( \S+)*$'
+
+  - text: 'Telephone numbers described in this specification are character strings that MUST begin with a plus sign ("+", ASCII value 0x002B), followed by a country code defined in [@!ITU.E164.2005], followed by a dot (".", ASCII value 0x002E), followed by a sequence of digits representing the telephone number.  An optional "x" (ASCII value 0x0078) separator with additional digits representing extension information can be appended to the end of the value.'
+    note: "Digit counts from RFC 5733 contact:e164StringType: (\\+[0-9]{1,3}\\.[0-9]{1,14})?, maxLength 17 (number part only)."
+    set:
+      base_type: String
+      pattern: '^\+[0-9]{1,3}\.[0-9]{1,14}(x[0-9]+)?$'
