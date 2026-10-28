@@ -42,6 +42,10 @@ Supported-process level (normative-only, no IANA table involved):
   [EXTENDS MISSING IN NORMATIVE]  - an object's "* Extends:" attribute names an
                                      Object Name that does not match any normative
                                      object
+
+Object attribute level (normative-only, no IANA counterpart):
+  [OBJ ATTR INVALID]              - an object's "* Abstract:" attribute has a
+                                     value other than "true" or "false"
 """
 
 import argparse
@@ -219,6 +223,8 @@ class ObjectDef:
     line: int          # 1-based line of the Name / "Object:" declaration
     obj_type: str = ""       # "Component", "Process", or "Resource"
     extends: str = ""        # "* Extends:" — the NAME of the object this one extends
+    abstract: bool = False   # "* Abstract: true" — used only as a base object
+    abstract_raw: str = ""   # raw "* Abstract:" value, validated by check_object_attrs()
     description: str = ""
     elements: list[ElementDef] = field(default_factory=list)
     operations: list[OperationDef] = field(default_factory=list)
@@ -435,7 +441,7 @@ _TABLE_ROW_RE = re.compile(r"^\s*\|")
 _KNOWN_ATTR_KEYS = {
     "name", "identifier", "cardinality", "mutability", "data type",
     "description", "constraints", "unique identifier", "object type",
-    "reference", "extends",
+    "reference", "extends", "abstract",
 }
 
 
@@ -1227,7 +1233,8 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
                         header_end: int, obj_heading_level: int,
                         obj_type: str, obj_id: str, obj_line: int,
                         obj_name: str, obj_desc: str,
-                        obj_extends: str = "") -> ObjectDef:
+                        obj_extends: str = "",
+                        obj_abstract: str = "") -> ObjectDef:
     """
     Parse one object's body (elements, operations, preamble, subsections)
     given its already-known span and identity. Called top-down by
@@ -1294,6 +1301,8 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
         line=obj_line,
         obj_type=obj_type,
         extends=obj_extends,
+        abstract=obj_abstract == "true",
+        abstract_raw=obj_abstract,
         description=obj_desc,
         elements=elements,
         operations=operations,
@@ -1304,15 +1313,16 @@ def _parse_object_body(lines: list[str], obj_start: int, obj_end: int,
 
 
 def _parse_object_header(lines: list[str], obj_start: int,
-                          search_end: int) -> tuple[str, str, str, str, int] | None:
+                          search_end: int) -> tuple[str, str, str, str, str, int] | None:
     """
     Parse the object's own header attribute bullets ("* Name:", "* Identifier:",
-    "* Description:", "* Extends:") starting at obj_start (which may itself be
+    "* Description:", "* Extends:", "* Abstract:") starting at obj_start (which may itself be
     the "* Name:" line, for nested objects, or the line right after an
     "## Object Description" heading, for flat/Resource objects - the caller
     positions obj_start appropriately in each case).
 
-    Returns (name, identifier, description, extends, header_end) or None if no
+    Returns (name, identifier, description, extends, abstract, header_end) or
+    None if no
     "* Name:" bullet is found at or shortly after obj_start (leading blank
     lines - e.g. the blank line a heading is always followed by - and "A>"
     aside lines, e.g. an editorial TODO before an object's header bullets,
@@ -1331,6 +1341,7 @@ def _parse_object_header(lines: list[str], obj_start: int,
     obj_id = ""
     obj_desc = ""
     obj_extends = ""
+    obj_abstract = ""
     header_end = min(obj_start + 10, search_end)
     for j in range(obj_start + 1, min(obj_start + 10, search_end)):
         m_id = TOP_LEVEL_IDENT_RE.match(lines[j])
@@ -1344,6 +1355,10 @@ def _parse_object_header(lines: list[str], obj_start: int,
         m_extends = re.match(r"^\* Extends:\s*(.+)$", lines[j])
         if m_extends:
             obj_extends = m_extends.group(1).strip()
+            continue
+        m_abstract = re.match(r"^\* Abstract:\s*(.+)$", lines[j])
+        if m_abstract:
+            obj_abstract = m_abstract.group(1).strip()
             continue
         # "* Data Elements:" / "* Operations:" / "* Object Type:" mark the
         # true end of the object's own header attributes.
@@ -1363,7 +1378,7 @@ def _parse_object_header(lines: list[str], obj_start: int,
                 break
     if not obj_id:
         return None
-    return obj_name, obj_id, obj_desc, obj_extends, header_end
+    return obj_name, obj_id, obj_desc, obj_extends, obj_abstract, header_end
 
 
 def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
@@ -1394,12 +1409,12 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
             header = _parse_object_header(lines, heading_line + 1, block_end)
             if header is None:
                 continue
-            obj_name, obj_id, obj_desc, obj_extends, header_end = header
+            obj_name, obj_id, obj_desc, obj_extends, obj_abstract, header_end = header
             objects.append(_parse_object_body(
                 lines, heading_line + 1, block_end, header_end,
                 obj_heading_level=2, obj_type=obj_type, obj_id=obj_id,
                 obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
-                obj_extends=obj_extends))
+                obj_extends=obj_extends, obj_abstract=obj_abstract))
         return objects
 
     # Data Object section: the H1 itself is the object. Its "* Name:" bullet
@@ -1409,12 +1424,12 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
         if heading_text == "Object Description":
             header = _parse_object_header(lines, heading_line + 1, block_end)
             if header is not None:
-                obj_name, obj_id, obj_desc, obj_extends, header_end = header
+                obj_name, obj_id, obj_desc, obj_extends, obj_abstract, header_end = header
                 objects.append(_parse_object_body(
                     lines, h1_start + 1, h1_end, header_end,
                     obj_heading_level=1, obj_type=obj_type, obj_id=obj_id,
                     obj_line=heading_line + 2, obj_name=obj_name, obj_desc=obj_desc,
-                    obj_extends=obj_extends))
+                    obj_extends=obj_extends, obj_abstract=obj_abstract))
         elif heading_text == "Processes":
             # Embedded Process Objects: every H3 child of "## Processes" is
             # its own object at heading level 3, obj_type "Process".
@@ -1423,12 +1438,12 @@ def _walk_normative_objects(lines: list[str], h1_start: int, h1_end: int,
                 p_header = _parse_object_header(lines, p_heading_line + 1, p_block_end)
                 if p_header is None:
                     continue
-                p_name, p_id, p_desc, p_extends, p_header_end = p_header
+                p_name, p_id, p_desc, p_extends, p_abstract, p_header_end = p_header
                 objects.append(_parse_object_body(
                     lines, p_heading_line + 1, p_block_end, p_header_end,
                     obj_heading_level=3, obj_type="Process", obj_id=p_id,
                     obj_line=p_heading_line + 2, obj_name=p_name, obj_desc=p_desc,
-                    obj_extends=p_extends))
+                    obj_extends=p_extends, obj_abstract=p_abstract))
     return objects
 
 
@@ -1878,6 +1893,21 @@ def check_supported_processes(norm_obj: ObjectDef,
     return errors
 
 
+def check_object_attrs(norm_obj: ObjectDef) -> list[str]:
+    """
+    Validate an object's own header attribute values. "* Abstract:" must be
+    "true" or "false" when present. Normative-only: Abstract has no IANA
+    table counterpart.
+    """
+    if norm_obj.abstract_raw in ("", "true", "false"):
+        return []
+    return [
+        f"[OBJ ATTR INVALID] object '{norm_obj.identifier}' at line "
+        f"{norm_obj.line}: Abstract '{norm_obj.abstract_raw}' is not "
+        f"'true' or 'false'."
+    ]
+
+
 def check_elements(norm_obj: ObjectDef, iana_obj: ObjectDef) -> list[str]:
     errors: list[str] = []
     prefix = f"object '{norm_obj.identifier}'"
@@ -2247,6 +2277,7 @@ def _object_to_dict(obj: ObjectDef) -> dict:
         "name": obj.name,
         "object_type": obj.obj_type,
         "extends": obj.extends,
+        "abstract": obj.abstract,
         "description": obj.description,
         "preamble": list(obj.preamble),
         "elements": [_element_to_dict(e) for e in obj.elements],
@@ -2359,6 +2390,7 @@ def run_consistency_check(normative: list[ObjectDef], iana: list[ObjectDef],
     norm_names = {_norm(o.name) for o in normative}
     for norm_obj in normative:
         errors.extend(check_supported_processes(norm_obj, norm_names))
+        errors.extend(check_object_attrs(norm_obj))
 
     iana_by_id  = {o.identifier: o for o in iana}
     elem_errors: list[tuple[ObjectDef, list[str]]] = []
@@ -3095,10 +3127,11 @@ def _test_parse_object_header_captures_extends():
     ]
     header = _parse_object_header(lines, 0, len(lines))
     assert header is not None
-    name, ident, desc, extends, _end = header
+    name, ident, desc, extends, abstract, _end = header
     assert name == "Widget Transfer Process Object"
     assert ident == "widgetTransferProcess"
     assert extends == "Transfer Process Object", extends
+    assert abstract == "", abstract
     assert desc == "A widget transfer.", desc
 
 
@@ -3118,9 +3151,58 @@ def _test_parse_object_header_unique_identifier_does_not_end_header():
     ]
     header = _parse_object_header(lines, 0, len(lines))
     assert header is not None
-    _name, _ident, desc, _extends, header_end = header
+    _name, _ident, desc, _extends, _abstract, header_end = header
     assert desc == "Represents a transfer request.", desc
     assert lines[header_end] == "* Data Elements:", (header_end, lines[header_end])
+
+
+def _test_abstract_object_header_parsed_validated_and_exported():
+    """
+    "* Abstract:" is an object header attribute: it does not end the header,
+    "true" sets ObjectDef.abstract (exported as "abstract"), absence means
+    false, and any other value is [OBJ ATTR INVALID].
+    """
+    lines = [
+        "# Component Objects",
+        "",
+        "## Base Widget Object",
+        "",
+        "* Name: Base Widget Object",
+        "* Identifier: baseWidget",
+        "* Abstract: true",
+        "* Description: Base structure for widgets.",
+        "* Data Elements:",
+        "  * Widget ID",
+        "    * Identifier: widgetId",
+        "    * Cardinality: 0-1",
+        "    * Mutability: read-only",
+        "    * Data Type: String",
+        "",
+        "## Plain Widget Object",
+        "",
+        "* Name: Plain Widget Object",
+        "* Identifier: plainWidget",
+        "* Extends: Base Widget Object",
+        "* Description: A concrete widget.",
+        "* Data Elements: (None)",
+    ]
+    objs = _walk_normative_objects(lines, 0, len(lines), obj_type="Component")
+    by_id = {o.identifier: o for o in objs}
+    base, plain = by_id["baseWidget"], by_id["plainWidget"]
+    assert base.abstract is True and base.abstract_raw == "true", base
+    assert base.description == "Base structure for widgets.", base.description
+    assert [e.identifier for e in base.elements] == ["widgetId"], base.elements
+    assert base.preamble == [], base.preamble
+    assert plain.abstract is False and plain.abstract_raw == "", plain
+    assert _object_to_dict(base)["abstract"] is True
+    assert _object_to_dict(plain)["abstract"] is False
+    assert check_object_attrs(base) == []
+    assert check_object_attrs(plain) == []
+
+    bad = ObjectDef(name="Bad", identifier="bad", source="normative", line=1,
+                    abstract_raw="yes")
+    errors = check_object_attrs(bad)
+    assert len(errors) == 1 and "[OBJ ATTR INVALID]" in errors[0], errors
 
 
 def _test_check_supported_processes_resolves_names_and_extends():
@@ -3421,6 +3503,7 @@ _SELF_TESTS = [
     _test_parse_object_header_captures_extends,
     _test_parse_object_header_unique_identifier_does_not_end_header,
     _test_check_supported_processes_resolves_names_and_extends,
+    _test_abstract_object_header_parsed_validated_and_exported,
     _test_walk_normative_objects_skips_aside_before_header,
     _test_object_header_tolerates_blank_lines_and_asides_between_attrs,
     _test_walk_normative_objects_flat_data_object,

@@ -51,6 +51,10 @@
 #                   identifier) of the object this one extends, e.g. a
 #                   Domain Transfer Process Object extends "Transfer Process
 #                   Object". Empty string for objects that extend nothing.
+#     abstract:     true if the object's preamble has "* Abstract: true" —
+#                   the object is used only as a base object and no instance
+#                   ever has it as its own type (e.g. Base Process Object).
+#                   false when the attribute is absent or "false".
 #     supported_processes: the INHERITED-process bullet list from a Data
 #                   Object's "## Processes" section — the Process Objects it
 #                   supports UNMODIFIED. Processes it *extends* are not

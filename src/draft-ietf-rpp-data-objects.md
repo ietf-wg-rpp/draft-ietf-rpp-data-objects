@@ -219,6 +219,7 @@ The following rules apply:
 * Inherited content: a derived object has all data elements of its base object, including their cardinality, mutability, data type and constraints, and supports all operations of its base object. Inherited data elements and operations are not repeated in the derived object's definition.
 * Additions: a derived object MAY define additional data elements and operations. It MUST NOT define a data element whose identifier is already defined by any of its ancestors. A derived object MAY modify the inherited operation input and output data as needed.
 * Polymorphism: where a data element or operation refers to a base object, any object that directly or indirectly extends the base object MAY be used in its place.
+* Abstract objects: an object MAY be declared abstract using the `Abstract` keyword in the preamble of its definition, with the value `true`. When the `Abstract` keyword is absent or set to `false`, the object is not abstract. An abstract object serves only as a base object for its derived objects. Wherever a data element or operation refers to an abstract object, an instance of a non-abstract object that directly or indirectly extends it is used in its place. A client MUST NOT provide, and a server MUST NOT return, an instance whose own type is an abstract object. The `Abstract` keyword is not inherited.
 
 ## Reserved Property Names
 
@@ -1701,6 +1702,7 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 * Name: Base Process Object
 * Identifier: baseProcess
+* Abstract: true
 * Description: Base structure for all Process Objects, containing the data elements common to every process. Each Process Object extends this object.
 * Data Elements:
   * Process ID
@@ -1719,6 +1721,7 @@ The Message Components define the structure and data elements for all message ob
 
 * Name: Base Message Object
 * Identifier: baseMessage
+* Abstract: true
 * Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
 * Data Elements:
   * Object Type
@@ -4783,6 +4786,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188
 * Clarification on Processes supported and extended by a Data Object
 * allowed extensions to define new processes
 * create-only definition clarified about reading (Issue #80)
