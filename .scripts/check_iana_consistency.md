@@ -112,6 +112,14 @@ is `[MISSING IN IANA]`, so identifier gaps are always surfaced.
 `supported_processes` and `extends` are normative-model concepts only; neither
 has an IANA table counterpart, so there is no `MISSING IN IANA` variant for them.
 
+### Object attribute level (normative-only, no IANA table involved)
+
+| Code | Meaning |
+| ---- | ------- |
+| `[OBJ ATTR INVALID]` | An object's `* Abstract:` attribute has a value other than `true` or `false` |
+
+`abstract` is likewise a normative-model concept only, with no IANA counterpart.
+
 ---
 
 ## Normative sections parsed
@@ -662,6 +670,7 @@ subsections:                # non-Data-Elements/Operations/Processes headings
     anchor: "{#rdata-structures}"
     notes: []                # prose paragraphs and bullets, in document order
 extends: ""                 # Object NAME this object extends, from "* Extends:"; "" if none
+abstract: false             # true iff "* Abstract: true" (object used only as a base object)
 supported_processes:        # inherited-process bullets from the object's "## Processes"
   - name: Renew Process      # the reference itself, by Object Name (short form accepted)
     constraints: []          # list of strings — same convention as element/param Constraints

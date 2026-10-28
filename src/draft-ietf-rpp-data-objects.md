@@ -152,7 +152,7 @@ The data type of a data element may also be a reference to another data object, 
 
 ## Extensibility
 
-The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, and define new operations or extend the inputs and outputs of existing operations with additional transient data elements.
+The RPP data model is designed to be extensible. Extensions MAY introduce new data objects, add new data elements or associations to existing objects, define new processes on existing or new data objects, and define new operations or extend the inputs and outputs of existing operations.
 
 ### Standardised and Private Extensions
 
@@ -170,6 +170,7 @@ The following aspects of the data model are extensible:
 * New data elements: Extensions MAY add new data elements to existing data objects. Such elements follow the same Data Element Semantics as core data elements.
 * New associations: Extensions MAY introduce new associations between existing or new objects.
 * New operations: Extensions MAY define entirely new operations on existing or new data objects.
+* New processes: Extensions MAY define new Process Objects and MAY declare that existing or new Data Objects support them. A new Process Object MUST extend the Base Process Object, either directly or through another Process Object.
 * Extended operation inputs and outputs: Extensions MAY add new transient data elements to the inputs or outputs of existing operations.
 
 When an extension adds data elements or transient parameters to a core object or operation, these additions MUST NOT alter the semantics or constraints of existing core data elements.
@@ -218,6 +219,7 @@ The following rules apply:
 * Inherited content: a derived object has all data elements of its base object, including their cardinality, mutability, data type and constraints, and supports all operations of its base object. Inherited data elements and operations are not repeated in the derived object's definition.
 * Additions: a derived object MAY define additional data elements and operations. It MUST NOT define a data element whose identifier is already defined by any of its ancestors. A derived object MAY modify the inherited operation input and output data as needed.
 * Polymorphism: where a data element or operation refers to a base object, any object that directly or indirectly extends the base object MAY be used in its place.
+* Abstract objects: an object MAY be declared abstract using the `Abstract` keyword in the preamble of its definition, with the value `true`. When the `Abstract` keyword is absent or set to `false`, the object is not abstract. An abstract object serves only as a base object for its derived objects. Wherever a data element or operation refers to an abstract object, an instance of a non-abstract object that directly or indirectly extends it is used in its place. A client MUST NOT provide, and a server MUST NOT return, an instance whose own type is an abstract object. The `Abstract` keyword is not inherited.
 
 ## Reserved Property Names
 
@@ -1544,7 +1546,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
 
 ## Authorisation Information Object
 
-* Name: Authorisation Information
+* Name: Authorisation Information Object
 * Identifier: authInfo
 * Description: Contains information used to authorise operations on a data object. It may hold different kinds of authorisation information.
 * Data Elements:
@@ -1571,7 +1573,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
 
 A> TODO: Model Disclose in universal (extendible) way
 
-* Name: Disclose
+* Name: Disclose Object
 * Identifier: disclose
 * Description: TBD
 
@@ -1661,7 +1663,7 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 * Name: Processes Object
 * Identifier: processes
-* Description: A container grouping the Process Objects (#process-objects) currently or recently initiated on a Data Object. Each data element MUST be named after the identifier of a Process Object and MUST be of type Aggregation of that Process Object. The data elements below are the process types defined in this document.
+* Description: A container grouping the Process Objects (#process-objects) currently or recently initiated on a Data Object. Each data element MUST be named after the identifier of a Process Object and MUST be of type Aggregation of that Process Object. The data elements below are the process types defined in this document. Extensions MUST add further data elements for the Process Objects they define.
 * Data Elements:
   * Transfer Processes
     * Identifier: transferProcess
@@ -1700,6 +1702,7 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
 
 * Name: Base Process Object
 * Identifier: baseProcess
+* Abstract: true
 * Description: Base structure for all Process Objects, containing the data elements common to every process. Each Process Object extends this object.
 * Data Elements:
   * Process ID
@@ -1718,6 +1721,7 @@ The Message Components define the structure and data elements for all message ob
 
 * Name: Base Message Object
 * Identifier: baseMessage
+* Abstract: true
 * Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.
 * Data Elements:
   * Object Type
@@ -2567,11 +2571,15 @@ The error response SHOULD indicate the related subordinate host objects.
 
 ## Processes
 
-The Domain Name Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Domain Name Data Object supports the following Process Objects (#process-objects) unmodified:
 
-* Renew Process
+* Renew Process 
 * Restore Process
   * Constraints: OPTIONAL; available only when the RGP feature is supported.
+
+The Domain Name Data Object supports the following Process Objects extended by an object-specific definition:
+* Create Process (#domain-create-process)
+* Transfer Process (#domain-transfer-process)
 
 ### Domain Create Process Object {#domain-create-process}
 
@@ -2813,11 +2821,11 @@ The error response SHOULD indicate the existing object associations.
 
 ## Processes
 
-The Contact Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
+The Contact Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
 
-Renewal semantics do not apply to contact objects.
+The Contact Data Object supports no Process Objects extended by an object-specific definition.
 
 # Host Data Object
 
@@ -2934,13 +2942,12 @@ The error response SHOULD indicate the related associated objects.
 
 ## Processes
 
-The Host Data Object supports the following Process Objects (#process-objects), either unmodified or extended by an object-specific definition.
-
-* Restore Process
-  * Constraints: OPTIONAL; available only when the RGP feature for the Host Data Object is supported by the server.
+The Host Data Object Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
   * Constraints: Host objects MUST NOT be transferred directly. They are transferred implicitly when their superordinate domain object is transferred.
+
+The Host Data Object supports no Process Objects (#process-objects) extended by an object-specific definition.
 
 # Organisation Data Object
 
@@ -3628,7 +3635,7 @@ Data Elements
 
 Object: authInfo
 
-Object Name: Authorisation Information
+Object Name: Authorisation Information Object
 
 Object Type: Component
 
@@ -4041,7 +4048,7 @@ Parameters
 
 Object: disclose
 
-Object Name: Disclose
+Object Name: Disclose Object
 
 Object Type: Component
 
@@ -4908,6 +4915,9 @@ A> TODO: write security considerations, if any
 ## draft-ietf-rpp-data-objects -01 - -02
 
 * moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA (Issue #179)
+* add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188
+* Clarification on Processes supported and extended by a Data Object
+* allowed extensions to define new processes
 * create-only definition clarified about reading (Issue #80)
 * Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
 * Added Default Profile element to Profile Data Object (Issue #155)
@@ -4921,6 +4931,10 @@ A> TODO: write security considerations, if any
 * Added support for IDN (Internationalized Domain Names) (Issue #124)
 * Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
 * Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
+* defined a structured notation for operation input and output and applied it to the uniform interface, all process operations, the domain create operation and the discovery read operation
+* removed the redefined processId data element from the Domain Transfer Process Object
+* moved input data elements and parameters into the Input attribute of operations
+* renamed Authorisation Information and Disclose component objects to "… Object" to match their references
 
 {toc="exclude"}
 {numbered="false"}
