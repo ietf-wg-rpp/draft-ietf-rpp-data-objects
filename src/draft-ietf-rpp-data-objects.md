@@ -337,6 +337,19 @@ If the querying client is not the sponsoring client and the client does not prov
   * Object: This Object
     * Cardinality: 0-1
 
+#### Availability {#uniform-availability}
+
+* Input:
+  * Reference: This Object
+* Output:
+  * Object: Base Availability Object
+
+The Availability operation allows a client to determine whether the object identified by the Reference can be created using the Create operation at the time of the request. The referenced object does not need to exist. The operation does not create, reserve, or otherwise change the state of any object.
+
+A Data Object that supports the Availability operation declares as its Output an Availability Object that extends the Base Availability Object (see (#availability)).
+
+Extensions MAY add parameters that further specify the check and data elements to the Availability Objects.
+
 ### Offline Review
 
 RPP allows for offline review for operations that change the state of an object (Uniform Interface Create, Update, Delete, and the Renew and Transfer process operations) before the requested action is actually completed. In such situations, the response from the server MUST clearly indicate that the operation has been received, but that the requested action is pending. The state of the corresponding object MUST clearly reflect processing of the pending action, typically through a server-set pending status label (e.g. `pendingCreate`, `pendingUpdate`, `pendingDelete`, `pendingRenew`, `pendingTransfer`). The server MUST also notify the client when offline processing of the action has been completed, by sending a `review-response` message (see (#messages)).
@@ -1857,6 +1870,56 @@ A> TBC: IANA registry for role types and statuses? must be compat with EPP
     * Description: A server-assigned identifier of the process instance, unique within the scope of the Owner Data Object.
     * Constraints: The value is set by the server and cannot be specified by the client.
 
+## Availability {#availability}
+
+The Availability Objects define the output of the Availability operation (see (#uniform-availability)). Each Data Object that supports the Availability operation defines its own Availability Object extending the Base Availability Object. Extensions add availability information, for example pricing, as data elements of these objects.
+
+### Base Availability Object
+
+* Name: Base Availability Object
+* Identifier: baseAvailability
+* Abstract: true
+* Description: Base structure for the result of an Availability operation, indicating whether the referenced object can be created.
+* Data Elements:
+  * Available
+    * Identifier: available
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: Boolean
+    * Description: Indicates whether the referenced object can be created at the time the operation is completed. The value `true` means that the object can be created. It does not guarantee that a subsequent Create operation for the same object succeeds, as the state of the server can change between the two operations. The value `false` means that the object cannot be created.
+    * Constraints: (None)
+  * Reason
+    * Identifier: reason
+    * Cardinality: 0-1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: Server-specific text explaining why the referenced object cannot be created.
+    * Constraints: The element is present only when `available` is `false`.
+
+### Domain Name Availability Object
+
+* Name: Domain Name Availability Object
+* Identifier: domainNameAvailability
+* Extends: Base Availability Object
+* Description: The result of an Availability operation on a Domain Name Data Object.
+* Data Elements: (None)
+
+### Contact Availability Object
+
+* Name: Contact Availability Object
+* Identifier: contactAvailability
+* Extends: Base Availability Object
+* Description: The result of an Availability operation on a Contact Data Object.
+* Data Elements: (None)
+
+### Host Availability Object
+
+* Name: Host Availability Object
+* Identifier: hostAvailability
+* Extends: Base Availability Object
+* Description: The result of an Availability operation on a Host Data Object.
+* Data Elements: (None)
+
 ## Messages
 
 The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type extends the Base Message Object to include additional data elements relevant to that message type. Any of the types defined in this section may be used for the `data` data element defined for the Message Data Object.
@@ -2719,6 +2782,40 @@ A> TBC: IANA registry for contact role label?
 
 ## Operations
 
+### Availability Operation
+
+* Identifier: availability
+
+The Availability operation allows a client to determine whether a Domain Name resource with the given name can be created.
+
+The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Name) is taken into consideration.
+
+* Authorisation:
+  * Any authenticated client is authorised to perform this operation.
+
+* Input:
+  * Reference: This Object
+  * Parameters:
+    * Unicode Name
+      * Identifier: uName
+      * Cardinality: 0-1
+      * Data Type: String
+      * Description: The Unicode Name (uName) of the domain name for which availability is determined. If the parameter is absent, the server determines availability from the referenced domain name only.
+      * Constraints:
+        * The value MUST satisfy the constraints of the Unicode Name data element of the Domain Name Data Object.
+        * If the value does not map to the referenced domain name, the server MUST return an error indicating the mismatch.
+    * LGR
+      * Identifier: lgr
+      * Cardinality: 0-1
+      * Data Type: String
+      * Description: The name of the Label Generation Ruleset (LGR) against which the server determines availability of the domain name. If the parameter is absent, the server uses its default LGR for the top-level domain, as indicated by the Discovery IDN LGR Object.
+      * Constraints:
+        * The value MUST be a valid LGR name registered in the IANA IDN Tables registry [IDN-Tables].
+        * If the domain name contains a code point not available in the specified LGR, the server MUST return an error indicating the invalid code point.
+
+* Output:
+  * Object: Domain Name Availability Object
+
 ### Create Operation
 
 * Identifier: create
@@ -2967,6 +3064,20 @@ A> TBC: IANA registry for statuses?
 
 ## Operations
 
+### Availability Operation
+
+* Identifier: availability
+
+The Availability operation allows a client to determine whether a Contact resource with the given Handle ID can be created.
+
+The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Handle ID) is taken into consideration.
+
+* Authorisation:
+  * Any authenticated client is authorised to perform this operation.
+
+* Output:
+  * Object: Contact Availability Object
+
 ### Create Operation
 
 * Identifier: create
@@ -3099,6 +3210,20 @@ The following data elements are defined for the Host Data Object.
   * Constraints: (None)
 
 ## Operations
+
+### Availability Operation
+
+* Identifier: availability
+
+The Availability operation allows a client to determine whether a Host Data Object with the given host name can be created.
+
+The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Host Name) is taken into consideration.
+
+* Authorisation:
+  * Any authenticated client is authorised to perform this operation.
+
+* Output:
+  * Object: Host Availability Object
 
 ### Create Operation
 
@@ -4015,6 +4140,64 @@ Data Elements
 | ------------------ | ------------ | ----- | ---------- | --------- | ------------------------------------------------------------------------------------------ |
 | processId          | Process ID   | 0-1   | read-only  | String    | A server-assigned identifier of the process instance, unique within the Owner Data Object. |
 
+Object: baseAvailability
+
+Object Name: Base Availability Object
+
+Object Type: Component
+
+Description: Base structure for the result of an Availability operation, indicating whether the referenced object can be created.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description                                                                                    |
+| ------------------ | ------------ | ----- | ---------- | --------- | ---------------------------------------------------------------------------------------------- |
+| available          | Available    | 1     | read-only  | Boolean   | Indicates whether the referenced object can be created at the time the operation is completed. |
+| reason             | Reason       | 0-1   | read-only  | String    | Server-specific text explaining why the referenced object cannot be created.                   |
+
+Object: domainNameAvailability
+
+Object Name: Domain Name Availability Object
+
+Object Type: Component
+
+Extends: baseAvailability
+
+Description: The result of an Availability operation on a Domain Name Data Object.
+
+Reference: [This-ID]
+
+Data Elements: (None)
+
+Object: contactAvailability
+
+Object Name: Contact Availability Object
+
+Object Type: Component
+
+Extends: baseAvailability
+
+Description: The result of an Availability operation on a Contact Data Object.
+
+Reference: [This-ID]
+
+Data Elements: (None)
+
+Object: hostAvailability
+
+Object Name: Host Availability Object
+
+Object Type: Component
+
+Extends: baseAvailability
+
+Description: The result of an Availability operation on a Host Data Object.
+
+Reference: [This-ID]
+
+Data Elements: (None)
+
 Object: baseMessage
 
 Object Name: Base Message Object
@@ -4484,6 +4667,20 @@ Data Elements
 
 Operations
 
+Operation: Availability
+
+Operation Identifier: availability
+
+Description: Determines whether a Domain Name resource can be created.
+
+Input Data Elements: (None)
+
+Parameters
+| Identifier | Name         | Card. | Data Type | Description                                                               |
+| ---------- | ------------ | ----- | --------- | ------------------------------------------------------------------------- |
+| uName      | Unicode Name | 0-1   | String    | The Unicode Name of the domain name for which availability is determined. |
+| lgr        | LGR          | 0-1   | String    | The LGR against which availability of the domain name is determined.      |
+
 Operation: Create
 
 Operation Identifier: create
@@ -4548,6 +4745,16 @@ Data Elements
 
 Operations
 
+Operation: Availability
+
+Operation Identifier: availability
+
+Description: Determines whether a Contact resource can be created.
+
+Input Data Elements: (None)
+
+Parameters: (None)
+
 Operation: Create Operation
 
 Operation Identifier: create
@@ -4608,6 +4815,16 @@ Data Elements
 | processes    | Processes             | 0-1   | read-only  | Processes Object             | Process Objects initiated on the host object. |
 
 Operations
+
+Operation: Availability
+
+Operation Identifier: availability
+
+Description: Determines whether a Host Data Object can be created.
+
+Input Data Elements: (None)
+
+Parameters: (None)
 
 Operation: Create
 
@@ -5319,6 +5536,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
+* added Availability operation to the uniform interface and to the Domain Name, Contact and Host Data Objects (Issue #46)
 * add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188
 * Clarification on Processes supported and extended by a Data Object
 * moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update
