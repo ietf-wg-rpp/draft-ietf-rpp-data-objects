@@ -2788,8 +2788,30 @@ A> TBC: IANA registry for contact role label?
 
 The Availability operation allows a client to determine whether a Domain Name resource with the given name can be created.
 
+The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Name) is taken into consideration.
+
 * Authorisation:
   * Any authenticated client is authorised to perform this operation.
+
+* Input:
+  * Reference: This Object
+  * Parameters:
+    * Unicode Name
+      * Identifier: uName
+      * Cardinality: 0-1
+      * Data Type: String
+      * Description: The Unicode Name (uName) of the domain name for which availability is determined. If the parameter is absent, the server determines availability from the referenced domain name only.
+      * Constraints:
+        * The value MUST satisfy the constraints of the Unicode Name data element of the Domain Name Data Object.
+        * If the value does not map to the referenced domain name, the server MUST return an error indicating the mismatch.
+    * LGR
+      * Identifier: lgr
+      * Cardinality: 0-1
+      * Data Type: String
+      * Description: The name of the Label Generation Ruleset (LGR) against which the server determines availability of the domain name. If the parameter is absent, the server uses its default LGR for the top-level domain, as indicated by the Discovery IDN LGR Object.
+      * Constraints:
+        * The value MUST be a valid LGR name registered in the IANA IDN Tables registry [IDN-Tables].
+        * If the domain name contains a code point not available in the specified LGR, the server MUST return an error indicating the invalid code point.
 
 * Output:
   * Object: Domain Name Availability Object
@@ -3048,6 +3070,8 @@ A> TBC: IANA registry for statuses?
 
 The Availability operation allows a client to determine whether a Contact resource with the given Handle ID can be created.
 
+The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Handle ID) is taken into consideration.
+
 * Authorisation:
   * Any authenticated client is authorised to perform this operation.
 
@@ -3192,6 +3216,8 @@ The following data elements are defined for the Host Data Object.
 * Identifier: availability
 
 The Availability operation allows a client to determine whether a Host Data Object with the given host name can be created.
+
+The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Host Name) is taken into consideration.
 
 * Authorisation:
   * Any authenticated client is authorised to perform this operation.
@@ -4649,7 +4675,11 @@ Description: Determines whether a Domain Name resource can be created.
 
 Input Data Elements: (None)
 
-Parameters: (None)
+Parameters
+| Identifier | Name         | Card. | Data Type | Description                                                               |
+| ---------- | ------------ | ----- | --------- | ------------------------------------------------------------------------- |
+| uName      | Unicode Name | 0-1   | String    | The Unicode Name of the domain name for which availability is determined. |
+| lgr        | LGR          | 0-1   | String    | The LGR against which availability of the domain name is determined.      |
 
 Operation: Create
 
