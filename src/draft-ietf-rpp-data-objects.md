@@ -1,16 +1,16 @@
 %%%
 title = "RESTful Provisioning Protocol (RPP) Data Objects"
 abbrev = "RPP Data Objects"
-area = "Internet"
+area = "Applications and Real-Time"
 workgroup = "Network Working Group"
 submissiontype = "IETF"
-keyword = [""]
+keyword = ["RPP", "provisioning", "registry", "data model"]
 TocDepth = 4
-date = 2026-07-02
+date = 2026-11-02
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-ietf-rpp-data-objects-02 (editorial)"
+value = "draft-ietf-rpp-data-objects-02"
 stream = "IETF"
 status = "standard"
 
@@ -18,7 +18,6 @@ status = "standard"
 initials="P."
 surname="Kowalik"
 fullname="Pawel Kowalik"
-abbrev = ""
 organization = "DENIC"
   [author.address]
   email = "pawel.kowalik@denic.de"
@@ -28,7 +27,6 @@ organization = "DENIC"
 initials="M."
 surname="Wullink"
 fullname="Maarten Wullink"
-abbrev = ""
 organization = "SIDN Labs"
   [author.address]
   email = "maarten.wullink@sidn.nl"
@@ -38,12 +36,12 @@ organization = "SIDN Labs"
 
 .# Abstract
 
-This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for foundational resources: domain names, contacts, and hosts. In accordance with the RPP architecture [@!I-D.ietf-rpp-architecture], these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).
+This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for registry resources: domain names, contacts, hosts, organisations, users, and messages, as well as the discovery and profile objects that describe server capabilities. In accordance with the RPP architecture, these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).
 
 {mainmatter}
 
 # Introduction
-The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage foundational registry resources, including domain names, contacts, and hosts. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.
+The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage registry resources, including domain names, contacts, hosts, organisations, users, and messages, as well as the discovery and profile objects that describe server capabilities. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.
 
 In accordance with the RPP architecture [@!I-D.ietf-rpp-architecture], a core architectural principle is the clear distinction between the abstract data model and its concrete data representation. The data model defines the logical structure, relationships, and constraints of the objects, independent of formatting. The data representation defines how these abstract concepts are expressed in specific formats (e.g., JSON, XML, or YAML).
 
@@ -5536,35 +5534,29 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
-* added Availability operation to the uniform interface and to the Domain Name, Contact and Host Data Objects (Issue #46)
+* added Availability operation to the uniform interface and to the Domain Name, Contact and Host Data Objects #46
 * add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188
-* Clarification on Processes supported and extended by a Data Object
+* clarified the Processes a Data Object supports or extends, and allowed extensions to define new processes
 * moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update
-* Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition
+* added a Status Object per Data Object, including the User Status Object, with status values, allowed transitions, and IANA registries, replacing the inline user status definition #118
 * fixed User Object delete operation constraint that prevented any user from being deleted
-* Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
-* defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
-* allowed extensions to define new processes
-* moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA (Issue #179)
-* create-only definition clarified about reading (Issue #80)
-* Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
-* Added Default Profile element to Profile Data Object (Issue #155)
-* Added Discovery Data Object (Issue #136)
-* Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
-* Added Profile Data Object (Issue #140)
-* added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility (Issue #57)
-* Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
-* Removed the urgent parameter from the update operation for Domain Object (Issue #52)
-* Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
-* Added support for IDN (Internationalized Domain Names) (Issue #124)
-* Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
-* Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
-* defined a structured notation for operation input and output and applied it to the uniform interface, all process operations, the domain create operation and the discovery read operation
+* added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` #183
+* defined a structured notation for operation input and output, with input data elements and parameters (replacing transient data elements) inside the Input attribute, and split IANA operation tables into "Input Data Elements" and "Parameters" #147
+* moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA #179
+* create-only definition clarified about reading #80
+* moved requests for IANA registrations to here, from rpp-core document #151
+* added Profile Data Object, including the Default Profile element #140 #155
+* added Discovery Data Object, with links labelled by IANA link relation types #136 #137
+* added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility #57
+* added "Inheritance" section to describe how objects can use inheritance #134
+* removed the urgent parameter from the update operation for Domain Object #52
+* removed all mandatory ordering requirements for arrays, making them unordered #30
+* added support for IDN (Internationalized Domain Names) #124
+* added Message Data Object and new Uniform Interface "Query" operation #116
 * removed the redefined processId data element from the Domain Transfer Process Object
-* moved input data elements and parameters into the Input attribute of operations
-* added a Set By column to status value tables and a set-by field to the status value registries (Issue #186)
-* stated that the server assigns at least one status value on create (Issue #186)
-* renamed Authorisation Information and Disclose component objects to "… Object" to match their references
+* added Set By column and set-by registry field for status values, and required the server to assign at least one status value #186
+* renamed Authorisation Information and Disclose component objects to "Authorisation Information Object" and "Disclose Object" to match their references
+* updated document metadata, and Abstract and Introduction scope
 
 {toc="exclude"}
 {numbered="false"}

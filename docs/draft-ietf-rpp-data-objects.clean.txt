@@ -5,12 +5,12 @@
 Network Working Group                                         P. Kowalik
 Internet-Draft                                                     DENIC
 Intended status: Standards Track                              M. Wullink
-Expires: 3 January 2027                                        SIDN Labs
-                                                             2 July 2026
+Expires: 6 May 2027                                            SIDN Labs
+                                                         2 November 2026
 
 
             RESTful Provisioning Protocol (RPP) Data Objects
-               draft-ietf-rpp-data-objects-02 (editorial)
+                     draft-ietf-rpp-data-objects-02
 
 Abstract
 
@@ -18,11 +18,12 @@ Abstract
    Protocol (RPP) and sets up the IANA RPP Data Object Registry to
    describe and catalogue them.  Specifically, it details the logical
    structure, constraints, and protocol operations (including their
-   inputs, outputs, and business logic) for foundational resources:
-   domain names, contacts, and hosts.  In accordance with the RPP
-   architecture [I-D.ietf-rpp-architecture], these definitions focus
-   entirely on the semantics, remaining independent of any specific data
-   representation or media type (e.g., JSON or XML).
+   inputs, outputs, and business logic) for registry resources: domain
+   names, contacts, hosts, organisations, users, and messages, as well
+   as the discovery and profile objects that describe server
+   capabilities.  In accordance with the RPP architecture, these
+   definitions focus entirely on the semantics, remaining independent of
+   any specific data representation or media type (e.g., JSON or XML).
 
 Status of This Memo
 
@@ -39,7 +40,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 3 January 2027.
+   This Internet-Draft will expire on 6 May 2027.
 
 Copyright Notice
 
@@ -299,11 +300,13 @@ Table of Contents
 1.  Introduction
 
    The RESTful Provisioning Protocol (RPP) defines a set of data objects
-   used to represent and manage foundational registry resources,
-   including domain names, contacts, and hosts.  This initial list is
-   not exhaustive; additional resource and component objects MAY be
-   defined in future revisions or introduced via IANA registration to
-   support new features and operational needs.
+   used to represent and manage registry resources, including domain
+   names, contacts, hosts, organisations, users, and messages, as well
+   as the discovery and profile objects that describe server
+   capabilities.  This initial list is not exhaustive; additional
+   resource and component objects MAY be defined in future revisions or
+   introduced via IANA registration to support new features and
+   operational needs.
 
    In accordance with the RPP architecture [I-D.ietf-rpp-architecture],
    a core architectural principle is the clear distinction between the
@@ -4619,10 +4622,48 @@ Table of Contents
    The Availability operation allows a client to determine whether a
    Domain Name resource with the given name can be created.
 
+   The operation has no input data elements and takes no object
+   representation as input.  The client identifies the resource by its
+   Reference only, i.e. only the Unique Identifier (Name) is taken into
+   consideration.
+
    -  Authorisation:
 
       -  Any authenticated client is authorised to perform this
          operation.
+
+   -  Input:
+
+      -  Reference: This Object
+      -  Parameters:
+         -  Unicode Name
+            -  Identifier: uName
+            -  Cardinality: 0-1
+            -  Data Type: String
+            -  Description: The Unicode Name (uName) of the domain name
+               for which availability is determined.  If the parameter
+               is absent, the server determines availability from the
+               referenced domain name only.
+            -  Constraints:
+            -  The value MUST satisfy the constraints of the Unicode
+               Name data element of the Domain Name Data Object.
+            -  If the value does not map to the referenced domain name,
+               the server MUST return an error indicating the mismatch.
+         -  LGR
+            -  Identifier: lgr
+            -  Cardinality: 0-1
+            -  Data Type: String
+            -  Description: The name of the Label Generation Ruleset
+               (LGR) against which the server determines availability of
+               the domain name.  If the parameter is absent, the server
+               uses its default LGR for the top-level domain, as
+               indicated by the Discovery IDN LGR Object.
+            -  Constraints:
+            -  The value MUST be a valid LGR name registered in the IANA
+               IDN Tables registry [IDN-Tables].
+            -  If the domain name contains a code point not available in
+               the specified LGR, the server MUST return an error
+               indicating the invalid code point.
 
    -  Output:
 
@@ -4991,6 +5032,11 @@ Table of Contents
    The Availability operation allows a client to determine whether a
    Contact resource with the given Handle ID can be created.
 
+   The operation has no input data elements and takes no object
+   representation as input.  The client identifies the resource by its
+   Reference only, i.e. only the Unique Identifier (Handle ID) is taken
+   into consideration.
+
    -  Authorisation:
 
       -  Any authenticated client is authorised to perform this
@@ -5192,6 +5238,11 @@ Table of Contents
 
    The Availability operation allows a client to determine whether a
    Host Data Object with the given host name can be created.
+
+   The operation has no input data elements and takes no object
+   representation as input.  The client identifies the resource by its
+   Reference only, i.e. only the Unique Identifier (Host Name) is taken
+   into consideration.
 
    -  Authorisation:
 
@@ -7787,7 +7838,24 @@ Table of Contents
 
    Input Data Elements: (None)
 
-   Parameters: (None)
+   Parameters
+
+      +============+=========+=======+========+=====================+
+      | Identifier | Name    | Card. | Data   | Description         |
+      |            |         |       | Type   |                     |
+      +============+=========+=======+========+=====================+
+      | uName      | Unicode | 0-1   | String | The Unicode Name of |
+      |            | Name    |       |        | the domain name for |
+      |            |         |       |        | which availability  |
+      |            |         |       |        | is determined.      |
+      +------------+---------+-------+--------+---------------------+
+      | lgr        | LGR     | 0-1   | String | The LGR against     |
+      |            |         |       |        | which availability  |
+      |            |         |       |        | of the domain name  |
+      |            |         |       |        | is determined.      |
+      +------------+---------+-------+--------+---------------------+
+
+                                  Table 47
 
    Operation: Create
 
@@ -7817,7 +7885,7 @@ Table of Contents
    |             | Filter |       |        | information is returned. |
    +-------------+--------+-------+--------+--------------------------+
 
-                                 Table 47
+                                 Table 48
 
    Operation: Update
 
@@ -7904,7 +7972,7 @@ Table of Contents
    |            |             |     |          |             |object.      |
    +------------+-------------+-----+----------+-------------+-------------+
 
-                                  Table 48
+                                  Table 49
 
    Operations
 
@@ -8015,7 +8083,7 @@ Table of Contents
    |            |            |     |          |            |object.    |
    +------------+------------+-----+----------+------------+-----------+
 
-                                  Table 49
+                                  Table 50
 
    Operations
 
@@ -8094,7 +8162,7 @@ Table of Contents
    |          |          |     |          |              | ID.         |
    +----------+----------+-----+----------+--------------+-------------+
 
-                                  Table 50
+                                  Table 51
 
    Object: organisation
 
@@ -8174,7 +8242,7 @@ Table of Contents
    |            |            |     |          |                           |object.       |
    +------------+------------+-----+----------+---------------------------+--------------+
 
-                                  Table 51
+                                  Table 52
 
    Operations
 
@@ -8270,7 +8338,7 @@ Table of Contents
    |            |        |     |           |          | response.      |
    +------------+--------+-----+-----------+----------+----------------+
 
-                                  Table 52
+                                  Table 53
 
    Operations
 
@@ -8317,7 +8385,7 @@ Table of Contents
     |            |         |       |        | message objects.       |
     +------------+---------+-------+--------+------------------------+
 
-                                 Table 53
+                                 Table 54
 
    Operation: Delete
 
@@ -8380,7 +8448,7 @@ Table of Contents
    |            |            |     |          |             |object.     |
    +------------+------------+-----+----------+-------------+------------+
 
-                                  Table 54
+                                  Table 55
 
    Operations
 
@@ -8497,7 +8565,7 @@ Table of Contents
    |              |           |     |          |           |profile.    |
    +--------------+-----------+-----+----------+-----------+------------+
 
-                                  Table 55
+                                  Table 56
 
    Operations
 
@@ -8546,7 +8614,7 @@ Table of Contents
    |            |         |       |            |        | templates.   |
    +------------+---------+-------+------------+--------+--------------+
 
-                                  Table 56
+                                  Table 57
 
    Object: discoveryEnvironment
 
@@ -8575,7 +8643,7 @@ Table of Contents
    |            |         |       |            |        | server.     |
    +------------+---------+-------+------------+--------+-------------+
 
-                                 Table 57
+                                 Table 58
 
    Object: extension
 
@@ -8612,7 +8680,7 @@ Table of Contents
     |            |         |     |            |      | specification. |
     +------------+---------+-----+------------+------+----------------+
 
-                                  Table 58
+                                  Table 59
 
    Object: discoveryIdnLgr
 
@@ -8651,7 +8719,7 @@ Table of Contents
    |            |       |     |            |       | specified TLDs.   |
    +------------+-------+-----+------------+-------+-------------------+
 
-                                  Table 59
+                                  Table 60
 
    Object: discoveryNotice
 
@@ -8680,7 +8748,7 @@ Table of Contents
    |          |           |     |          |         | the notice.     |
    +----------+-----------+-----+----------+---------+-----------------+
 
-                                  Table 60
+                                  Table 61
 
    Object: discovery
 
@@ -8767,7 +8835,7 @@ Table of Contents
    |           |           |     |          |                   |operator.  |
    +-----------+-----------+-----+----------+-------------------+-----------+
 
-                                  Table 61
+                                  Table 62
 
    Operations
 
@@ -9079,7 +9147,7 @@ Table of Contents
    |                          |      | described above.      |         |
    +--------------------------+------+-----------------------+---------+
 
-       Table 62: Initial RPP Domain Name Status Values Registrations
+       Table 63: Initial RPP Domain Name Status Values Registrations
 
 19.5.  RPP Host Status Values Registry
 
@@ -9227,7 +9295,7 @@ Table of Contents
    |                        |        | party action.       |           |
    +------------------------+--------+---------------------+-----------+
 
-           Table 63: Initial RPP Host Status Values Registrations
+           Table 64: Initial RPP Host Status Values Registrations
 
 19.6.  RPP Contact Status Values Registry
 
@@ -9396,7 +9464,7 @@ Table of Contents
    |                          |        | action.           |           |
    +--------------------------+--------+-------------------+-----------+
 
-         Table 64: Initial RPP Contact Status Values Registrations
+         Table 65: Initial RPP Contact Status Values Registrations
 
 19.7.  RPP Organisation Role Status Values Registry
 
@@ -9458,7 +9526,7 @@ Table of Contents
    |                      |        | added or removed.     |           |
    +----------------------+--------+-----------------------+-----------+
 
-    Table 65: Initial RPP Organisation Role Status Values Registrations
+    Table 66: Initial RPP Organisation Role Status Values Registrations
 
 19.8.  RPP Organisation Status Values Registry
 
@@ -9620,7 +9688,7 @@ Table of Contents
    |                        |         | action.            |           |
    +------------------------+---------+--------------------+-----------+
 
-       Table 66: Initial RPP Organisation Status Values Registrations
+       Table 67: Initial RPP Organisation Status Values Registrations
 
 19.9.  RPP User Status Values Registry
 
@@ -9681,7 +9749,7 @@ Table of Contents
    |             |         | MUST be rejected.             |           |
    +-------------+---------+-------------------------------+-----------+
 
-           Table 67: Initial RPP User Status Values Registrations
+           Table 68: Initial RPP User Status Values Registrations
 
 19.10.  URN Sub-namespace for RPP (urn:ietf:params:rpp)
 
@@ -9779,63 +9847,55 @@ Table of Contents
 draft-ietf-rpp-data-objects -01 - -02
 
    -  added Availability operation to the uniform interface and to the
-      Domain Name, Contact and Host Data Objects (Issue #46)
+      Domain Name, Contact and Host Data Objects #46
    -  add Abstract keyword to flag objects used only as base objects;
       Base Process Object and Base Message Object declared abstract #188
-   -  Clarification on Processes supported and extended by a Data Object
+   -  clarified the Processes a Data Object supports or extends, and
+      allowed extensions to define new processes
    -  moved restore report from operation input to read-write element of
       Restore Process Object and replaced Report operation with Update
-   -  Added User Status Object with status values, allowed transitions,
-      and IANA registry, replacing the inline user status definition
+   -  added a Status Object per Data Object, including the User Status
+      Object, with status values, allowed transitions, and IANA
+      registries, replacing the inline user status definition #118
    -  fixed User Object delete operation constraint that prevented any
       user from being deleted
-   -  Added X-Y bounded cardinality notation and set cardinality of
-      Restore Report statements to 1-2 (Issue #183)
-   -  defined the terms "input data element" and "parameter", replacing
-      "transient data element", and split IANA operation tables into
-      "Input Data Elements" and "Parameters" (Issue #147)
-   -  allowed extensions to define new processes
+   -  added X-Y bounded cardinality notation and set cardinality of
+      Restore Report statements to 1-2 #183
+   -  defined a structured notation for operation input and output, with
+      input data elements and parameters (replacing transient data
+      elements) inside the Input attribute, and split IANA operation
+      tables into "Input Data Elements" and "Parameters" #147
    -  moved process data element from Base Message Object to Review
       Response, Transfer Request and Transfer Outcome message objects,
       using specific process types where possible; registered all
-      message objects in IANA (Issue #179)
-   -  create-only definition clarified about reading (Issue #80)
-   -  Moved requests for IANA registrations to here, from rpp-core
-      document (Issue #151)
-   -  Added Default Profile element to Profile Data Object (Issue #155)
-   -  Added Discovery Data Object (Issue #136)
-   -  Required the labels of the Discovery Data Object links element to
-      be types registered in the IANA "Link Relations" registry (Issue
-      #137)
-   -  Added Profile Data Object (Issue #140)
+      message objects in IANA #179
+   -  create-only definition clarified about reading #80
+   -  moved requests for IANA registrations to here, from rpp-core
+      document #151
+   -  added Profile Data Object, including the Default Profile element
+      #140 #155
+   -  added Discovery Data Object, with links labelled by IANA link
+      relation types #136 #137
    -  added Visibility data element attribute and generic
       includeElements parameter.  Set authInfo of domain and contact to
-      onDemand visibility (Issue #57)
-   -  Added "Inheritance" section to describe how objects can use
-      inheritance (Issue #134)
-   -  Removed the urgent parameter from the update operation for Domain
-      Object (Issue #52)
-   -  Removed all mandatory ordering requirements for arrays, making
-      them unordered (Issue #30)
-   -  Added support for IDN (Internationalized Domain Names) (Issue
-      #124)
-   -  Added Message Data Object and new Uniform Interface "Query"
-      operation (Issue #116)
-   -  Created Status object per Data Object with allowed values and IANA
-      registration.  (Issue #118)
-   -  defined a structured notation for operation input and output and
-      applied it to the uniform interface, all process operations, the
-      domain create operation and the discovery read operation
+      onDemand visibility #57
+   -  added "Inheritance" section to describe how objects can use
+      inheritance #134
+   -  removed the urgent parameter from the update operation for Domain
+      Object #52
+   -  removed all mandatory ordering requirements for arrays, making
+      them unordered #30
+   -  added support for IDN (Internationalized Domain Names) #124
+   -  added Message Data Object and new Uniform Interface "Query"
+      operation #116
    -  removed the redefined processId data element from the Domain
       Transfer Process Object
-   -  moved input data elements and parameters into the Input attribute
-      of operations
-   -  added a Set By column to status value tables and a set-by field to
-      the status value registries (Issue #186)
-   -  stated that the server assigns at least one status value on create
-      (Issue #186)
+   -  added Set By column and set-by registry field for status values,
+      and required the server to assign at least one status value #186
    -  renamed Authorisation Information and Disclose component objects
-      to "… Object" to match their references
+      to "Authorisation Information Object" and "Disclose Object" to
+      match their references
+   -  updated document metadata, and Abstract and Introduction scope
 
 draft-ietf-rpp-data-objects -00 - -01
 
