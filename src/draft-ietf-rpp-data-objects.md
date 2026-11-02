@@ -10,7 +10,7 @@ date = 2026-11-02
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-ietf-rpp-data-objects-02"
+value = "draft-ietf-rpp-data-objects-03 (editorial)"
 stream = "IETF"
 status = "standard"
 
@@ -2944,7 +2944,7 @@ The Read operation retrieves the result or status of the domain creation, if the
 * Identifier: domainTransferProcess
 * Extends: Transfer Process Object
 * Unique Identifier: processId
-* Description: The domain-specific Transfer Process Object (#transfer-operations). It carries the domain-specific transfer inputs and outputs — the requested transfer period and the resulting expiry date — that extend the common transfer process.
+* Description: The domain-specific Transfer Process Object (#transfer-operations). It carries the domain-specific transfer inputs and outputs (the requested transfer period and the resulting expiry date) that extend the common transfer process.
 * Data Elements:
   * Expiry Date
     * Identifier: expiryDate
@@ -5529,6 +5529,11 @@ A> TODO: write security considerations, if any
 {removeInRFC="true"}
 {toc="exclude"}
 # Changes History
+
+{toc="exclude"}
+{numbered="false"}
+## draft-ietf-rpp-data-objects -02 - -03
+
 
 {toc="exclude"}
 {numbered="false"}

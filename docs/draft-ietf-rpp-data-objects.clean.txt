@@ -10,7 +10,7 @@ Expires: 6 May 2027                                            SIDN Labs
 
 
             RESTful Provisioning Protocol (RPP) Data Objects
-                     draft-ietf-rpp-data-objects-02
+               draft-ietf-rpp-data-objects-03 (editorial)
 
 Abstract
 
@@ -1100,19 +1100,19 @@ Table of Contents
    could inherit from a base profile named "base-profile", which
    includes a set of common features and versions.  The "example-
    profile" could then add additional features and versions on top of
-   the ones defined in the "baseProfile", or it can override some of the
-   features and versions from the "baseProfile".  This allows for
-   greater flexibility and modularity in defining profiles, as well as
-   promoting reuse of common features and versions across different
-   profiles.  However, it is important to note that the use of
-   inheritance in profiles can also make things more complicated, as it
-   can create dependencies between profiles and make it harder to
-   understand the features and versions included in a profile.
-   Therefore, it is recommended to use inheritance with caution and to
-   clearly document the relationships between profiles.  The depth of
-   inheritance MUST be limited to 1 to prevent excessive complexity, and
-   profile designers MUST NOT create circular dependencies between
-   profiles, where a profile inherits from itself directly.
+   the ones defined in the base profile, or it can override some of the
+   features and versions from the base profile.  This allows for greater
+   flexibility and modularity in defining profiles, as well as promoting
+   reuse of common features and versions across different profiles.
+   However, it is important to note that the use of inheritance in
+   profiles can also make things more complicated, as it can create
+   dependencies between profiles and make it harder to understand the
+   features and versions included in a profile.  Therefore, it is
+   recommended to use inheritance with caution and to clearly document
+   the relationships between profiles.  The depth of inheritance MUST be
+   limited to 1 to prevent excessive complexity, and profile designers
+   MUST NOT create circular dependencies between profiles, where a
+   profile inherits from itself directly.
 
 5.  Messages
 
@@ -4860,8 +4860,8 @@ Table of Contents
    -  Unique Identifier: processId
    -  Description: The domain-specific Transfer Process Object
       Section 2.7.7.  It carries the domain-specific transfer inputs and
-      outputs — the requested transfer period and the resulting expiry
-      date — that extend the common transfer process.
+      outputs (the requested transfer period and the resulting expiry
+      date) that extend the common transfer process.
    -  Data Elements:
       -  Expiry Date
          -  Identifier: expiryDate
@@ -9843,6 +9843,8 @@ Table of Contents
       |  TODO: write security considerations, if any
 
 21.  Changes History
+
+draft-ietf-rpp-data-objects -02 - -03
 
 draft-ietf-rpp-data-objects -01 - -02
 

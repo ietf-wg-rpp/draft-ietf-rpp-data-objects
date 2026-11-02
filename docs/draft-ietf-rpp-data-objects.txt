@@ -10,7 +10,7 @@ Expires: 6 May 2027                                            SIDN Labs
 
 
             RESTful Provisioning Protocol (RPP) Data Objects
-                     draft-ietf-rpp-data-objects-02
+               draft-ietf-rpp-data-objects-03 (editorial)
 
 Abstract
 
@@ -1301,19 +1301,19 @@ Internet-Draft              RPP Data Objects               November 2026
    could inherit from a base profile named "base-profile", which
    includes a set of common features and versions.  The "example-
    profile" could then add additional features and versions on top of
-   the ones defined in the "baseProfile", or it can override some of the
-   features and versions from the "baseProfile".  This allows for
-   greater flexibility and modularity in defining profiles, as well as
-   promoting reuse of common features and versions across different
-   profiles.  However, it is important to note that the use of
-   inheritance in profiles can also make things more complicated, as it
-   can create dependencies between profiles and make it harder to
-   understand the features and versions included in a profile.
-   Therefore, it is recommended to use inheritance with caution and to
-   clearly document the relationships between profiles.  The depth of
-   inheritance MUST be limited to 1 to prevent excessive complexity, and
-   profile designers MUST NOT create circular dependencies between
-   profiles, where a profile inherits from itself directly.
+   the ones defined in the base profile, or it can override some of the
+   features and versions from the base profile.  This allows for greater
+   flexibility and modularity in defining profiles, as well as promoting
+   reuse of common features and versions across different profiles.
+   However, it is important to note that the use of inheritance in
+   profiles can also make things more complicated, as it can create
+   dependencies between profiles and make it harder to understand the
+   features and versions included in a profile.  Therefore, it is
+   recommended to use inheritance with caution and to clearly document
+   the relationships between profiles.  The depth of inheritance MUST be
+   limited to 1 to prevent excessive complexity, and profile designers
+   MUST NOT create circular dependencies between profiles, where a
+   profile inherits from itself directly.
 
 5.  Messages
 
@@ -5803,8 +5803,8 @@ Internet-Draft              RPP Data Objects               November 2026
    -  Unique Identifier: processId
    -  Description: The domain-specific Transfer Process Object
       Section 2.7.7.  It carries the domain-specific transfer inputs and
-      outputs — the requested transfer period and the resulting expiry
-      date — that extend the common transfer process.
+      outputs (the requested transfer period and the resulting expiry
+      date) that extend the common transfer process.
    -  Data Elements:
       -  Expiry Date
          -  Identifier: expiryDate
@@ -12188,6 +12188,8 @@ Internet-Draft              RPP Data Objects               November 2026
 
 21.  Changes History
 
+draft-ietf-rpp-data-objects -02 - -03
+
 draft-ietf-rpp-data-objects -01 - -02
 
    -  added Availability operation to the Uniform Interface and to the
@@ -12198,9 +12200,7 @@ draft-ietf-rpp-data-objects -01 - -02
       allowed extensions to define new processes
    -  moved restore report from operation input to read-write element of
       Restore Process Object and replaced Report operation with Update
-   -  added a Status Object per Data Object, including the User Status
-      Object, with status values, allowed transitions, and IANA
-      registries, replacing the inline user status definition #118
+
 
 
 
@@ -12210,6 +12210,9 @@ Kowalik & Wullink          Expires 6 May 2027                 [Page 218]
 Internet-Draft              RPP Data Objects               November 2026
 
 
+   -  added a Status Object per Data Object, including the User Status
+      Object, with status values, allowed transitions, and IANA
+      registries, replacing the inline user status definition #118
    -  fixed User Object delete operation constraint that prevented any
       user from being deleted
    -  added X-Y bounded cardinality notation and set cardinality of
@@ -12254,9 +12257,6 @@ Internet-Draft              RPP Data Objects               November 2026
 
 draft-ietf-rpp-data-objects -00 - -01
 
-   -  Added Organisation, Organisation Role and User Objects, based on
-      RFC8543 (Issue #25)
-   -  Added Renew Process Object and operations (Issue #76)
 
 
 
@@ -12266,6 +12266,9 @@ Kowalik & Wullink          Expires 6 May 2027                 [Page 219]
 Internet-Draft              RPP Data Objects               November 2026
 
 
+   -  Added Organisation, Organisation Role and User Objects, based on
+      RFC8543 (Issue #25)
+   -  Added Renew Process Object and operations (Issue #76)
    -  reserve property names beginning with @ for representation
       specifications #89
    -  add generic Create Process Object and Domain Create Process Object
@@ -12310,10 +12313,7 @@ draft-kowalik-rpp-data-objects -02 - -03
    -  abstract common provisioning metadata into reusable component
       object
    -  define common RGP/restore process and Restore Process Object
-   -  define common transfer operations and Transfer Process Object with
-      support for pull and push transfers #23
-   -  add domain-specific transfer operations with implicit renewal and
-      subordinate host transfer
+
 
 
 
@@ -12322,6 +12322,10 @@ Kowalik & Wullink          Expires 6 May 2027                 [Page 220]
 Internet-Draft              RPP Data Objects               November 2026
 
 
+   -  define common transfer operations and Transfer Process Object with
+      support for pull and push transfers #23
+   -  add domain-specific transfer operations with implicit renewal and
+      subordinate host transfer
    -  add host/domain relationship terminology from RFC 5732
    -  restructure DNS data model aligned with draft-simmen-rpp-dns-data-
       01: redefine DNS Resource Record Object, add DNS Operational
@@ -12367,16 +12371,16 @@ draft-kowalik-rpp-data-objects -01 - -02
               DOI 10.17487/RFC791, September 1981,
               <https://www.rfc-editor.org/info/rfc791>.
 
-   [RFC1035]  Mockapetris, P., "Domain names - implementation and
-              specification", STD 13, RFC 1035, DOI 10.17487/RFC1035,
-              November 1987, <https://www.rfc-editor.org/info/rfc1035>.
-
 
 
 Kowalik & Wullink          Expires 6 May 2027                 [Page 221]
 
 Internet-Draft              RPP Data Objects               November 2026
 
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, DOI 10.17487/RFC1035,
+              November 1987, <https://www.rfc-editor.org/info/rfc1035>.
 
    [RFC1738]  Berners-Lee, T., Masinter, L., and M. McCahill, "Uniform
               Resource Locators (URL)", RFC 1738, DOI 10.17487/RFC1738,
@@ -12422,10 +12426,6 @@ Internet-Draft              RPP Data Objects               November 2026
               STD 69, RFC 5730, DOI 10.17487/RFC5730, August 2009,
               <https://www.rfc-editor.org/info/rfc5730>.
 
-   [RFC5732]  Hollenbeck, S., "Extensible Provisioning Protocol (EPP)
-              Host Mapping", STD 69, RFC 5732, DOI 10.17487/RFC5732,
-              August 2009, <https://www.rfc-editor.org/info/rfc5732>.
-
 
 
 
@@ -12433,6 +12433,10 @@ Kowalik & Wullink          Expires 6 May 2027                 [Page 222]
 
 Internet-Draft              RPP Data Objects               November 2026
 
+
+   [RFC5732]  Hollenbeck, S., "Extensible Provisioning Protocol (EPP)
+              Host Mapping", STD 69, RFC 5732, DOI 10.17487/RFC5732,
+              August 2009, <https://www.rfc-editor.org/info/rfc5732>.
 
    [RFC5733]  Hollenbeck, S., "Extensible Provisioning Protocol (EPP)
               Contact Mapping", STD 69, RFC 5733, DOI 10.17487/RFC5733,
@@ -12476,10 +12480,6 @@ Internet-Draft              RPP Data Objects               November 2026
               Mapping", RFC 8543, DOI 10.17487/RFC8543, March 2019,
               <https://www.rfc-editor.org/info/rfc8543>.
 
-   [RFC9499]  Hoffman, P. and K. Fujiwara, "DNS Terminology", BCP 219,
-              RFC 9499, DOI 10.17487/RFC9499, March 2024,
-              <https://www.rfc-editor.org/info/rfc9499>.
-
 
 
 
@@ -12489,6 +12489,10 @@ Kowalik & Wullink          Expires 6 May 2027                 [Page 223]
 
 Internet-Draft              RPP Data Objects               November 2026
 
+
+   [RFC9499]  Hoffman, P. and K. Fujiwara, "DNS Terminology", BCP 219,
+              RFC 9499, DOI 10.17487/RFC9499, March 2024,
+              <https://www.rfc-editor.org/info/rfc9499>.
 
    [RFC9553]  Stepanek, R. and M. Loffredo, "JSContact: A JSON
               Representation of Contact Data", RFC 9553,
@@ -12532,10 +12536,6 @@ Authors' Addresses
    SIDN Labs
    Email: maarten.wullink@sidn.nl
    URI:   https://sidn.nl/
-
-
-
-
 
 
 

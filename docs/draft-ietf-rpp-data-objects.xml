@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="trust200902" docName="draft-ietf-rpp-data-objects-02" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" tocDepth="4">
+<rfc version="3" ipr="trust200902" docName="draft-ietf-rpp-data-objects-03 (editorial)" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" tocDepth="4">
 
 <front>
-<title abbrev="RPP Data Objects">RESTful Provisioning Protocol (RPP) Data Objects</title><seriesInfo value="draft-ietf-rpp-data-objects-02" stream="IETF" status="standard" name="Internet-Draft"></seriesInfo>
+<title abbrev="RPP Data Objects">RESTful Provisioning Protocol (RPP) Data Objects</title><seriesInfo value="draft-ietf-rpp-data-objects-03 (editorial)" stream="IETF" status="standard" name="Internet-Draft"></seriesInfo>
 <author initials="P." surname="Kowalik" fullname="Pawel Kowalik"><organization>DENIC</organization><address><postal><street></street>
 </postal><email>pawel.kowalik@denic.de</email>
 <uri>https://denic.de/</uri>
@@ -489,7 +489,7 @@ The <eref target="#fig-push-transfer">Push Transfer Message Diagram</eref> illus
 <t>A profile can also be defined as a private profile, which is not published in the IANA registry, but is used by specific server implementations only. A private profile can be defined by a server operator to specify the features and versions supported by their implementation. If the profile is not published in the IANA registry, then the server operator MUST ensure that the profile name is globally unique to avoid conflicts with other profiles, the use of reverse domain name notation is RECOMMENDED for private profiles to ensure uniqueness.</t>
 
 <section anchor="inheritance-1"><name>Inheritance</name>
-<t>A profile can include another profile, which is referred to as &quot;inheriting&quot; from that profile. When a profile inherits from another profile, it means that the features and versions defined in the inherited profile are also included in the inheriting profile. This allows for the creation of more complex profiles by building upon existing profiles. For example, a profile named &quot;example-profile&quot; could inherit from a base profile named &quot;base-profile&quot;, which includes a set of common features and versions. The &quot;example-profile&quot; could then add additional features and versions on top of the ones defined in the &quot;baseProfile&quot;, or it can override some of the features and versions from the &quot;baseProfile&quot;. This allows for greater flexibility and modularity in defining profiles, as well as promoting reuse of common features and versions across different profiles. However, it is important to note that the use of inheritance in profiles can also make things more complicated, as it can create dependencies between profiles and make it harder to understand the features and versions included in a profile. Therefore, it is recommended to use inheritance with caution and to clearly document the relationships between profiles. The depth of inheritance MUST be limited to 1 to prevent excessive complexity, and profile designers MUST NOT create circular dependencies between profiles, where a profile inherits from itself directly.</t>
+<t>A profile can include another profile, which is referred to as &quot;inheriting&quot; from that profile. When a profile inherits from another profile, it means that the features and versions defined in the inherited profile are also included in the inheriting profile. This allows for the creation of more complex profiles by building upon existing profiles. For example, a profile named &quot;example-profile&quot; could inherit from a base profile named &quot;base-profile&quot;, which includes a set of common features and versions. The &quot;example-profile&quot; could then add additional features and versions on top of the ones defined in the base profile, or it can override some of the features and versions from the base profile. This allows for greater flexibility and modularity in defining profiles, as well as promoting reuse of common features and versions across different profiles. However, it is important to note that the use of inheritance in profiles can also make things more complicated, as it can create dependencies between profiles and make it harder to understand the features and versions included in a profile. Therefore, it is recommended to use inheritance with caution and to clearly document the relationships between profiles. The depth of inheritance MUST be limited to 1 to prevent excessive complexity, and profile designers MUST NOT create circular dependencies between profiles, where a profile inherits from itself directly.</t>
 </section>
 </section>
 
@@ -4317,7 +4317,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Identifier: domainTransferProcess</li>
 <li>Extends: Transfer Process Object</li>
 <li>Unique Identifier: processId</li>
-<li>Description: The domain-specific Transfer Process Object <xref target="transfer-operations"></xref>. It carries the domain-specific transfer inputs and outputs — the requested transfer period and the resulting expiry date — that extend the common transfer process.</li>
+<li>Description: The domain-specific Transfer Process Object <xref target="transfer-operations"></xref>. It carries the domain-specific transfer inputs and outputs (the requested transfer period and the resulting expiry date) that extend the common transfer process.</li>
 <li><t>Data Elements:</t>
 
 <ul spacing="compact">
@@ -9137,6 +9137,9 @@ Registration procedure: Expert Review
 </section>
 
 <section anchor="changes-history" toc="exclude"><name>Changes History</name>
+
+<section anchor="draft-ietf-rpp-data-objects-02-03" numbered="false"><name>draft-ietf-rpp-data-objects -02 - -03</name>
+</section>
 
 <section anchor="draft-ietf-rpp-data-objects-01-02" numbered="false"><name>draft-ietf-rpp-data-objects -01 - -02</name>
 

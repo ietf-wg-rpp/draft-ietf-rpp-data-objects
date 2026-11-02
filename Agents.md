@@ -322,6 +322,16 @@ The document follows the RFC 7322 ordering. Current top-level structure:
 - Distinguish "i.e." (that is) from "e.g." (for example).
 - One requirement per sentence where practical, to enable conformance checklists.
 - Never join sentences with a semicolon (`;`). Write separate sentences instead.
+- **ASCII only.** The draft MUST contain only ASCII characters (RFC 7997).
+  Non-ASCII characters are allowed **only** in internationalised domain names
+  (U-label forms in IDN examples) and in person names (e.g. author names in the
+  title block or references), and RFC 7997 recommends giving an ASCII
+  equivalent alongside them. Everywhere else use ASCII substitutes: `--` or a
+  reworded sentence instead of an em/en dash (`—`, `–`), straight quotes
+  (`"`, `'`) instead of typographic quotes, `...` instead of an ellipsis
+  (`…`), `->` instead of arrows, and a plain space instead of a
+  non-breaking space. Check with `grep -nP '[^\x00-\x7F]'
+  src/draft-ietf-rpp-data-objects.md`.
 - Use the reserved example domains/addresses (RFC 2606 / RFC 5737) in examples —
   never real domains or addresses.
 - Wrap bare URIs in angle brackets (`<https://example.com/>`).
@@ -657,6 +667,7 @@ Before considering an edit complete:
 - [ ] Anchors preserved; cross-references resolve
 - [ ] ASCII diagrams properly formatted
 - [ ] Consistent indentation and spacing; no trailing whitespace
+- [ ] No non-ASCII characters outside IDN examples and person names
 - [ ] Terminology matches existing usage
 - [ ] **Consistency check performed** and IANA script run (if structural changes)
 - [ ] Changes History entry added
@@ -703,7 +714,8 @@ pass, so it is the one case where every section is read — still in
    then the whole body, IANA Considerations, and backmatter in chunks of a few
    hundred lines. Note findings as you read; apply nothing.
 3. **Mechanical sweeps.** Complement the reading with greps for things that are
-   easy to miss by eye: trailing whitespace, non-ASCII characters, semicolons in
+   easy to miss by eye: trailing whitespace, non-ASCII characters
+   (`grep -nP '[^\x00-\x7F]'`, see Check 3), semicolons in
    prose, mixed-case BCP 14 keywords (`MUST not`, `Must`, `MAY not`), citations
    without `@` (`[RFCxxxx]`), cited references vs references defined in the
    backmatter, `(#anchor)` targets without a matching `{#anchor}`, US spellings,
@@ -716,7 +728,7 @@ pass, so it is the one case where every section is read — still in
    can be approved individually):
    * `Mxx` — Check 1 (header metadata).
    * `Hxx` — Check 2 (Changes History).
-   * `Sxx` — Check 3 (spelling and UK/US consistency).
+   * `Sxx` — Check 3 (spelling, UK/US consistency, and non-ASCII characters).
    * `Cxx` — Check 4 (whole-document consistency), grouped under subheadings
      (substantive defects, citations and references, BCP 14, open items and
      placeholders, style and mechanics), most severe first.
@@ -776,7 +788,7 @@ bullet text, `#NN` issue references, concise, WHAT not WHY, ASCII only).
 Propose each merge as "entries A + B → new entry"; never silently drop an
 entry. Do not touch older revisions' subsections.
 
-### Check 3 — Full Spell Check and UK/US Consistency
+### Check 3 — Full Spell Check, UK/US Consistency, and Non-ASCII Characters
 
 Spell-check the entire document (prose, headings, table cells, figure captions,
 and Changes History). Spelling policy:
@@ -801,6 +813,29 @@ placeholders `(None)` vs `None` vs `-`, title case in headings). A tool such as
 `aspell --lang=en_GB` or `hunspell -d en_GB` can be used to generate candidates
 if available, but every candidate MUST be checked against the literal/quotation
 exceptions above before it is proposed.
+
+**Non-ASCII characters.** Scan the **whole** source file (title block, body,
+tables, figures, examples, Changes History, and backmatter) for non-ASCII
+characters:
+
+```bash
+grep -nP '[^\x00-\x7F]' src/draft-ietf-rpp-data-objects.md
+grep -oP '[^\x00-\x7F]' src/draft-ietf-rpp-data-objects.md | sort | uniq -c
+```
+
+- **Allowed:** non-ASCII characters inside internationalised domain names
+  (IDN U-labels in examples) and in person names (authors, contributors,
+  acknowledgements, reference author names). Report them only if no ASCII
+  equivalent is given where RFC 7997 recommends one.
+- **Everything else is a finding** (one `Sxx` per occurrence or per line):
+  typographic dashes, quotes, ellipses, arrows, non-breaking or zero-width
+  spaces, bullets, accented letters in ordinary words, etc. Propose the ASCII
+  replacement from the Writing Style rule (**ASCII only**), or a minimal
+  rewording when a direct substitute reads badly (e.g. an em-dash parenthetical
+  becomes a separate sentence or a parenthesis).
+- Report invisible characters (non-breaking space, zero-width space, BOM) with
+  their code point (e.g. `U+00A0`), since they cannot be seen in the line text.
+- A clean result is reported explicitly ("no non-ASCII characters").
 
 ### Check 4 — Whole-Document Consistency Scan
 
@@ -830,7 +865,8 @@ Scan the full document for inconsistencies, including:
   made stale by later changes), commented-out text, empty sections, IANA
   placeholders other than `TBDn`, and missing required sections (Security
   Considerations, Privacy Considerations where personal data is handled).
-- **Mechanics:** semicolons in prose, non-ASCII characters, trailing
+- **Mechanics:** semicolons in prose, non-ASCII characters (reported under
+  Check 3, not here), trailing
   whitespace, double spaces, missing blank lines before lists, example
   domains not using reserved names.
 
