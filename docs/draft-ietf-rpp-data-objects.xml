@@ -4317,7 +4317,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Identifier: domainTransferProcess</li>
 <li>Extends: Transfer Process Object</li>
 <li>Unique Identifier: processId</li>
-<li>Description: The domain-specific Transfer Process Object <xref target="transfer-operations"></xref>. It carries the domain-specific transfer inputs and outputs — the requested transfer period and the resulting expiry date — that extend the common transfer process.</li>
+<li>Description: The domain-specific Transfer Process Object <xref target="transfer-operations"></xref>. It carries the domain-specific transfer inputs and outputs (the requested transfer period and the resulting expiry date) that extend the common transfer process.</li>
 <li><t>Data Elements:</t>
 
 <ul spacing="compact">
