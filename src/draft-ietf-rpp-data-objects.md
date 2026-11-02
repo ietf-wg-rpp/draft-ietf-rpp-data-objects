@@ -2944,7 +2944,7 @@ The Read operation retrieves the result or status of the domain creation, if the
 * Identifier: domainTransferProcess
 * Extends: Transfer Process Object
 * Unique Identifier: processId
-* Description: The domain-specific Transfer Process Object (#transfer-operations). It carries the domain-specific transfer inputs and outputs — the requested transfer period and the resulting expiry date — that extend the common transfer process.
+* Description: The domain-specific Transfer Process Object (#transfer-operations). It carries the domain-specific transfer inputs and outputs (the requested transfer period and the resulting expiry date) that extend the common transfer process.
 * Data Elements:
   * Expiry Date
     * Identifier: expiryDate
