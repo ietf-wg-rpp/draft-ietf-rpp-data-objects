@@ -152,7 +152,7 @@ mappings:
     object:
       status_not_required_for_client_request: true
 
-  - text: "The keys MUST be valid DNS resource record type names in lower case."
+  - text: "The keys MUST be valid DNS resource record type names in lowercase."
     note: "RR type mnemonics (RFC 6895 registry): letters, digits and hyphens, e.g. nsap-ptr."
     set:
       key_pattern: '^[a-z][a-z0-9-]*$'
