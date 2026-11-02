@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="trust200902" docName="draft-ietf-rpp-data-objects-02 (editorial)" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" tocDepth="4">
+<rfc version="3" ipr="trust200902" docName="draft-ietf-rpp-data-objects-02" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" tocDepth="4">
 
 <front>
-<title abbrev="RPP Data Objects">RESTful Provisioning Protocol (RPP) Data Objects</title><seriesInfo value="draft-ietf-rpp-data-objects-02 (editorial)" stream="IETF" status="standard" name="Internet-Draft"></seriesInfo>
+<title abbrev="RPP Data Objects">RESTful Provisioning Protocol (RPP) Data Objects</title><seriesInfo value="draft-ietf-rpp-data-objects-02" stream="IETF" status="standard" name="Internet-Draft"></seriesInfo>
 <author initials="P." surname="Kowalik" fullname="Pawel Kowalik"><organization>DENIC</organization><address><postal><street></street>
 </postal><email>pawel.kowalik@denic.de</email>
 <uri>https://denic.de/</uri>
 </address></author><author initials="M." surname="Wullink" fullname="Maarten Wullink"><organization>SIDN Labs</organization><address><postal><street></street>
 </postal><email>maarten.wullink@sidn.nl</email>
 <uri>https://sidn.nl/</uri>
-</address></author><date year="2026" month="July" day="2"></date>
-<area>Internet</area>
+</address></author><date year="2026" month="November" day="2"></date>
+<area>Applications and Real-Time</area>
 <workgroup>Network Working Group</workgroup>
+<keyword>RPP</keyword>
+<keyword>provisioning</keyword>
+<keyword>registry</keyword>
+<keyword>data model</keyword>
 
 <abstract>
-<t>This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for foundational resources: domain names, contacts, and hosts. In accordance with the RPP architecture <xref target="I-D.ietf-rpp-architecture"></xref>, these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).</t>
+<t>This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for registry resources: domain names, contacts, hosts, organisations, users, and messages, as well as the discovery and profile objects that describe server capabilities. In accordance with the RPP architecture, these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).</t>
 </abstract>
 
 </front>
@@ -23,7 +27,7 @@
 <middle>
 
 <section anchor="introduction"><name>Introduction</name>
-<t>The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage foundational registry resources, including domain names, contacts, and hosts. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.</t>
+<t>The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage registry resources, including domain names, contacts, hosts, organisations, users, and messages, as well as the discovery and profile objects that describe server capabilities. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.</t>
 <t>In accordance with the RPP architecture <xref target="I-D.ietf-rpp-architecture"></xref>, a core architectural principle is the clear distinction between the abstract data model and its concrete data representation. The data model defines the logical structure, relationships, and constraints of the objects, independent of formatting. The data representation defines how these abstract concepts are expressed in specific formats (e.g., JSON, XML, or YAML).</t>
 <t>This document focuses on the data model of RPP objects and operations on them, including the data model of operation inputs, outputs as well as the necessary business logic of state transitions. This separation of concerns ensures the protocol maintains a stable semantic foundation that can be consistently implemented across different media types and easily adapted to new representation formats. For instance, the model defines a contact's name as a required string type, but it remains agnostic as to whether that string is ultimately encoded as a JSON property or an XML element.</t>
 
@@ -91,7 +95,7 @@ A data element that a client provides with an operation to control how the serve
 </section>
 
 <section anchor="timestamp"><name>Timestamp</name>
-<t>Timestamp (Date and time attribute) values MUST be represented in Universal Coordinated Time (UTC) using the Gregorian calendar in date-time form as defined in <xref target="RFC3339"></xref>. In EPP Compatibility Profile upper case &quot;T&quot; and &quot;Z&quot; characters MUST be used. An example of a timestamp is <tt>2025-10-27T09:42:51Z</tt>.</t>
+<t>Timestamp (Date and time attribute) values MUST be represented in Coordinated Universal Time (UTC) using the Gregorian calendar in date-time form as defined in <xref target="RFC3339"></xref>. In EPP Compatibility Profile upper case &quot;T&quot; and &quot;Z&quot; characters MUST be used. An example of a timestamp is <tt>2025-10-27T09:42:51Z</tt>.</t>
 </section>
 
 <section anchor="url"><name>URL</name>
@@ -104,7 +108,7 @@ A data element that a client provides with an operation to control how the serve
 
 <section anchor="dictionary"><name>Dictionary</name>
 <t>Notation: Dictionary[Value Type]</t>
-<t>A Dictionary is a collection of key-value pairs where keys are unique Strings and values are of the specified primitive data type. Usages MUST define the constraints on allowed keys and values. A Dictionary differs from an Aggregation Dictionary in that it maps String keys to primitive values rather than to Component or Resource Objects.</t>
+<t>A Dictionary is a collection of key-value pairs where keys are unique Strings and values are of the specified primitive data type. Usages MUST define the constraints on allowed keys and values. A Dictionary differs from an Dictionary Aggregation in that it maps String keys to primitive values rather than to Component or Resource Objects.</t>
 </section>
 
 <section anchor="object"><name>Object</name>
@@ -219,7 +223,7 @@ The data type of a data element may also be a reference to another data object, 
 <t>For each data object a set of possible operations is defined together with their respective input and output data.</t>
 
 <section anchor="authorisation"><name>Authorisation</name>
-<t>For each operation authorisation requirements and operation behaviour is specified.</t>
+<t>For each operation authorisation requirements and operation behaviour are specified.</t>
 <t>Wherever &quot;Object Authorisation&quot; is mentioned, it means that an operation MAY accept or require additional authorisation data related to the object beyond default client-level authorisation, or that an operation MAY result in different processing or response if such authorisation is provided.</t>
 </section>
 
@@ -249,7 +253,7 @@ The data type of a data element may also be a reference to another data object, 
 </section>
 
 <section anchor="include-elements"><name>Include Elements</name>
-<t>The <tt>includeElements</tt> parameter is defined for every operation whose output contains one or more objects, including, but not limited to, the Uniform interface operations and the operations of Process Objects. It allows a client to request specific data elements to be included in the operation output in addition to those included by default. Individual operation definitions do not repeat it.</t>
+<t>The <tt>includeElements</tt> parameter is defined for every operation whose output contains one or more objects, including, but not limited to, the Uniform Interface operations and the operations of Process Objects. It allows a client to request specific data elements to be included in the operation output in addition to those included by default. Individual operation definitions do not repeat it.</t>
 
 <ul spacing="compact">
 <li><t>Include Elements</t>
@@ -364,13 +368,32 @@ The data type of a data element may also be a reference to another data object, 
 </ul></li>
 </ul>
 </section>
+
+<section anchor="uniform-availability"><name>Availability</name>
+
+<ul spacing="compact">
+<li><t>Input:</t>
+
+<ul spacing="compact">
+<li>Reference: This Object</li>
+</ul></li>
+<li><t>Output:</t>
+
+<ul spacing="compact">
+<li>Object: Base Availability Object</li>
+</ul></li>
+</ul>
+<t>The Availability operation allows a client to determine whether the object identified by the Reference can be created using the Create operation at the time of the request. The referenced object does not need to exist. The operation does not create, reserve, or otherwise change the state of any object.</t>
+<t>A Data Object that supports the Availability operation declares as its Output an Availability Object that extends the Base Availability Object (see <xref target="availability"></xref>).</t>
+<t>Extensions MAY add parameters that further specify the check and data elements to the Availability Objects.</t>
+</section>
 </section>
 
 <section anchor="offline-review"><name>Offline Review</name>
 <t>RPP allows for offline review for operations that change the state of an object (Uniform Interface Create, Update, Delete, and the Renew and Transfer process operations) before the requested action is actually completed. In such situations, the response from the server MUST clearly indicate that the operation has been received, but that the requested action is pending. The state of the corresponding object MUST clearly reflect processing of the pending action, typically through a server-set pending status label (e.g. <tt>pendingCreate</tt>, <tt>pendingUpdate</tt>, <tt>pendingDelete</tt>, <tt>pendingRenew</tt>, <tt>pendingTransfer</tt>). The server MUST also notify the client when offline processing of the action has been completed, by sending a <tt>review-response</tt> message (see <xref target="messages"></xref>).</t>
 </section>
 
-<section anchor="operations-beyond-uniform-interface"><name>Operations beyond uniform interface</name>
+<section anchor="operations-beyond-uniform-interface"><name>Operations Beyond Uniform Interface</name>
 <t>For all other operations both input and output have to be fully specified.</t>
 </section>
 
@@ -462,11 +485,11 @@ The <eref target="#fig-push-transfer">Push Transfer Message Diagram</eref> illus
 
 <section anchor="profiles"><name>Profiles</name>
 <t>A profile is a named set of protocol features and versions that are used to define the compatibility and capabilities of RPP server implementations, allowing for better interoperability between different implementations. Using profiles helps to simplify the implementation and deployment of RPP by providing a clear and concise way for the client and server to communicate their capabilities and requirements.</t>
-<t>A profile is identified by a unique name and may be published as a standard profile in the IANA registry for RPP profiles, to promote interoperability and standardization across implementations. Standard profiles names MUST use the RPP URN namespace defined in this document, for example: <tt>urn:ietf:params:rpp:profile:{profile_name}</tt>. The profile name MUST be unique within the RPP URN namespace and SHOULD be descriptive of the features and versions included in the profile.</t>
+<t>A profile is identified by a unique name and may be published as a standard profile in the IANA registry for RPP profiles, to promote interoperability and standardisation across implementations. Standard profile names MUST use the RPP URN namespace defined in this document, for example: <tt>urn:ietf:params:rpp:profile:{profile_name}</tt>. The profile name MUST be unique within the RPP URN namespace and SHOULD be descriptive of the features and versions included in the profile.</t>
 <t>A profile can also be defined as a private profile, which is not published in the IANA registry, but is used by specific server implementations only. A private profile can be defined by a server operator to specify the features and versions supported by their implementation. If the profile is not published in the IANA registry, then the server operator MUST ensure that the profile name is globally unique to avoid conflicts with other profiles, the use of reverse domain name notation is RECOMMENDED for private profiles to ensure uniqueness.</t>
 
 <section anchor="inheritance-1"><name>Inheritance</name>
-<t>A profile can include another profile, which is referred to as &quot;inheriting&quot; from that profile. When a profile inherits from another profile, it means that the features and versions defined in the inherited profile are also included in the inheriting profile. This allows for the creation of more complex profiles by building upon existing profiles. For example, a profile named &quot;example-profile&quot; could inherit from a base profile named &quot;base-profile&quot;, which includes a set of common features and versions. The &quot;example-profile&quot; could then add additional features and versions on top of the ones defined in the &quot;baseProfile&quot;, or it can override some of the features and versions from the &quot;baseProfile&quot;. This allows for greater flexibility and modularity in defining profiles, as well as promoting reuse of common features and versions across different profiles. However, it is important to note that the use of inheritance in profiles can also make things more complicated, as it can create dependencies between profiles and make it harder to understand the features and versions included in a profile. Therefore, it is recommended to use inheritance with caution and to clearly document the relationships between profiles. The depth of inheritance MUST be limited to 1 to provent excessive complexity, and profile designers MUST NOT create circular dependencies between profiles, where a profile inherits from itself directly.</t>
+<t>A profile can include another profile, which is referred to as &quot;inheriting&quot; from that profile. When a profile inherits from another profile, it means that the features and versions defined in the inherited profile are also included in the inheriting profile. This allows for the creation of more complex profiles by building upon existing profiles. For example, a profile named &quot;example-profile&quot; could inherit from a base profile named &quot;base-profile&quot;, which includes a set of common features and versions. The &quot;example-profile&quot; could then add additional features and versions on top of the ones defined in the &quot;baseProfile&quot;, or it can override some of the features and versions from the &quot;baseProfile&quot;. This allows for greater flexibility and modularity in defining profiles, as well as promoting reuse of common features and versions across different profiles. However, it is important to note that the use of inheritance in profiles can also make things more complicated, as it can create dependencies between profiles and make it harder to understand the features and versions included in a profile. Therefore, it is recommended to use inheritance with caution and to clearly document the relationships between profiles. The depth of inheritance MUST be limited to 1 to prevent excessive complexity, and profile designers MUST NOT create circular dependencies between profiles, where a profile inherits from itself directly.</t>
 </section>
 </section>
 
@@ -513,7 +536,7 @@ If a newer version updates the defining specification, the RPP specification MUS
 <t>This section defines new shared data types and structures that are re-used across multiple data object definitions and are based on the existing Primitive Data Types.</t>
 
 <section anchor="identifier"><name>Identifier</name>
-<t>Identifiers are character strings with a specified minimum length, a specified maximum length, and a specified format outlined in <xref target="RFC5730" sectionFormat="of" section="2.8"></xref>. Identifiers for certain object types MAY have additional constraints imposed either by server policy, object specific specifications or both.</t>
+<t>Identifiers are character strings with a specified minimum length, a specified maximum length, and a specified format outlined in <xref target="RFC5730" sectionFormat="of" section="2.8"></xref>. Identifiers for certain object types MAY have additional constraints imposed either by server policy, object-specific specifications or both.</t>
 </section>
 
 <section anchor="client-identifier"><name>Client Identifier</name>
@@ -855,7 +878,7 @@ In both cases, especially if the relation allows for cardinality higher than one
 <li>Mutability: create-only</li>
 <li>Data Type: String</li>
 <li>Description: a human-readable text that describes the rationale for the status applied to the object.</li>
-<li>Constraints: None</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Due</t>
 
@@ -1245,7 +1268,7 @@ completed and that the status of the object has changed.</t>
 <li>Mutability: create-only</li>
 <li>Data Type: String</li>
 <li>Description: a human-readable text that describes the rationale for the status applied to the object.</li>
-<li>Constraints: None</li>
+<li>Constraints: (None)</li>
 </ul></li>
 </ul></li>
 </ul>
@@ -1459,7 +1482,7 @@ the status of the object has changed.</t>
 <li>Mutability: create-only</li>
 <li>Data Type: String</li>
 <li>Description: a human-readable text that describes the rationale for the status applied to the object.</li>
-<li>Constraints: None</li>
+<li>Constraints: (None)</li>
 </ul></li>
 </ul></li>
 </ul>
@@ -1690,7 +1713,7 @@ the status of the object has changed.</t>
 <li>Mutability: create-only</li>
 <li>Data Type: String</li>
 <li>Description: a human-readable text that describes the rationale for the status applied to the role.</li>
-<li>Constraints: None</li>
+<li>Constraints: (None)</li>
 </ul></li>
 </ul></li>
 </ul>
@@ -1821,7 +1844,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: create-only</li>
 <li>Data Type: String</li>
 <li>Description: a human-readable text that describes the rationale for the status applied to the object.</li>
-<li>Constraints: None</li>
+<li>Constraints: (None)</li>
 </ul></li>
 </ul></li>
 </ul>
@@ -2046,7 +2069,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: create-only</li>
 <li>Data Type: String</li>
 <li>Description: a human-readable text that describes the rationale for the status applied to the object.</li>
-<li>Constraints: None</li>
+<li>Constraints: (None)</li>
 </ul></li>
 </ul></li>
 </ul>
@@ -2204,7 +2227,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <ul spacing="compact">
 <li>The value MUST be a valid string representation of a resource record type as defined in <xref target="RFC1035"></xref> or other RFC describing the record type.</li>
 <li>Allowed values MAY be constrained by server policies. For domain provisioning, the type would typically be constrained to the allowed parent-side entries.</li>
-<li>Values MUST be converted to lower case.</li>
+<li>Values MUST be converted to lowercase.</li>
 <li>In EPP Compatibility Profile (<xref target="RFC5732"></xref>), the following record types MUST be supported: <tt>ns</tt>, <tt>a</tt>, and <tt>aaaa</tt>.</li>
 <li>In EPP Compatibility Profile with DNSSEC Extension <xref target="RFC5910"></xref>, the following record types MUST additionally be supported: <tt>ds</tt> and <tt>dnskey</tt>.</li>
 </ul></li>
@@ -2232,7 +2255,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <t>In EPP Compatibility Profile (<xref target="RFC5732"></xref>), the following RDATA structures MUST be supported:</t>
 
 <ul spacing="compact">
-<li>For NS records (<xref target="RFC1035"></xref>, Section 3.3.11): <tt>nsdname</tt> (the fully qualified domain name of the name server).</li>
+<li>For NS records (<xref target="RFC1035"></xref>, Section 3.3.11): <tt>nsdname</tt> (the fully qualified domain name of the nameserver).</li>
 <li>For A records (<xref target="RFC1035"></xref>, Section 3.4.1): <tt>address</tt> (the IPv4 address in dotted-decimal notation).</li>
 <li>For AAAA records (<xref target="RFC3596"></xref>, Section 2.2): <tt>address</tt> (the IPv6 address in text representation as defined in <xref target="RFC5952"></xref>).</li>
 </ul>
@@ -2264,11 +2287,11 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Cardinality: 0-1</li>
 <li>Mutability: read-write</li>
 <li>Data Type: Dictionary[Integer]</li>
-<li>Description: Controls the caching behaviour of DNS resource records. The dictionary is keyed by lower-case record type name, with values representing the TTL in seconds for that record type.</li>
+<li>Description: Controls the caching behaviour of DNS resource records. The dictionary is keyed by lowercase record type name, with values representing the TTL in seconds for that record type.</li>
 <li><t>Constraints:</t>
 
 <ul spacing="compact">
-<li>The keys MUST be valid DNS resource record type names in lower case.</li>
+<li>The keys MUST be valid DNS resource record type names in lowercase.</li>
 <li>The values MUST be positive Integers.</li>
 <li>The allowed value ranges MAY be constrained by server policy.</li>
 <li>A server MAY ignore client-specified TTL values and apply default or policy-defined values.</li>
@@ -2285,7 +2308,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li><t>Constraints:</t>
 
 <ul spacing="compact">
-<li>The keys MUST be valid DNS resource record type names in lower case.</li>
+<li>The keys MUST be valid DNS resource record type names in lowercase.</li>
 <li>The values MUST be positive Integers (minimum value of 1).</li>
 <li>A server MAY ignore client-specified values and apply its own default signature expiration policy.</li>
 </ul></li>
@@ -2405,7 +2428,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: String</li>
 <li>Description: A copy of the registration data that existed for the object prior to the object being deleted.</li>
-<li>Constraints: None.</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Post-Restore Data</t>
 
@@ -2415,7 +2438,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: String</li>
 <li>Description: A copy of the registration data that exists for the object at the time the restore report is submitted.</li>
-<li>Constraints: None.</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Delete Time</t>
 
@@ -2425,7 +2448,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: Timestamp</li>
 <li>Description: The date and time when the object delete request was sent to the server.</li>
-<li>Constraints: None.</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Restore Time</t>
 
@@ -2450,7 +2473,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: String</li>
 <li>Description: A brief explanation of the reason for restoring the object.</li>
-<li>Constraints: None.</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Statements</t>
 
@@ -2470,7 +2493,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: String</li>
 <li>Description: Any additional information needed to support the statements provided by the client.</li>
-<li>Constraints: None.</li>
+<li>Constraints: (None)</li>
 </ul></li>
 </ul></li>
 </ul>
@@ -2597,6 +2620,77 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 </ul>
 </section>
 
+<section anchor="availability"><name>Availability</name>
+<t>The Availability Objects define the output of the Availability operation (see <xref target="uniform-availability"></xref>). Each Data Object that supports the Availability operation defines its own Availability Object extending the Base Availability Object. Extensions add availability information, for example pricing, as data elements of these objects.</t>
+
+<section anchor="base-availability-object"><name>Base Availability Object</name>
+
+<ul spacing="compact">
+<li>Name: Base Availability Object</li>
+<li>Identifier: baseAvailability</li>
+<li>Abstract: true</li>
+<li>Description: Base structure for the result of an Availability operation, indicating whether the referenced object can be created.</li>
+<li><t>Data Elements:</t>
+
+<ul spacing="compact">
+<li><t>Available</t>
+
+<ul spacing="compact">
+<li>Identifier: available</li>
+<li>Cardinality: 1</li>
+<li>Mutability: read-only</li>
+<li>Data Type: Boolean</li>
+<li>Description: Indicates whether the referenced object can be created at the time the operation is completed. The value <tt>true</tt> means that the object can be created. It does not guarantee that a subsequent Create operation for the same object succeeds, as the state of the server can change between the two operations. The value <tt>false</tt> means that the object cannot be created.</li>
+<li>Constraints: (None)</li>
+</ul></li>
+<li><t>Reason</t>
+
+<ul spacing="compact">
+<li>Identifier: reason</li>
+<li>Cardinality: 0-1</li>
+<li>Mutability: read-only</li>
+<li>Data Type: String</li>
+<li>Description: Server-specific text explaining why the referenced object cannot be created.</li>
+<li>Constraints: The element is present only when <tt>available</tt> is <tt>false</tt>.</li>
+</ul></li>
+</ul></li>
+</ul>
+</section>
+
+<section anchor="domain-name-availability-object"><name>Domain Name Availability Object</name>
+
+<ul spacing="compact">
+<li>Name: Domain Name Availability Object</li>
+<li>Identifier: domainNameAvailability</li>
+<li>Extends: Base Availability Object</li>
+<li>Description: The result of an Availability operation on a Domain Name Data Object.</li>
+<li>Data Elements: (None)</li>
+</ul>
+</section>
+
+<section anchor="contact-availability-object"><name>Contact Availability Object</name>
+
+<ul spacing="compact">
+<li>Name: Contact Availability Object</li>
+<li>Identifier: contactAvailability</li>
+<li>Extends: Base Availability Object</li>
+<li>Description: The result of an Availability operation on a Contact Data Object.</li>
+<li>Data Elements: (None)</li>
+</ul>
+</section>
+
+<section anchor="host-availability-object"><name>Host Availability Object</name>
+
+<ul spacing="compact">
+<li>Name: Host Availability Object</li>
+<li>Identifier: hostAvailability</li>
+<li>Extends: Base Availability Object</li>
+<li>Description: The result of an Availability operation on a Host Data Object.</li>
+<li>Data Elements: (None)</li>
+</ul>
+</section>
+</section>
+
 <section anchor="messages-1"><name>Messages</name>
 <t>The Message Components define the structure and data elements for all message objects used in the protocol. Each specific message type extends the Base Message Object to include additional data elements relevant to that message type. Any of the types defined in this section may be used for the <tt>data</tt> data element defined for the Message Data Object.</t>
 
@@ -2636,7 +2730,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <ul spacing="compact">
 <li>Must be a valid unique identifier for the object type specified in the <tt>objectType</tt> field.</li>
-<li>For both &quot;domainName&quot;, &quot;host&quot; the <tt>objectId</tt> must be a valid fully qualified domain name (FQDN).</li>
+<li>For &quot;domainName&quot; and &quot;host&quot; the <tt>objectId</tt> must be a valid fully qualified domain name (FQDN).</li>
 <li>For &quot;contact&quot; the <tt>objectId</tt> must be a valid contact identifier.</li>
 <li>When the message is not related to a specific object, the <tt>objectId</tt> field may be empty.</li>
 </ul></li>
@@ -2646,13 +2740,13 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 </section>
 
 <section anchor="review-response-object"><name>Review Response Object</name>
-<t>The Review Response Object defines the data elements for returning the result of an offline-review. Offline-review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.</t>
+<t>The Review Response Object defines the data elements for returning the result of an offline review. Offline review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.</t>
 
 <ul spacing="compact">
 <li>Name: Review Response Object</li>
 <li>Identifier: reviewResponseMessage</li>
 <li>Extends: Base Message Object</li>
-<li>Description: Notification of the result of an offline-review of a requested operation.</li>
+<li>Description: Notification of the result of an offline review of a requested operation.</li>
 <li><t>Data Elements:</t>
 
 <ul spacing="compact">
@@ -2907,7 +3001,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Name: Service Notice Message Object</li>
 <li>Identifier: serviceNoticeMessage</li>
 <li>Extends: Base Message Object</li>
-<li>Description: Generic text based message containing information not covered by any other message type.</li>
+<li>Description: Generic text-based message containing information not covered by any other message type.</li>
 <li><t>Data Elements:</t>
 
 <ul spacing="compact">
@@ -3759,7 +3853,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <ul spacing="compact">
 <li>A server MAY restrict allowable domain names to a particular top-level domain, second-level domain, or other domain for which the server is authoritative.</li>
-<li>If the domain name is an internationalized domain name (IDN), the value MUST be a valid ACE encoded string representing the Unicode Name (uName).</li>
+<li>If the domain name is an internationalized domain name (IDN), the value MUST be a valid ACE-encoded string representing the Unicode Name (uName).</li>
 </ul></li>
 </ul></li>
 <li><t>Unicode Name</t>
@@ -3956,6 +4050,59 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <section anchor="operations-5"><name>Operations</name>
 
+<section anchor="availability-operation"><name>Availability Operation</name>
+
+<ul spacing="compact">
+<li>Identifier: availability</li>
+</ul>
+<t>The Availability operation allows a client to determine whether a Domain Name resource with the given name can be created.</t>
+<t>The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Name) is taken into consideration.</t>
+
+<ul>
+<li><t>Authorisation:</t>
+
+<ul spacing="compact">
+<li>Any authenticated client is authorised to perform this operation.</li>
+</ul></li>
+<li><t>Input:</t>
+
+<ul spacing="compact">
+<li>Reference: This Object</li>
+<li><t>Parameters:</t>
+
+<ul spacing="compact">
+<li><t>Unicode Name</t>
+
+<ul spacing="compact">
+<li>Identifier: uName</li>
+<li>Cardinality: 0-1</li>
+<li>Data Type: String</li>
+<li>Description: The Unicode Name (uName) of the domain name for which availability is determined. If the parameter is absent, the server determines availability from the referenced domain name only.</li>
+<li>Constraints:</li>
+<li>The value MUST satisfy the constraints of the Unicode Name data element of the Domain Name Data Object.</li>
+<li>If the value does not map to the referenced domain name, the server MUST return an error indicating the mismatch.</li>
+</ul></li>
+<li><t>LGR</t>
+
+<ul spacing="compact">
+<li>Identifier: lgr</li>
+<li>Cardinality: 0-1</li>
+<li>Data Type: String</li>
+<li>Description: The name of the Label Generation Ruleset (LGR) against which the server determines availability of the domain name. If the parameter is absent, the server uses its default LGR for the top-level domain, as indicated by the Discovery IDN LGR Object.</li>
+<li>Constraints:</li>
+<li>The value MUST be a valid LGR name registered in the IANA IDN Tables registry [IDN-Tables].</li>
+<li>If the domain name contains a code point not available in the specified LGR, the server MUST return an error indicating the invalid code point.</li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><t>Output:</t>
+
+<ul spacing="compact">
+<li>Object: Domain Name Availability Object</li>
+</ul></li>
+</ul>
+</section>
+
 <section anchor="create-operation"><name>Create Operation</name>
 
 <ul spacing="compact">
@@ -3967,7 +4114,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li><t>Authorisation:</t>
 
 <ul spacing="compact">
-<li>Generally each client is authorised to create new domain objects becoming a sponsoring client. This can be however constrained by the server policy in many ways, i.e. by applying rate limiting, billing related constraints or compliance locks.</li>
+<li>Generally each client is authorised to create new domain objects becoming a sponsoring client. This can be however constrained by the server policy in many ways, i.e. by applying rate limiting, billing-related constraints or compliance locks.</li>
 </ul></li>
 <li><t>Input:</t>
 
@@ -4347,6 +4494,28 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <section anchor="operations-8"><name>Operations</name>
 
+<section anchor="availability-operation-1"><name>Availability Operation</name>
+
+<ul spacing="compact">
+<li>Identifier: availability</li>
+</ul>
+<t>The Availability operation allows a client to determine whether a Contact resource with the given Handle ID can be created.</t>
+<t>The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Handle ID) is taken into consideration.</t>
+
+<ul>
+<li><t>Authorisation:</t>
+
+<ul spacing="compact">
+<li>Any authenticated client is authorised to perform this operation.</li>
+</ul></li>
+<li><t>Output:</t>
+
+<ul spacing="compact">
+<li>Object: Contact Availability Object</li>
+</ul></li>
+</ul>
+</section>
+
 <section anchor="create-operation-1"><name>Create Operation</name>
 
 <ul spacing="compact">
@@ -4366,7 +4535,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <ul spacing="compact">
 <li>Handle ID (<tt>id</tt>)</li>
 <li>At least one Contact Information entry (<tt>contactInfo</tt>) containing a Name (<tt>name</tt>) and an Address (<tt>addr</tt>) with City (<tt>city</tt>) and Country Code (<tt>cc</tt>)</li>
-<li>E-mail (<tt>email</tt>)</li>
+<li>Email (<tt>email</tt>)</li>
 <li>Authorisation Information (<tt>authInfo</tt>)</li>
 </ul>
 </section>
@@ -4425,7 +4594,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <ul spacing="compact">
 <li>Status values that are client-manageable (prefixed with &quot;client&quot;) MAY be added or removed.</li>
-<li>Contact Information, Voice Phone Number, Fax Phone Number, E-mail, Authorisation Information, and Disclose preferences MAY be changed.</li>
+<li>Contact Information, Voice Phone Number, Fax Phone Number, Email, Authorisation Information, and Disclose preferences MAY be changed.</li>
 </ul>
 <t>At least one change MUST be provided, unless the operation is extended.</t>
 </section>
@@ -4467,7 +4636,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Name: Host Data Object</li>
 <li>Identifier: host</li>
 <li>Unique Identifier: hostName</li>
-<li>Description: A Host Data Object represents a name server that provides DNS services for a domain name.</li>
+<li>Description: A Host Data Object represents a nameserver that provides DNS services for a domain name.</li>
 </ul>
 </section>
 
@@ -4542,6 +4711,28 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <section anchor="operations-9"><name>Operations</name>
 
+<section anchor="availability-operation-2"><name>Availability Operation</name>
+
+<ul spacing="compact">
+<li>Identifier: availability</li>
+</ul>
+<t>The Availability operation allows a client to determine whether a Host Data Object with the given host name can be created.</t>
+<t>The operation has no input data elements and takes no object representation as input. The client identifies the resource by its Reference only, i.e. only the Unique Identifier (Host Name) is taken into consideration.</t>
+
+<ul>
+<li><t>Authorisation:</t>
+
+<ul spacing="compact">
+<li>Any authenticated client is authorised to perform this operation.</li>
+</ul></li>
+<li><t>Output:</t>
+
+<ul spacing="compact">
+<li>Object: Host Availability Object</li>
+</ul></li>
+</ul>
+</section>
+
 <section anchor="create-operation-2"><name>Create Operation</name>
 
 <ul spacing="compact">
@@ -4590,7 +4781,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Only sponsoring client is authorised to perform this operation</li>
 </ul></li>
 </ul>
-<t>Host name changes MAY require the addition or removal of IP addresses to be accepted by the server. IP address association MAY be subject to server policies for provisioning hosts as name servers. The IP address restrictions described for the Create operation apply to updates as well.</t>
+<t>Host name changes MAY require the addition or removal of IP addresses to be accepted by the server. IP address association MAY be subject to server policies for provisioning hosts as nameservers. The IP address restrictions described for the Create operation apply to updates as well.</t>
 <t>At least one change to a data element MUST be provided, unless the operation is extended.</t>
 <t>Host name changes can have an impact on associated objects that refer to the host object. A Host Name change SHOULD NOT require additional updates of associated objects to preserve existing associations, with one exception: changing an External host object that has associations with objects that are sponsored by a different client. Attempts to update such hosts directly MUST fail. The change can be provisioned by creating a new External host with a new name and any needed new attributes, and subsequently updating the other objects sponsored by the client.</t>
 </section>
@@ -4618,7 +4809,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 </section>
 
 <section anchor="processes-2"><name>Processes</name>
-<t>The Host Data Object Data Object supports the following Process Objects <xref target="process-objects"></xref> unmodified:</t>
+<t>The Host Data Object supports the following Process Objects <xref target="process-objects"></xref> unmodified:</t>
 
 <ul spacing="compact">
 <li><t>Transfer Process</t>
@@ -5059,7 +5250,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: External:RPP-JSContact-Profile:Card</li>
 <li>Description: The details of the user, such as name, email, and phone number</li>
-<li>Constraints: -</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Description</t>
 
@@ -5069,7 +5260,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-write</li>
 <li>Data Type: String</li>
 <li>Description: A description of the user</li>
-<li>Constraints: -</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Status</t>
 
@@ -5094,7 +5285,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 <li>Mutability: read-only</li>
 <li>Data Type: Aggregation[Organisation Data Object]</li>
 <li>Description: A reference to the owner organisation object.</li>
-<li>Constraints: -</li>
+<li>Constraints: (None)</li>
 </ul></li>
 <li><t>Processes</t>
 
@@ -5478,7 +5669,7 @@ do not begin with either &quot;client&quot; or &quot;server&quot; are server-man
 
 <section anchor="iana-considerations"><name>IANA Considerations</name>
 
-<section anchor="rpp-registry-group"><name>RPP registry group</name>
+<section anchor="rpp-registry-group"><name>RPP Registry Group</name>
 <t>The IANA is requested to create a new registry group for RPP, this will be used to group together all the RPP-related registries such as those for discovery URLs, extensions and profiles.</t>
 
 <sourcecode type="text"><![CDATA[Name of the registry: RESTful Provisioning Protocol (RPP)
@@ -5638,7 +5829,7 @@ registry MUST provide:</t>
 <td>0-1</td>
 <td>read-write</td>
 <td>Dictionary [Integer]</td>
-<td>Controls the caching behaviour of DNS resource records, keyed by lower-case record type name.</td>
+<td>Controls the caching behaviour of DNS resource records, keyed by lowercase record type name.</td>
 </tr>
 
 <tr>
@@ -6120,7 +6311,65 @@ registry MUST provide:</t>
 <td>A server-assigned identifier of the process instance, unique within the Owner Data Object.</td>
 </tr>
 </tbody>
-</table><t>Object: baseMessage</t>
+</table><t>Object: baseAvailability</t>
+<t>Object Name: Base Availability Object</t>
+<t>Object Type: Component</t>
+<t>Description: Base structure for the result of an Availability operation, indicating whether the referenced object can be created.</t>
+<t>Reference: [This-ID]</t>
+<t>Data Elements</t>
+<table>
+<thead>
+<tr>
+<th>Element Identifier</th>
+<th>Element Name</th>
+<th>Card.</th>
+<th>Mutability</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>available</td>
+<td>Available</td>
+<td>1</td>
+<td>read-only</td>
+<td>Boolean</td>
+<td>Indicates whether the referenced object can be created at the time the operation is completed.</td>
+</tr>
+
+<tr>
+<td>reason</td>
+<td>Reason</td>
+<td>0-1</td>
+<td>read-only</td>
+<td>String</td>
+<td>Server-specific text explaining why the referenced object cannot be created.</td>
+</tr>
+</tbody>
+</table><t>Object: domainNameAvailability</t>
+<t>Object Name: Domain Name Availability Object</t>
+<t>Object Type: Component</t>
+<t>Extends: baseAvailability</t>
+<t>Description: The result of an Availability operation on a Domain Name Data Object.</t>
+<t>Reference: [This-ID]</t>
+<t>Data Elements: (None)</t>
+<t>Object: contactAvailability</t>
+<t>Object Name: Contact Availability Object</t>
+<t>Object Type: Component</t>
+<t>Extends: baseAvailability</t>
+<t>Description: The result of an Availability operation on a Contact Data Object.</t>
+<t>Reference: [This-ID]</t>
+<t>Data Elements: (None)</t>
+<t>Object: hostAvailability</t>
+<t>Object Name: Host Availability Object</t>
+<t>Object Type: Component</t>
+<t>Extends: baseAvailability</t>
+<t>Description: The result of an Availability operation on a Host Data Object.</t>
+<t>Reference: [This-ID]</t>
+<t>Data Elements: (None)</t>
+<t>Object: baseMessage</t>
 <t>Object Name: Base Message Object</t>
 <t>Object Type: Component</t>
 <t>Description: Base structure for all message objects, containing common data elements such as the object type and object identifier.</t>
@@ -6161,7 +6410,7 @@ registry MUST provide:</t>
 <t>Object Name: Review Response Object</t>
 <t>Object Type: Component</t>
 <t>Extends: baseMessage</t>
-<t>Description: Notification of the result of an offline-review of a requested operation.</t>
+<t>Description: Notification of the result of an offline review of a requested operation.</t>
 <t>Reference: [This-ID]</t>
 <t>Data Elements</t>
 <table>
@@ -6423,7 +6672,7 @@ registry MUST provide:</t>
 <t>Object Name: Service Notice Message Object</t>
 <t>Object Type: Component</t>
 <t>Extends: baseMessage</t>
-<t>Description: Generic text based message containing information not covered by any other message type.</t>
+<t>Description: Generic text-based message containing information not covered by any other message type.</t>
 <t>Reference: [This-ID]</t>
 <t>Data Elements</t>
 <table>
@@ -7090,7 +7339,40 @@ registry MUST provide:</t>
 </tr>
 </tbody>
 </table><t>Operations</t>
-<t>Operation: Create</t>
+<t>Operation: Availability</t>
+<t>Operation Identifier: availability</t>
+<t>Description: Determines whether a Domain Name resource can be created.</t>
+<t>Input Data Elements: (None)</t>
+<t>Parameters</t>
+<table>
+<thead>
+<tr>
+<th>Identifier</th>
+<th>Name</th>
+<th>Card.</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>uName</td>
+<td>Unicode Name</td>
+<td>0-1</td>
+<td>String</td>
+<td>The Unicode Name of the domain name for which availability is determined.</td>
+</tr>
+
+<tr>
+<td>lgr</td>
+<td>LGR</td>
+<td>0-1</td>
+<td>String</td>
+<td>The LGR against which availability of the domain name is determined.</td>
+</tr>
+</tbody>
+</table><t>Operation: Create</t>
 <t>Operation Identifier: create</t>
 <t>Description: Provisions a new Domain Name resource.</t>
 <t>Input Data Elements: (None)</t>
@@ -7212,6 +7494,11 @@ registry MUST provide:</t>
 </tr>
 </tbody>
 </table><t>Operations</t>
+<t>Operation: Availability</t>
+<t>Operation Identifier: availability</t>
+<t>Description: Determines whether a Contact resource can be created.</t>
+<t>Input Data Elements: (None)</t>
+<t>Parameters: (None)</t>
 <t>Operation: Create Operation</t>
 <t>Operation Identifier: create</t>
 <t>Description: The Create operation allows a client to provision a new Contact resource. The operation accepts as input all create-only and read-write data elements defined for the Contact Data Object.</t>
@@ -7235,7 +7522,7 @@ registry MUST provide:</t>
 <t>Object: host</t>
 <t>Object Name: Host Data Object</t>
 <t>Object Type: Resource</t>
-<t>Description: Represents a name server that provides DNS services for a domain name.</t>
+<t>Description: Represents a nameserver that provides DNS services for a domain name.</t>
 <t>Reference: [This-ID]</t>
 <t>Data Elements</t>
 <table>
@@ -7297,6 +7584,11 @@ registry MUST provide:</t>
 </tr>
 </tbody>
 </table><t>Operations</t>
+<t>Operation: Availability</t>
+<t>Operation Identifier: availability</t>
+<t>Description: Determines whether a Host Data Object can be created.</t>
+<t>Input Data Elements: (None)</t>
+<t>Parameters: (None)</t>
 <t>Operation: Create</t>
 <t>Description: Provisions a new Host Data Object.</t>
 <t>Input Data Elements: (None)</t>
@@ -8786,8 +9078,8 @@ Index value: ?
 ]]></sourcecode>
 </section>
 
-<section anchor="rpp-discovery-registry"><name>RPP Discovery registry</name>
-<t>The IANA is requested to create a new registry for RPP discovery URLs, this registry will be used to register the well-known URLs for RPP discovery endpoints, used by RPP clients to discover the capabilities of a RPP server.</t>
+<section anchor="rpp-discovery-registry"><name>RPP Discovery Registry</name>
+<t>The IANA is requested to create a new registry for RPP discovery URLs, this registry will be used to register the well-known URLs for RPP discovery endpoints, used by RPP clients to discover the capabilities of an RPP server.</t>
 
 <sourcecode type="text"><![CDATA[Name of the registry: RPP Discovery URLs
 Registry group: RESTful Provisioning Protocol (RPP)
@@ -8802,8 +9094,8 @@ Registration procedure: Expert Review
 </ul>
 </section>
 
-<section anchor="rpp-extension-registry"><name>RPP Extension registry</name>
-<t>The IANA is requested to create a new registry for RPP extensions, this registry will be used to register standardized extensions to the RPP protocol. Extensions are defined as additional features or capabilities that can be added to the base RPP protocol, for example support for additional resource types, additional operations or additional authentication methods.</t>
+<section anchor="rpp-extension-registry"><name>RPP Extension Registry</name>
+<t>The IANA is requested to create a new registry for RPP extensions, this registry will be used to register standardised extensions to the RPP protocol. Extensions are defined as additional features or capabilities that can be added to the base RPP protocol, for example support for additional resource types, additional operations or additional authentication methods.</t>
 
 <sourcecode type="text"><![CDATA[Name of the registry: RPP Extensions
 Registry group: RESTful Provisioning Protocol (RPP)
@@ -8819,8 +9111,8 @@ Registration procedure: Expert Review
 </ul>
 </section>
 
-<section anchor="rpp-profile-registry"><name>RPP Profile registry</name>
-<t>The IANA is requested to create a new registry for RPP profiles, this registry will be used to register standardized profiles for the RPP protocol. Profiles are defined as specific configurations of the RPP protocol that are designed to meet the needs of specific use cases or environments, for example an EPP compatibility profile that defines a set of RPP features and behaviors that are compatible with the Extensible Provisioning Protocol (EPP) <xref target="RFC5730"></xref>.</t>
+<section anchor="rpp-profile-registry"><name>RPP Profile Registry</name>
+<t>The IANA is requested to create a new registry for RPP profiles, this registry will be used to register standardised profiles for the RPP protocol. Profiles are defined as specific configurations of the RPP protocol that are designed to meet the needs of specific use cases or environments, for example an EPP compatibility profile that defines a set of RPP features and behaviours that are compatible with the Extensible Provisioning Protocol (EPP) <xref target="RFC5730"></xref>.</t>
 
 <sourcecode type="text"><![CDATA[Name of the registry: RPP Profiles
 Registry group: RESTful Provisioning Protocol (RPP)
@@ -8849,34 +9141,30 @@ Registration procedure: Expert Review
 <section anchor="draft-ietf-rpp-data-objects-01-02" numbered="false"><name>draft-ietf-rpp-data-objects -01 - -02</name>
 
 <ul spacing="compact">
+<li>added Availability operation to the Uniform Interface and to the Domain Name, Contact and Host Data Objects #46</li>
 <li>add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188</li>
-<li>Clarification on Processes supported and extended by a Data Object</li>
+<li>clarified the Processes a Data Object supports or extends, and allowed extensions to define new processes</li>
 <li>moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update</li>
-<li>Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition</li>
+<li>added a Status Object per Data Object, including the User Status Object, with status values, allowed transitions, and IANA registries, replacing the inline user status definition #118</li>
 <li>fixed User Object delete operation constraint that prevented any user from being deleted</li>
-<li>Added <tt>X-Y</tt> bounded cardinality notation and set cardinality of Restore Report <tt>statements</tt> to <tt>1-2</tt> (Issue #183)</li>
-<li>defined the terms &quot;input data element&quot; and &quot;parameter&quot;, replacing &quot;transient data element&quot;, and split IANA operation tables into &quot;Input Data Elements&quot; and &quot;Parameters&quot; (Issue #147)</li>
-<li>allowed extensions to define new processes</li>
-<li>moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA (Issue #179)</li>
-<li>create-only definition clarified about reading (Issue #80)</li>
-<li>Moved requests for IANA registrations to here, from rpp-core document (Issue #151)</li>
-<li>Added Default Profile element to Profile Data Object (Issue #155)</li>
-<li>Added Discovery Data Object (Issue #136)</li>
-<li>Required the labels of the Discovery Data Object <tt>links</tt> element to be types registered in the IANA &quot;Link Relations&quot; registry (Issue #137)</li>
-<li>Added Profile Data Object (Issue #140)</li>
-<li>added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility (Issue #57)</li>
-<li>Added &quot;Inheritance&quot; section to describe how objects can use inheritance (Issue #134)</li>
-<li>Removed the urgent parameter from the update operation for Domain Object (Issue #52)</li>
-<li>Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)</li>
-<li>Added support for IDN (Internationalized Domain Names) (Issue #124)</li>
-<li>Added Message Data Object and new Uniform Interface &quot;Query&quot; operation (Issue #116)</li>
-<li>Created Status object per Data Object with allowed values and IANA registration. (Issue #118)</li>
-<li>defined a structured notation for operation input and output and applied it to the uniform interface, all process operations, the domain create operation and the discovery read operation</li>
+<li>added <tt>X-Y</tt> bounded cardinality notation and set cardinality of Restore Report <tt>statements</tt> to <tt>1-2</tt> #183</li>
+<li>defined a structured notation for operation input and output, with input data elements and parameters (replacing transient data elements) inside the Input attribute, and split IANA operation tables into &quot;Input Data Elements&quot; and &quot;Parameters&quot; #147</li>
+<li>moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA #179</li>
+<li>create-only definition clarified about reading #80</li>
+<li>moved requests for IANA registrations to here, from rpp-core document #151</li>
+<li>added Profile Data Object, including the Default Profile element #140 #155</li>
+<li>added Discovery Data Object, with links labelled by IANA link relation types #136 #137</li>
+<li>added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility #57</li>
+<li>added &quot;Inheritance&quot; section to describe how objects can use inheritance #134</li>
+<li>removed the urgent parameter from the update operation for Domain Object #52</li>
+<li>removed all mandatory ordering requirements for arrays, making them unordered #30</li>
+<li>added support for IDN (Internationalized Domain Names) #124</li>
+<li>added Message Data Object and new Uniform Interface &quot;Query&quot; operation #116</li>
 <li>removed the redefined processId data element from the Domain Transfer Process Object</li>
-<li>moved input data elements and parameters into the Input attribute of operations</li>
-<li>added a Set By column to status value tables and a set-by field to the status value registries (Issue #186)</li>
-<li>stated that the server assigns at least one status value on create (Issue #186)</li>
-<li>renamed Authorisation Information and Disclose component objects to &quot;… Object&quot; to match their references</li>
+<li>added Set By column and set-by registry field for status values, and required the server to assign at least one status value #186</li>
+<li>renamed Authorisation Information and Disclose component objects to &quot;Authorisation Information Object&quot; and &quot;Disclose Object&quot; to match their references</li>
+<li>updated document metadata, and Abstract and Introduction scope</li>
+<li>editorial fixes to spelling, hyphenation, capitalisation, and terminology consistency</li>
 </ul>
 </section>
 
