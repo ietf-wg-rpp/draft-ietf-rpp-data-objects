@@ -10,7 +10,7 @@ date = 2026-11-02
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-ietf-rpp-data-objects-02"
+value = "draft-ietf-rpp-data-objects-03 (editorial)"
 stream = "IETF"
 status = "standard"
 
@@ -5529,6 +5529,11 @@ A> TODO: write security considerations, if any
 {removeInRFC="true"}
 {toc="exclude"}
 # Changes History
+
+{toc="exclude"}
+{numbered="false"}
+## draft-ietf-rpp-data-objects -02 - -03
+
 
 {toc="exclude"}
 {numbered="false"}

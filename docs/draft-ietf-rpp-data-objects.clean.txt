@@ -10,7 +10,7 @@ Expires: 6 May 2027                                            SIDN Labs
 
 
             RESTful Provisioning Protocol (RPP) Data Objects
-                     draft-ietf-rpp-data-objects-02
+               draft-ietf-rpp-data-objects-03 (editorial)
 
 Abstract
 
@@ -9843,6 +9843,8 @@ Table of Contents
       |  TODO: write security considerations, if any
 
 21.  Changes History
+
+draft-ietf-rpp-data-objects -02 - -03
 
 draft-ietf-rpp-data-objects -01 - -02
 

@@ -15,7 +15,7 @@
 <meta content="provisioning" name="keyword">
 <meta content="registry" name="keyword">
 <meta content="data model" name="keyword">
-<meta content="draft-ietf-rpp-data-objects-02" name="ietf.draft">
+<meta content="draft-ietf-rpp-data-objects-03 (editorial)" name="ietf.draft">
 <!-- Generator version information:
   xml2rfc 3.34.1
     Python 3.10.12
@@ -1241,7 +1241,7 @@ li > p:last-of-type:only-child {
 <dt class="label-workgroup">Workgroup:</dt>
 <dd class="workgroup">Network Working Group</dd>
 <dt class="label-internet-draft">Internet-Draft:</dt>
-<dd class="internet-draft">draft-ietf-rpp-data-objects-02</dd>
+<dd class="internet-draft">draft-ietf-rpp-data-objects-03 (editorial)</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
 <time datetime="2026-11-02" class="published">2 November 2026</time>
@@ -14056,168 +14056,175 @@ Registration procedure: Expert Review
       <h2 id="name-changes-history">
 <a href="#section-21" class="section-number selfRef">21. </a><a href="#name-changes-history" class="section-name selfRef">Changes History</a>
       </h2>
-<div id="draft-ietf-rpp-data-objects-01-02">
+<div id="draft-ietf-rpp-data-objects-02-03">
 <section id="section-21.1">
         <h3 id="name-draft-ietf-rpp-data-objects">
-<a href="#name-draft-ietf-rpp-data-objects" class="section-name selfRef">draft-ietf-rpp-data-objects -01 - -02</a>
+<a href="#name-draft-ietf-rpp-data-objects" class="section-name selfRef">draft-ietf-rpp-data-objects -02 - -03</a>
+      </h3>
+</section>
+</div>
+<div id="draft-ietf-rpp-data-objects-01-02">
+<section id="section-21.2">
+        <h3 id="name-draft-ietf-rpp-data-objects-">
+<a href="#name-draft-ietf-rpp-data-objects-" class="section-name selfRef">draft-ietf-rpp-data-objects -01 - -02</a>
         </h3>
 <ul class="compact">
-<li class="compact" id="section-21.1-1.1">added Availability operation to the Uniform Interface and to the Domain Name, Contact and Host Data Objects #46<a href="#section-21.1-1.1" class="pilcrow">¶</a>
+<li class="compact" id="section-21.2-1.1">added Availability operation to the Uniform Interface and to the Domain Name, Contact and Host Data Objects #46<a href="#section-21.2-1.1" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.2">add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188<a href="#section-21.1-1.2" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.2">add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188<a href="#section-21.2-1.2" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.3">clarified the Processes a Data Object supports or extends, and allowed extensions to define new processes<a href="#section-21.1-1.3" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.3">clarified the Processes a Data Object supports or extends, and allowed extensions to define new processes<a href="#section-21.2-1.3" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.4">moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update<a href="#section-21.1-1.4" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.4">moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update<a href="#section-21.2-1.4" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.5">added a Status Object per Data Object, including the User Status Object, with status values, allowed transitions, and IANA registries, replacing the inline user status definition #118<a href="#section-21.1-1.5" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.5">added a Status Object per Data Object, including the User Status Object, with status values, allowed transitions, and IANA registries, replacing the inline user status definition #118<a href="#section-21.2-1.5" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.6">fixed User Object delete operation constraint that prevented any user from being deleted<a href="#section-21.1-1.6" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.6">fixed User Object delete operation constraint that prevented any user from being deleted<a href="#section-21.2-1.6" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.7">added <code>X-Y</code> bounded cardinality notation and set cardinality of Restore Report <code>statements</code> to <code>1-2</code> #183<a href="#section-21.1-1.7" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.7">added <code>X-Y</code> bounded cardinality notation and set cardinality of Restore Report <code>statements</code> to <code>1-2</code> #183<a href="#section-21.2-1.7" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.8">defined a structured notation for operation input and output, with input data elements and parameters (replacing transient data elements) inside the Input attribute, and split IANA operation tables into "Input Data Elements" and "Parameters" #147<a href="#section-21.1-1.8" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.8">defined a structured notation for operation input and output, with input data elements and parameters (replacing transient data elements) inside the Input attribute, and split IANA operation tables into "Input Data Elements" and "Parameters" #147<a href="#section-21.2-1.8" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.9">moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA #179<a href="#section-21.1-1.9" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.9">moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA #179<a href="#section-21.2-1.9" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.10">create-only definition clarified about reading #80<a href="#section-21.1-1.10" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.10">create-only definition clarified about reading #80<a href="#section-21.2-1.10" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.11">moved requests for IANA registrations to here, from rpp-core document #151<a href="#section-21.1-1.11" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.11">moved requests for IANA registrations to here, from rpp-core document #151<a href="#section-21.2-1.11" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.12">added Profile Data Object, including the Default Profile element #140 #155<a href="#section-21.1-1.12" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.12">added Profile Data Object, including the Default Profile element #140 #155<a href="#section-21.2-1.12" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.13">added Discovery Data Object, with links labelled by IANA link relation types #136 #137<a href="#section-21.1-1.13" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.13">added Discovery Data Object, with links labelled by IANA link relation types #136 #137<a href="#section-21.2-1.13" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.14">added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility #57<a href="#section-21.1-1.14" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.14">added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility #57<a href="#section-21.2-1.14" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.15">added "Inheritance" section to describe how objects can use inheritance #134<a href="#section-21.1-1.15" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.15">added "Inheritance" section to describe how objects can use inheritance #134<a href="#section-21.2-1.15" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.16">removed the urgent parameter from the update operation for Domain Object #52<a href="#section-21.1-1.16" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.16">removed the urgent parameter from the update operation for Domain Object #52<a href="#section-21.2-1.16" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.17">removed all mandatory ordering requirements for arrays, making them unordered #30<a href="#section-21.1-1.17" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.17">removed all mandatory ordering requirements for arrays, making them unordered #30<a href="#section-21.2-1.17" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.18">added support for IDN (Internationalized Domain Names) #124<a href="#section-21.1-1.18" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.18">added support for IDN (Internationalized Domain Names) #124<a href="#section-21.2-1.18" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.19">added Message Data Object and new Uniform Interface "Query" operation #116<a href="#section-21.1-1.19" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.19">added Message Data Object and new Uniform Interface "Query" operation #116<a href="#section-21.2-1.19" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.20">removed the redefined processId data element from the Domain Transfer Process Object<a href="#section-21.1-1.20" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.20">removed the redefined processId data element from the Domain Transfer Process Object<a href="#section-21.2-1.20" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.21">added Set By column and set-by registry field for status values, and required the server to assign at least one status value #186<a href="#section-21.1-1.21" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.21">added Set By column and set-by registry field for status values, and required the server to assign at least one status value #186<a href="#section-21.2-1.21" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.22">renamed Authorisation Information and Disclose component objects to "Authorisation Information Object" and "Disclose Object" to match their references<a href="#section-21.1-1.22" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.22">renamed Authorisation Information and Disclose component objects to "Authorisation Information Object" and "Disclose Object" to match their references<a href="#section-21.2-1.22" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.23">updated document metadata, and Abstract and Introduction scope<a href="#section-21.1-1.23" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.23">updated document metadata, and Abstract and Introduction scope<a href="#section-21.2-1.23" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.1-1.24">editorial fixes to spelling, hyphenation, capitalisation, and terminology consistency<a href="#section-21.1-1.24" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.2-1.24">editorial fixes to spelling, hyphenation, capitalisation, and terminology consistency<a href="#section-21.2-1.24" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
 </div>
 <div id="draft-ietf-rpp-data-objects-00-01">
-<section id="section-21.2">
-        <h3 id="name-draft-ietf-rpp-data-objects-">
-<a href="#name-draft-ietf-rpp-data-objects-" class="section-name selfRef">draft-ietf-rpp-data-objects -00 - -01</a>
+<section id="section-21.3">
+        <h3 id="name-draft-ietf-rpp-data-objects-0">
+<a href="#name-draft-ietf-rpp-data-objects-0" class="section-name selfRef">draft-ietf-rpp-data-objects -00 - -01</a>
         </h3>
 <ul class="compact">
-<li class="compact" id="section-21.2-1.1">Added Organisation, Organisation Role and User Objects, based on RFC8543 (Issue #25)<a href="#section-21.2-1.1" class="pilcrow">¶</a>
+<li class="compact" id="section-21.3-1.1">Added Organisation, Organisation Role and User Objects, based on RFC8543 (Issue #25)<a href="#section-21.3-1.1" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.2">Added Renew Process Object and operations (Issue #76)<a href="#section-21.2-1.2" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.2">Added Renew Process Object and operations (Issue #76)<a href="#section-21.3-1.2" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.3">reserve property names beginning with <code>@</code> for representation specifications #89<a href="#section-21.2-1.3" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.3">reserve property names beginning with <code>@</code> for representation specifications #89<a href="#section-21.3-1.3" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.4">add generic Create Process Object and Domain Create Process Object carrying the registration period #89<a href="#section-21.2-1.4" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.4">add generic Create Process Object and Domain Create Process Object carrying the registration period #89<a href="#section-21.3-1.4" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.5">add optional processId to all Process Objects #89<a href="#section-21.2-1.5" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.5">add optional processId to all Process Objects #89<a href="#section-21.3-1.5" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.6">add extensible Processes Object component and processes element to all Data Objects #89<a href="#section-21.2-1.6" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.6">add extensible Processes Object component and processes element to all Data Objects #89<a href="#section-21.3-1.6" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.7">declare the unique identifier element explicitly in every object preamble #89<a href="#section-21.2-1.7" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.7">declare the unique identifier element explicitly in every object preamble #89<a href="#section-21.3-1.7" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.8">add "Direct Access" flag exposing association data elements as addressable sub-resources #89<a href="#section-21.2-1.8" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.8">add "Direct Access" flag exposing association data elements as addressable sub-resources #89<a href="#section-21.3-1.8" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.9">editorial pass: fix spelling, grammar, subject-verb agreement, missing articles, cross-reference wording, and copy-paste object names<a href="#section-21.2-1.9" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.9">editorial pass: fix spelling, grammar, subject-verb agreement, missing articles, cross-reference wording, and copy-paste object names<a href="#section-21.3-1.9" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.10">Add External Data Types section and JSContact (Issue #83)<a href="#section-21.2-1.10" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.10">Add External Data Types section and JSContact (Issue #83)<a href="#section-21.3-1.10" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.2-1.11">restructure object processes: per-object "Processes" sections, process objects extending generic ones, add Domain Transfer Process Object, with IANA updates #119<a href="#section-21.2-1.11" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.3-1.11">restructure object processes: per-object "Processes" sections, process objects extending generic ones, add Domain Transfer Process Object, with IANA updates #119<a href="#section-21.3-1.11" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
 </div>
 <div id="draft-kowalik-rpp-data-objects-04-draft-ietf-rpp-data-objects-00">
-<section id="section-21.3">
+<section id="section-21.4">
         <h3 id="name-draft-kowalik-rpp-data-obje">
 <a href="#name-draft-kowalik-rpp-data-obje" class="section-name selfRef">draft-kowalik-rpp-data-objects-04 - draft-ietf-rpp-data-objects-00</a>
         </h3>
 <ul class="compact">
-<li class="compact" id="section-21.3-1.1">RPP working group adoption<a href="#section-21.3-1.1" class="pilcrow">¶</a>
+<li class="compact" id="section-21.4-1.1">RPP working group adoption<a href="#section-21.4-1.1" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
 </div>
 <div id="draft-kowalik-rpp-data-objects-03-04">
-<section id="section-21.4">
+<section id="section-21.5">
         <h3 id="name-draft-kowalik-rpp-data-objec">
 <a href="#name-draft-kowalik-rpp-data-objec" class="section-name selfRef">draft-kowalik-rpp-data-objects -03 - -04</a>
         </h3>
 <ul class="compact">
-<li class="compact" id="section-21.4-1.1">correct <code>"postalInfo"</code> to be DictionaryComposition not DictionaryAggregation<a href="#section-21.4-1.1" class="pilcrow">¶</a>
+<li class="compact" id="section-21.5-1.1">correct <code>"postalInfo"</code> to be DictionaryComposition not DictionaryAggregation<a href="#section-21.5-1.1" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.4-1.2">Added missing IANA tables for Contact, Postal Address and Postal Info. Added missing Operations. Added missing operation identifiers. Fixes #17, #18, #19, #20, #21.<a href="#section-21.4-1.2" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.5-1.2">Added missing IANA tables for Contact, Postal Address and Postal Info. Added missing Operations. Added missing operation identifiers. Fixes #17, #18, #19, #20, #21.<a href="#section-21.5-1.2" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
 </div>
 <div id="draft-kowalik-rpp-data-objects-02-03">
-<section id="section-21.5">
+<section id="section-21.6">
         <h3 id="name-draft-kowalik-rpp-data-object">
 <a href="#name-draft-kowalik-rpp-data-object" class="section-name selfRef">draft-kowalik-rpp-data-objects -02 - -03</a>
         </h3>
 <ul class="compact">
-<li class="compact" id="section-21.5-1.1">add Object and Dictionary[Value Type] primitive data types<a href="#section-21.5-1.1" class="pilcrow">¶</a>
+<li class="compact" id="section-21.6-1.1">add Object and Dictionary[Value Type] primitive data types<a href="#section-21.6-1.1" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.2">change "Aggregation/Composition Dictionary" to "Dictionary Aggregation/Composition" (Issue #32)<a href="#section-21.5-1.2" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.2">change "Aggregation/Composition Dictionary" to "Dictionary Aggregation/Composition" (Issue #32)<a href="#section-21.6-1.2" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.3">describe operations for contacts #15<a href="#section-21.5-1.3" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.3">describe operations for contacts #15<a href="#section-21.6-1.3" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.4">describe operations for hosts #16<a href="#section-21.5-1.4" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.4">describe operations for hosts #16<a href="#section-21.6-1.4" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.5">add Domain Update operation with urgent transient parameter from <span>[<a href="#RFC5910" class="cite xref">RFC5910</a>]</span><a href="#section-21.5-1.5" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.5">add Domain Update operation with urgent transient parameter from <span>[<a href="#RFC5910" class="cite xref">RFC5910</a>]</span><a href="#section-21.6-1.5" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.6">add identifiers to all operations<a href="#section-21.5-1.6" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.6">add identifiers to all operations<a href="#section-21.6-1.6" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.7">abstract common provisioning metadata into reusable component object<a href="#section-21.5-1.7" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.7">abstract common provisioning metadata into reusable component object<a href="#section-21.6-1.7" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.8">define common RGP/restore process and Restore Process Object<a href="#section-21.5-1.8" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.8">define common RGP/restore process and Restore Process Object<a href="#section-21.6-1.8" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.9">define common transfer operations and Transfer Process Object with support for pull and push transfers #23<a href="#section-21.5-1.9" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.9">define common transfer operations and Transfer Process Object with support for pull and push transfers #23<a href="#section-21.6-1.9" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.10">add domain-specific transfer operations with implicit renewal and subordinate host transfer<a href="#section-21.5-1.10" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.10">add domain-specific transfer operations with implicit renewal and subordinate host transfer<a href="#section-21.6-1.10" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.11">add host/domain relationship terminology from RFC 5732<a href="#section-21.5-1.11" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.11">add host/domain relationship terminology from RFC 5732<a href="#section-21.6-1.11" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.12">restructure DNS data model aligned with draft-simmen-rpp-dns-data-01: redefine DNS Resource Record Object, add DNS Operational Controls Object, add DNS Data Object; update Domain, Host, and Nameserver objects to use it<a href="#section-21.5-1.12" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.12">restructure DNS data model aligned with draft-simmen-rpp-dns-data-01: redefine DNS Resource Record Object, add DNS Operational Controls Object, add DNS Data Object; update Domain, Host, and Nameserver objects to use it<a href="#section-21.6-1.12" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.13">add DNSSEC support based on <span>[<a href="#RFC5910" class="cite xref">RFC5910</a>]</span>: DS and DNSKEY record types with structured RDATA fields<a href="#section-21.5-1.13" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.13">add DNSSEC support based on <span>[<a href="#RFC5910" class="cite xref">RFC5910</a>]</span>: DS and DNSKEY record types with structured RDATA fields<a href="#section-21.6-1.13" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.14">add NS, A, and AAAA RDATA structures and record type constraints to EPP compatibility profile for DNS Resource Record Object<a href="#section-21.5-1.14" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.14">add NS, A, and AAAA RDATA structures and record type constraints to EPP compatibility profile for DNS Resource Record Object<a href="#section-21.6-1.14" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.15">expand extensibility section with standardised/private extension mechanisms, extension points, and operation extensibility<a href="#section-21.5-1.15" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.15">expand extensibility section with standardised/private extension mechanisms, extension points, and operation extensibility<a href="#section-21.6-1.15" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.5-1.16">update IANA registration policy and registry structure to accommodate extension registrations<a href="#section-21.5-1.16" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.6-1.16">update IANA registration policy and registry structure to accommodate extension registrations<a href="#section-21.6-1.16" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
 </div>
 <div id="draft-kowalik-rpp-data-objects-01-02">
-<section id="section-21.6">
+<section id="section-21.7">
         <h3 id="name-draft-kowalik-rpp-data-objects">
 <a href="#name-draft-kowalik-rpp-data-objects" class="section-name selfRef">draft-kowalik-rpp-data-objects -01 - -02</a>
         </h3>
 <ul class="compact">
-<li class="compact" id="section-21.6-1.1">ontology of allowed basic datatypes #4<a href="#section-21.6-1.1" class="pilcrow">¶</a>
+<li class="compact" id="section-21.7-1.1">ontology of allowed basic datatypes #4<a href="#section-21.7-1.1" class="pilcrow">¶</a>
 </li>
-          <li class="compact" id="section-21.6-1.2">add examples of associations #31<a href="#section-21.6-1.2" class="pilcrow">¶</a>
+          <li class="compact" id="section-21.7-1.2">add examples of associations #31<a href="#section-21.7-1.2" class="pilcrow">¶</a>
 </li>
         </ul>
 </section>
