@@ -1,16 +1,16 @@
 %%%
 title = "RESTful Provisioning Protocol (RPP) Data Objects"
 abbrev = "RPP Data Objects"
-area = "Internet"
+area = "Applications and Real-Time"
 workgroup = "Network Working Group"
 submissiontype = "IETF"
-keyword = [""]
+keyword = ["RPP", "provisioning", "registry", "data model"]
 TocDepth = 4
-date = 2026-07-02
+date = 2026-11-02
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-ietf-rpp-data-objects-02 (editorial)"
+value = "draft-ietf-rpp-data-objects-02"
 stream = "IETF"
 status = "standard"
 
@@ -18,7 +18,6 @@ status = "standard"
 initials="P."
 surname="Kowalik"
 fullname="Pawel Kowalik"
-abbrev = ""
 organization = "DENIC"
   [author.address]
   email = "pawel.kowalik@denic.de"
@@ -28,7 +27,6 @@ organization = "DENIC"
 initials="M."
 surname="Wullink"
 fullname="Maarten Wullink"
-abbrev = ""
 organization = "SIDN Labs"
   [author.address]
   email = "maarten.wullink@sidn.nl"
@@ -38,12 +36,12 @@ organization = "SIDN Labs"
 
 .# Abstract
 
-This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for foundational resources: domain names, contacts, and hosts. In accordance with the RPP architecture [@!I-D.ietf-rpp-architecture], these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).
+This document defines data objects for the RESTful Provisioning Protocol (RPP) and sets up the IANA RPP Data Object Registry to describe and catalogue them. Specifically, it details the logical structure, constraints, and protocol operations (including their inputs, outputs, and business logic) for registry resources: domain names, contacts, hosts, organisations, users, and messages, as well as the discovery and profile objects that describe server capabilities. In accordance with the RPP architecture, these definitions focus entirely on the semantics, remaining independent of any specific data representation or media type (e.g., JSON or XML).
 
 {mainmatter}
 
 # Introduction
-The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage foundational registry resources, including domain names, contacts, and hosts. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.
+The RESTful Provisioning Protocol (RPP) defines a set of data objects used to represent and manage registry resources, including domain names, contacts, hosts, organisations, users, and messages, as well as the discovery and profile objects that describe server capabilities. This initial list is not exhaustive; additional resource and component objects MAY be defined in future revisions or introduced via IANA registration to support new features and operational needs.
 
 In accordance with the RPP architecture [@!I-D.ietf-rpp-architecture], a core architectural principle is the clear distinction between the abstract data model and its concrete data representation. The data model defines the logical structure, relationships, and constraints of the objects, independent of formatting. The data representation defines how these abstract concepts are expressed in specific formats (e.g., JSON, XML, or YAML).
 
@@ -122,7 +120,7 @@ A Date is a full-date calendar date as described in [@!RFC3339], an example of a
 
 ### Timestamp
 
-Timestamp (Date and time attribute) values MUST be represented in Universal Coordinated Time (UTC) using the Gregorian calendar in date-time form as defined in [@!RFC3339]. In EPP Compatibility Profile upper case "T" and "Z" characters MUST be used. An example of a timestamp is `2025-10-27T09:42:51Z`.
+Timestamp (Date and time attribute) values MUST be represented in Coordinated Universal Time (UTC) using the Gregorian calendar in date-time form as defined in [@!RFC3339]. In EPP Compatibility Profile upper case "T" and "Z" characters MUST be used. An example of a timestamp is `2025-10-27T09:42:51Z`.
 
 ### URL
 
@@ -136,7 +134,7 @@ Raw binary data, implementations MAY choose how to encode the binary data, for e
 
 Notation: Dictionary[Value Type]
 
-A Dictionary is a collection of key-value pairs where keys are unique Strings and values are of the specified primitive data type. Usages MUST define the constraints on allowed keys and values. A Dictionary differs from an Aggregation Dictionary in that it maps String keys to primitive values rather than to Component or Resource Objects.
+A Dictionary is a collection of key-value pairs where keys are unique Strings and values are of the specified primitive data type. Usages MUST define the constraints on allowed keys and values. A Dictionary differs from an Dictionary Aggregation in that it maps String keys to primitive values rather than to Component or Resource Objects.
 
 ### Object
 
@@ -242,7 +240,7 @@ For each data object a set of possible operations is defined together with their
 
 ### Authorisation
 
-For each operation authorisation requirements and operation behaviour is specified.
+For each operation authorisation requirements and operation behaviour are specified.
 
 Wherever "Object Authorisation" is mentioned, it means that an operation MAY accept or require additional authorisation data related to the object beyond default client-level authorisation, or that an operation MAY result in different processing or response if such authorisation is provided.
 
@@ -269,7 +267,7 @@ For example:
 
 ### Include Elements {#include-elements}
 
-The `includeElements` parameter is defined for every operation whose output contains one or more objects, including, but not limited to, the Uniform interface operations and the operations of Process Objects. It allows a client to request specific data elements to be included in the operation output in addition to those included by default. Individual operation definitions do not repeat it.
+The `includeElements` parameter is defined for every operation whose output contains one or more objects, including, but not limited to, the Uniform Interface operations and the operations of Process Objects. It allows a client to request specific data elements to be included in the operation output in addition to those included by default. Individual operation definitions do not repeat it.
 
 * Include Elements
   * Identifier: includeElements
@@ -354,7 +352,7 @@ Extensions MAY add parameters that further specify the check and data elements t
 
 RPP allows for offline review for operations that change the state of an object (Uniform Interface Create, Update, Delete, and the Renew and Transfer process operations) before the requested action is actually completed. In such situations, the response from the server MUST clearly indicate that the operation has been received, but that the requested action is pending. The state of the corresponding object MUST clearly reflect processing of the pending action, typically through a server-set pending status label (e.g. `pendingCreate`, `pendingUpdate`, `pendingDelete`, `pendingRenew`, `pendingTransfer`). The server MUST also notify the client when offline processing of the action has been completed, by sending a `review-response` message (see (#messages)).
 
-### Operations beyond uniform interface
+### Operations Beyond Uniform Interface
 
 For all other operations both input and output have to be fully specified.
 
@@ -460,13 +458,13 @@ Internationalized Domain Names (IDN) are domain names that include one or more n
 
 A profile is a named set of protocol features and versions that are used to define the compatibility and capabilities of RPP server implementations, allowing for better interoperability between different implementations. Using profiles helps to simplify the implementation and deployment of RPP by providing a clear and concise way for the client and server to communicate their capabilities and requirements.
 
-A profile is identified by a unique name and may be published as a standard profile in the IANA registry for RPP profiles, to promote interoperability and standardization across implementations. Standard profiles names MUST use the RPP URN namespace defined in this document, for example: `urn:ietf:params:rpp:profile:{profile_name}`. The profile name MUST be unique within the RPP URN namespace and SHOULD be descriptive of the features and versions included in the profile.
+A profile is identified by a unique name and may be published as a standard profile in the IANA registry for RPP profiles, to promote interoperability and standardisation across implementations. Standard profile names MUST use the RPP URN namespace defined in this document, for example: `urn:ietf:params:rpp:profile:{profile_name}`. The profile name MUST be unique within the RPP URN namespace and SHOULD be descriptive of the features and versions included in the profile.
 
 A profile can also be defined as a private profile, which is not published in the IANA registry, but is used by specific server implementations only. A private profile can be defined by a server operator to specify the features and versions supported by their implementation. If the profile is not published in the IANA registry, then the server operator MUST ensure that the profile name is globally unique to avoid conflicts with other profiles, the use of reverse domain name notation is RECOMMENDED for private profiles to ensure uniqueness.
 
 ## Inheritance
 
-A profile can include another profile, which is referred to as "inheriting" from that profile. When a profile inherits from another profile, it means that the features and versions defined in the inherited profile are also included in the inheriting profile. This allows for the creation of more complex profiles by building upon existing profiles. For example, a profile named "example-profile" could inherit from a base profile named "base-profile", which includes a set of common features and versions. The "example-profile" could then add additional features and versions on top of the ones defined in the "baseProfile", or it can override some of the features and versions from the "baseProfile". This allows for greater flexibility and modularity in defining profiles, as well as promoting reuse of common features and versions across different profiles. However, it is important to note that the use of inheritance in profiles can also make things more complicated, as it can create dependencies between profiles and make it harder to understand the features and versions included in a profile. Therefore, it is recommended to use inheritance with caution and to clearly document the relationships between profiles. The depth of inheritance MUST be limited to 1 to provent excessive complexity, and profile designers MUST NOT create circular dependencies between profiles, where a profile inherits from itself directly.
+A profile can include another profile, which is referred to as "inheriting" from that profile. When a profile inherits from another profile, it means that the features and versions defined in the inherited profile are also included in the inheriting profile. This allows for the creation of more complex profiles by building upon existing profiles. For example, a profile named "example-profile" could inherit from a base profile named "base-profile", which includes a set of common features and versions. The "example-profile" could then add additional features and versions on top of the ones defined in the base profile, or it can override some of the features and versions from the base profile. This allows for greater flexibility and modularity in defining profiles, as well as promoting reuse of common features and versions across different profiles. However, it is important to note that the use of inheritance in profiles can also make things more complicated, as it can create dependencies between profiles and make it harder to understand the features and versions included in a profile. Therefore, it is recommended to use inheritance with caution and to clearly document the relationships between profiles. The depth of inheritance MUST be limited to 1 to prevent excessive complexity, and profile designers MUST NOT create circular dependencies between profiles, where a profile inherits from itself directly.
 
 # Messages {#messages}
 
@@ -518,7 +516,7 @@ This section defines new shared data types and structures that are re-used acros
 
 ## Identifier
 
-Identifiers are character strings with a specified minimum length, a specified maximum length, and a specified format outlined in [@!RFC5730, section 2.8]. Identifiers for certain object types MAY have additional constraints imposed either by server policy, object specific specifications or both.
+Identifiers are character strings with a specified minimum length, a specified maximum length, and a specified format outlined in [@!RFC5730, section 2.8]. Identifiers for certain object types MAY have additional constraints imposed either by server policy, object-specific specifications or both.
 
 ## Client Identifier
 
@@ -837,7 +835,7 @@ This section defines the Component Objects used in this document.
     * Mutability: create-only
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
-    * Constraints: None
+    * Constraints: (None)
   * Due
     * Identifier: due
     * Cardinality: 0-1
@@ -1053,7 +1051,7 @@ A> TBD: Idea - model status object as Labelled Composition using "Label"? Con: G
     * Mutability: create-only
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
-    * Constraints: None
+    * Constraints: (None)
 
 ### Status Values {#host-status-values}
 
@@ -1179,7 +1177,7 @@ The `linked` status MAY be combined with any status. Other status combinations n
     * Mutability: create-only
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
-    * Constraints: None
+    * Constraints: (None)
 
 ### Status Values {#contact-status-values}
 
@@ -1308,7 +1306,7 @@ The `linked` status MAY be combined with any status. Other status combinations n
     * Mutability: create-only
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the role.
-    * Constraints: None
+    * Constraints: (None)
 
 ### Status Values {#organisation-role-status-values}
 
@@ -1393,7 +1391,7 @@ Other status combinations not expressly prohibited MAY be used.
     * Mutability: create-only
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
-    * Constraints: None
+    * Constraints: (None)
 
 ### Status Values {#organisation-status-values}
 
@@ -1516,7 +1514,7 @@ Other status combinations not expressly prohibited MAY be used.
     * Mutability: create-only
     * Data Type: String
     * Description: a human-readable text that describes the rationale for the status applied to the object.
-    * Constraints: None
+    * Constraints: (None)
 
 ### Status Values {#user-status-values}
 
@@ -1619,7 +1617,7 @@ Table: User Status Exclusions
     * Constraints:
       * The value MUST be a valid string representation of a resource record type as defined in [@!RFC1035] or other RFC describing the record type.
       * Allowed values MAY be constrained by server policies. For domain provisioning, the type would typically be constrained to the allowed parent-side entries.
-      * Values MUST be converted to lower case.
+      * Values MUST be converted to lowercase.
       * In EPP Compatibility Profile ([@!RFC5732]), the following record types MUST be supported: `ns`, `a`, and `aaaa`.
       * In EPP Compatibility Profile with DNSSEC Extension [@RFC5910], the following record types MUST additionally be supported: `ds` and `dnskey`.
   * RDATA
@@ -1638,7 +1636,7 @@ This section defines the RDATA field structures required for interoperability in
 
 In EPP Compatibility Profile ([@!RFC5732]), the following RDATA structures MUST be supported:
 
-* For NS records ([@!RFC1035], Section 3.3.11): `nsdname` (the fully qualified domain name of the name server).
+* For NS records ([@!RFC1035], Section 3.3.11): `nsdname` (the fully qualified domain name of the nameserver).
 * For A records ([@!RFC1035], Section 3.4.1): `address` (the IPv4 address in dotted-decimal notation).
 * For AAAA records ([@RFC3596], Section 2.2): `address` (the IPv6 address in text representation as defined in [@!RFC5952]).
 
@@ -1660,9 +1658,9 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
     * Cardinality: 0-1
     * Mutability: read-write
     * Data Type: Dictionary[Integer]
-    * Description: Controls the caching behaviour of DNS resource records. The dictionary is keyed by lower-case record type name, with values representing the TTL in seconds for that record type.
+    * Description: Controls the caching behaviour of DNS resource records. The dictionary is keyed by lowercase record type name, with values representing the TTL in seconds for that record type.
     * Constraints:
-      * The keys MUST be valid DNS resource record type names in lower case.
+      * The keys MUST be valid DNS resource record type names in lowercase.
       * The values MUST be positive Integers.
       * The allowed value ranges MAY be constrained by server policy.
       * A server MAY ignore client-specified TTL values and apply default or policy-defined values.
@@ -1673,7 +1671,7 @@ A> TBC: Optional keyData inside dsData (RFC 5910 Section 4.1): In the DS Data In
     * Data Type: Dictionary[Integer]
     * Description: Specifies a child's preference for the maximum number of seconds after signature generation when the parent's signature on signed DNS information should expire. The dictionary is keyed by lower-case record type name, with values representing the maximum signature lifetime in seconds for that record type. The value applies to the RRSIG resource record over the signed DNS RRset. See Section 3 of [@RFC4034] for information on the RRSIG resource record. This corresponds to the maxSigLife concept from [@RFC5910].
     * Constraints:
-      * The keys MUST be valid DNS resource record type names in lower case.
+      * The keys MUST be valid DNS resource record type names in lowercase.
       * The values MUST be positive Integers (minimum value of 1).
       * A server MAY ignore client-specified values and apply its own default signature expiration policy.
 
@@ -1746,21 +1744,21 @@ A> TODO: Model Disclose in universal (extendible) way
     * Mutability: read-write
     * Data Type: String
     * Description: A copy of the registration data that existed for the object prior to the object being deleted.
-    * Constraints: None.
+    * Constraints: (None)
   * Post-Restore Data
     * Identifier: postData
     * Cardinality: 0-1
     * Mutability: read-write
     * Data Type: String
     * Description: A copy of the registration data that exists for the object at the time the restore report is submitted.
-    * Constraints: None.
+    * Constraints: (None)
   * Delete Time
     * Identifier: deleteTime
     * Cardinality: 0-1
     * Mutability: read-write
     * Data Type: Timestamp
     * Description: The date and time when the object delete request was sent to the server.
-    * Constraints: None.
+    * Constraints: (None)
   * Restore Time
     * Identifier: restoreTime
     * Cardinality: 0-1
@@ -1776,7 +1774,7 @@ A> TODO: Model Disclose in universal (extendible) way
     * Mutability: read-write
     * Data Type: String
     * Description: A brief explanation of the reason for restoring the object.
-    * Constraints: None.
+    * Constraints: (None)
   * Statements
     * Identifier: statements
     * Cardinality: 1-2
@@ -1790,7 +1788,7 @@ A> TODO: Model Disclose in universal (extendible) way
     * Mutability: read-write
     * Data Type: String
     * Description: Any additional information needed to support the statements provided by the client.
-    * Constraints: None.
+    * Constraints: (None)
 
 ## Organisation Role Object
 
@@ -1947,18 +1945,18 @@ The Message Components define the structure and data elements for all message ob
     * Description: The unique identifier of the object affected by the requested operation.
     * Constraints:
       * Must be a valid unique identifier for the object type specified in the `objectType` field.
-      * For both "domainName", "host" the `objectId` must be a valid fully qualified domain name (FQDN).
+      * For "domainName" and "host" the `objectId` must be a valid fully qualified domain name (FQDN).
       * For "contact" the `objectId` must be a valid contact identifier.
       * When the message is not related to a specific object, the `objectId` field may be empty.
 
 ### Review Response Object
 
-The Review Response Object defines the data elements for returning the result of an offline-review. Offline-review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.
+The Review Response Object defines the data elements for returning the result of an offline review. Offline review is optional for the create, update, delete, transfer, renew and restore actions, where the server may want to perform an offline review before completing the requested action.
 
 * Name: Review Response Object
 * Identifier: reviewResponseMessage
 * Extends: Base Message Object
-* Description: Notification of the result of an offline-review of a requested operation.
+* Description: Notification of the result of an offline review of a requested operation.
 * Data Elements:
   * Approval Result
     * Identifier: approved
@@ -2127,7 +2125,7 @@ The Service Notice Message Object is not linked to a specific object or process 
 * Name: Service Notice Message Object
 * Identifier: serviceNoticeMessage
 * Extends: Base Message Object
-* Description: Generic text based message containing information not covered by any other message type.
+* Description: Generic text-based message containing information not covered by any other message type.
 * Data Elements:
   * Message
     * Identifier: message
@@ -2651,7 +2649,7 @@ The following data elements are defined for the Domain Name Data Object.
   * Description: The fully qualified name of the domain object.
   * Constraints:
     * A server MAY restrict allowable domain names to a particular top-level domain, second-level domain, or other domain for which the server is authoritative.
-    * If the domain name is an internationalized domain name (IDN), the value MUST be a valid ACE encoded string representing the Unicode Name (uName).
+    * If the domain name is an internationalized domain name (IDN), the value MUST be a valid ACE-encoded string representing the Unicode Name (uName).
 
 * Unicode Name
   * Identifier: uName
@@ -2823,7 +2821,7 @@ The operation has no input data elements and takes no object representation as i
 The Create operation allows a client to provision a new Domain Name resource. The operation accepts as input all create-only and read-write data elements defined for the Domain Name Data Object.
 
 * Authorisation:
-  * Generally each client is authorised to create new domain objects becoming a sponsoring client. This can be however constrained by the server policy in many ways, i.e. by applying rate limiting, billing related constraints or compliance locks.
+  * Generally each client is authorised to create new domain objects becoming a sponsoring client. This can be however constrained by the server policy in many ways, i.e. by applying rate limiting, billing-related constraints or compliance locks.
 
 * Input:
   * Object: This Object
@@ -3091,7 +3089,7 @@ In EPP Compatibility Profile, the following data elements MUST be provided:
 
 * Handle ID (`id`)
 * At least one Contact Information entry (`contactInfo`) containing a Name (`name`) and an Address (`addr`) with City (`city`) and Country Code (`cc`)
-* E-mail (`email`)
+* Email (`email`)
 * Authorisation Information (`authInfo`)
 
 ### Read Operation
@@ -3125,7 +3123,7 @@ The Update operation allows a client to modify the attributes of an existing Con
 The following aspects of the contact object MAY be modified:
 
 * Status values that are client-manageable (prefixed with "client") MAY be added or removed.
-* Contact Information, Voice Phone Number, Fax Phone Number, E-mail, Authorisation Information, and Disclose preferences MAY be changed.
+* Contact Information, Voice Phone Number, Fax Phone Number, Email, Authorisation Information, and Disclose preferences MAY be changed.
 
 At least one change MUST be provided, unless the operation is extended.
 
@@ -3157,7 +3155,7 @@ The Contact Data Object supports no Process Objects extended by an object-specif
 * Name: Host Data Object
 * Identifier: host
 * Unique Identifier: hostName
-* Description: A Host Data Object represents a name server that provides DNS services for a domain name.
+* Description: A Host Data Object represents a nameserver that provides DNS services for a domain name.
 
 ## Data Elements
 
@@ -3256,7 +3254,7 @@ The Update operation allows a client to modify the attributes of an existing Hos
 * Authorisation:
   * Only sponsoring client is authorised to perform this operation
 
-Host name changes MAY require the addition or removal of IP addresses to be accepted by the server. IP address association MAY be subject to server policies for provisioning hosts as name servers. The IP address restrictions described for the Create operation apply to updates as well.
+Host name changes MAY require the addition or removal of IP addresses to be accepted by the server. IP address association MAY be subject to server policies for provisioning hosts as nameservers. The IP address restrictions described for the Create operation apply to updates as well.
 
 At least one change to a data element MUST be provided, unless the operation is extended.
 
@@ -3279,7 +3277,7 @@ The error response SHOULD indicate the related associated objects.
 
 ## Processes
 
-The Host Data Object Data Object supports the following Process Objects (#process-objects) unmodified:
+The Host Data Object supports the following Process Objects (#process-objects) unmodified:
 
 * Transfer Process
   * Constraints: Host objects MUST NOT be transferred directly. They are transferred implicitly when their superordinate domain object is transferred.
@@ -3568,14 +3566,14 @@ The following data elements are defined for the User Data Object.
   * Mutability: read-write
   * Data Type: External:RPP-JSContact-Profile:Card
   * Description: The details of the user, such as name, email, and phone number
-  * Constraints: -
+  * Constraints: (None)
 * Description
   * Identifier: description
   * Cardinality: 0-1
   * Mutability: read-write
   * Data Type: String
   * Description: A description of the user
-  * Constraints: -
+  * Constraints: (None)
 * Status
   * Identifier: status
   * Cardinality: 1
@@ -3591,7 +3589,7 @@ The following data elements are defined for the User Data Object.
   * Mutability: read-only
   * Data Type: Aggregation[Organisation Data Object]
   * Description: A reference to the owner organisation object.
-  * Constraints: -
+  * Constraints: (None)
 * Processes
   * Identifier: processes
   * Cardinality: 0-1
@@ -3857,7 +3855,7 @@ The Read operation allows a client to retrieve the Profile Data Object identifie
 
 # IANA Considerations
 
-## RPP registry group
+## RPP Registry Group
 
 The IANA is requested to create a new registry group for RPP, this will be used to group together all the RPP-related registries such as those for discovery URLs, extensions and profiles.
 
@@ -3952,7 +3950,7 @@ Reference: [This-ID]
 Data Elements
 | Element Identifier | Element Name               | Card. | Mutability | Data Type            | Description                                                                                                                                              |
 | ------------------ | -------------------------- | ----- | ---------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ttl                | TTL                        | 0-1   | read-write | Dictionary [Integer] | Controls the caching behaviour of DNS resource records, keyed by lower-case record type name.                                                            |
+| ttl                | TTL                        | 0-1   | read-write | Dictionary [Integer] | Controls the caching behaviour of DNS resource records, keyed by lowercase record type name.                                                            |
 | maxSigLifetime     | Maximum Signature Lifetime | 0-1   | read-write | Dictionary [Integer] | Maximum number of seconds after signature generation when the parent's signature on signed DNS data should expire, keyed by lower-case record type name. |
 
 Object: dnsData
@@ -4222,7 +4220,7 @@ Object Type: Component
 
 Extends: baseMessage
 
-Description: Notification of the result of an offline-review of a requested operation.
+Description: Notification of the result of an offline review of a requested operation.
 
 Reference: [This-ID]
 
@@ -4320,7 +4318,7 @@ Object Type: Component
 
 Extends: baseMessage
 
-Description: Generic text based message containing information not covered by any other message type.
+Description: Generic text-based message containing information not covered by any other message type.
 
 Reference: [This-ID]
 
@@ -4801,7 +4799,7 @@ Object Name: Host Data Object
 
 Object Type: Resource
 
-Description: Represents a name server that provides DNS services for a domain name.
+Description: Represents a nameserver that provides DNS services for a domain name.
 
 Reference: [This-ID]
 
@@ -5473,9 +5471,9 @@ Index value: ?
 <!-- see: https://datatracker.ietf.org/doc/html/rfc3553 -->
 <!-- see: https://www.iana.org/assignments/params/params.xml#urn-subnamespaces -->
 
-## RPP Discovery registry
+## RPP Discovery Registry
 
-The IANA is requested to create a new registry for RPP discovery URLs, this registry will be used to register the well-known URLs for RPP discovery endpoints, used by RPP clients to discover the capabilities of a RPP server.
+The IANA is requested to create a new registry for RPP discovery URLs, this registry will be used to register the well-known URLs for RPP discovery endpoints, used by RPP clients to discover the capabilities of an RPP server.
 
 ```text
 Name of the registry: RPP Discovery URLs
@@ -5489,9 +5487,9 @@ Fields to be registered:
 - `url`: The URL for the discovery endpoint, for example "https://rpp.example/.well-known/rpp.json".
 - `description`: A human-readable description of the discovery URL and its intended use.
 
-## RPP Extension registry
+## RPP Extension Registry
 
-The IANA is requested to create a new registry for RPP extensions, this registry will be used to register standardized extensions to the RPP protocol. Extensions are defined as additional features or capabilities that can be added to the base RPP protocol, for example support for additional resource types, additional operations or additional authentication methods.
+The IANA is requested to create a new registry for RPP extensions, this registry will be used to register standardised extensions to the RPP protocol. Extensions are defined as additional features or capabilities that can be added to the base RPP protocol, for example support for additional resource types, additional operations or additional authentication methods.
 
 ```text
 Name of the registry: RPP Extensions
@@ -5506,9 +5504,9 @@ Fields to be registered:
 - `url`: The URL for the extension specification, for example "https://www.iana.org/assignments/rpp-extensions/rpp-example-extension".
 - `description`: A human-readable description of the extension and its intended use.
 
-## RPP Profile registry
+## RPP Profile Registry
 
-The IANA is requested to create a new registry for RPP profiles, this registry will be used to register standardized profiles for the RPP protocol. Profiles are defined as specific configurations of the RPP protocol that are designed to meet the needs of specific use cases or environments, for example an EPP compatibility profile that defines a set of RPP features and behaviors that are compatible with the Extensible Provisioning Protocol (EPP) [@!RFC5730].
+The IANA is requested to create a new registry for RPP profiles, this registry will be used to register standardised profiles for the RPP protocol. Profiles are defined as specific configurations of the RPP protocol that are designed to meet the needs of specific use cases or environments, for example an EPP compatibility profile that defines a set of RPP features and behaviours that are compatible with the Extensible Provisioning Protocol (EPP) [@!RFC5730].
 
 ```text
 Name of the registry: RPP Profiles
@@ -5536,35 +5534,30 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -01 - -02
 
-* added Availability operation to the uniform interface and to the Domain Name, Contact and Host Data Objects (Issue #46)
+* added Availability operation to the Uniform Interface and to the Domain Name, Contact and Host Data Objects #46
 * add Abstract keyword to flag objects used only as base objects; Base Process Object and Base Message Object declared abstract #188
-* Clarification on Processes supported and extended by a Data Object
+* clarified the Processes a Data Object supports or extends, and allowed extensions to define new processes
 * moved restore report from operation input to read-write element of Restore Process Object and replaced Report operation with Update
-* Added User Status Object with status values, allowed transitions, and IANA registry, replacing the inline user status definition
+* added a Status Object per Data Object, including the User Status Object, with status values, allowed transitions, and IANA registries, replacing the inline user status definition #118
 * fixed User Object delete operation constraint that prevented any user from being deleted
-* Added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` (Issue #183)
-* defined the terms "input data element" and "parameter", replacing "transient data element", and split IANA operation tables into "Input Data Elements" and "Parameters" (Issue #147)
-* allowed extensions to define new processes
-* moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA (Issue #179)
-* create-only definition clarified about reading (Issue #80)
-* Moved requests for IANA registrations to here, from rpp-core document (Issue #151)
-* Added Default Profile element to Profile Data Object (Issue #155)
-* Added Discovery Data Object (Issue #136)
-* Required the labels of the Discovery Data Object `links` element to be types registered in the IANA "Link Relations" registry (Issue #137)
-* Added Profile Data Object (Issue #140)
-* added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility (Issue #57)
-* Added "Inheritance" section to describe how objects can use inheritance (Issue #134)
-* Removed the urgent parameter from the update operation for Domain Object (Issue #52)
-* Removed all mandatory ordering requirements for arrays, making them unordered (Issue #30)
-* Added support for IDN (Internationalized Domain Names) (Issue #124)
-* Added Message Data Object and new Uniform Interface "Query" operation (Issue #116)
-* Created Status object per Data Object with allowed values and IANA registration. (Issue #118)
-* defined a structured notation for operation input and output and applied it to the uniform interface, all process operations, the domain create operation and the discovery read operation
+* added `X-Y` bounded cardinality notation and set cardinality of Restore Report `statements` to `1-2` #183
+* defined a structured notation for operation input and output, with input data elements and parameters (replacing transient data elements) inside the Input attribute, and split IANA operation tables into "Input Data Elements" and "Parameters" #147
+* moved process data element from Base Message Object to Review Response, Transfer Request and Transfer Outcome message objects, using specific process types where possible; registered all message objects in IANA #179
+* create-only definition clarified about reading #80
+* moved requests for IANA registrations to here, from rpp-core document #151
+* added Profile Data Object, including the Default Profile element #140 #155
+* added Discovery Data Object, with links labelled by IANA link relation types #136 #137
+* added Visibility data element attribute and generic includeElements parameter. Set authInfo of domain and contact to onDemand visibility #57
+* added "Inheritance" section to describe how objects can use inheritance #134
+* removed the urgent parameter from the update operation for Domain Object #52
+* removed all mandatory ordering requirements for arrays, making them unordered #30
+* added support for IDN (Internationalized Domain Names) #124
+* added Message Data Object and new Uniform Interface "Query" operation #116
 * removed the redefined processId data element from the Domain Transfer Process Object
-* moved input data elements and parameters into the Input attribute of operations
-* added a Set By column to status value tables and a set-by field to the status value registries (Issue #186)
-* stated that the server assigns at least one status value on create (Issue #186)
-* renamed Authorisation Information and Disclose component objects to "… Object" to match their references
+* added Set By column and set-by registry field for status values, and required the server to assign at least one status value #186
+* renamed Authorisation Information and Disclose component objects to "Authorisation Information Object" and "Disclose Object" to match their references
+* updated document metadata, and Abstract and Introduction scope
+* editorial fixes to spelling, hyphenation, capitalisation, and terminology consistency
 
 {toc="exclude"}
 {numbered="false"}

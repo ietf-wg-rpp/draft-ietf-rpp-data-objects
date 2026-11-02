@@ -21,7 +21,7 @@ python3 -c "import yaml"
 ```
 
 If that fails, install into a virtualenv — never into the global/system
-Python (see [.scripts/CLAUDE.md](CLAUDE.md)):
+Python (see [.scripts/Agents.md](Agents.md)):
 
 ```bash
 python3 -m venv .venv
@@ -1013,4 +1013,4 @@ entry of `prose_mappings.yaml` matches the real draft.
 When changing parsing behaviour or the YAML schema, add or update a `_test_*`
 function in the same change — do not verify by hand-running the script and
 eyeballing output only, and never create a separate throwaway script to
-check behaviour (per [.scripts/CLAUDE.md](CLAUDE.md)).
+check behaviour (per [.scripts/Agents.md](Agents.md)).
