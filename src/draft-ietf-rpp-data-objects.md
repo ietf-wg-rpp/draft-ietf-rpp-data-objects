@@ -2748,6 +2748,7 @@ A> TBC: IANA registry for contact role label?
   * Cardinality: 0+
   * Mutability: read-only
   * Data Type: Aggregation[Host Data Object]
+  * Direct Access: true
   * Description: A collection of subordinate host objects that exist under this domain.
   * Constraints: (None)
 
