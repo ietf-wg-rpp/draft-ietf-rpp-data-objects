@@ -2255,7 +2255,7 @@ The Service Notice Message Object is not linked to a specific object or process 
     * Constraints: The element is only applicable if the value of `dnssecType` is `ds` or `both`.
   * DNSSEC Interface Type
     * Identifier: dnssecType
-    * Cardinality: 0..1
+    * Cardinality: 0-1
     * Mutability: read-only
     * Data Type: String
     * Description: The DNSSEC interface supported for the TLD.
