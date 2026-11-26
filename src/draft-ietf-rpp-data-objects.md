@@ -2692,18 +2692,6 @@ The following data elements are defined for the Domain Name Data Object.
   * Constraints:
     * Possible combinations of Status Object Labels are specified in (#domain-name-status-object).
 
-* Registrant
-  * Identifier: registrant
-  * Cardinality: 0-1
-  * Mutability: read-write
-  * Data Type: Aggregation[Contact Data Object]
-  * Description: The contact object associated with the domain as the registrant.
-  * Constraints:
-    * The relation MUST correspond to a valid Contact Data Object known to the server.
-    * Servers MAY restrict association of a Contact Data Object of a different sponsoring client.
-
-A> TBC: leave registrant here or move it to contacts with a type?
-
 * Contacts
   * Identifier: contacts
   * Cardinality: 0+
@@ -2711,14 +2699,12 @@ A> TBC: leave registrant here or move it to contacts with a type?
   * Data Type: LabelledAggregation[Contact Data Object]
     * Label Description: The role of the associated contact.
     * Label Constraints:
-      * List of supported roles is defined by server policy
-      * In the EPP Compatibility Profile, the value MUST be one of: "admin", "billing", or "tech"
+      * The supported roles are defined by server policy, but MUST include at least the following values: "registrant", "admin", "billing", or "tech". Other values MUST be registered in the RPP Domain Contact Role Values registry (#rpp-domain-contact-role-values-registry).
   * Description: A collection of other contact objects associated with the domain object.
   * Constraints: 
-    * Each associated contact MUST correspond to a valid Contact Data Object known to the server before it can be associated with the domain.
-    * Maximum number of associated contacts (per role) MAY be restricted by server policy
-
-A> TBC: IANA registry for contact role label? 
+    * Each associated contact MAY correspond to a valid Contact Data Object known to the server before it can be associated with the domain.
+    * Maximum number of associated contacts (per role) MAY be restricted by server policy.
+    * Servers MAY restrict association of a Contact Data Object managed by a different sponsoring client.
 
 * Nameservers
   * Identifier: nameservers
@@ -4654,7 +4640,6 @@ Data Elements
 | lgr              | LGR                       | 0-1   | create-only | String                                    | The name of the Label Generation Ruleset (LGR) containing the valid code points used for the Unicode Name (uName). |
 | provMetadata     | Provisioning Metadata     | 1     | read-only   | Provisioning Metadata Object              | Standard metadata about object lifecycle and ownership.                                                            |
 | status           | Status                    | 1+    | read-write  | Domain Name Status Object                 | The current status descriptors for the domain.                                                                     |
-| registrant       | Registrant                | 0-1   | read-write  | Aggregation[Contact Data Object]          | The registrant contact ID.                                                                                         |
 | contacts         | Contacts                  | 0+    | read-write  | LabelledAggregation [Contact Data Object] | Associated contact objects.                                                                                        |
 | nameservers      | Nameservers               | 0+    | read-write  | Aggregation [Host Data Object]            | A collection of nameservers associated with the domain.                                                            |
 | dns              | DNS Data                  | 0-1   | read-write  | DNS Data Object                           | DNS resource records and operational controls related to the domain name.                                          |
@@ -5233,6 +5218,33 @@ Fields to be registered:
 - `permission`: The permission level associated with the user role, for example "read-only", "read-write", or "admin".
 - `description`: A human-readable description of the user role and its intended use.
 
+## RPP Domain Contact Role Values Registry {#rpp-domain-contact-role-values-registry}
+
+This document establishes the "RESTful Provisioning Protocol (RPP) Domain Contact Role Values Registry". This registry serves as a catalogue of the roles that can be used to associate a Contact Data Object with a Domain Name Data Object.
+
+```text
+Name of the registry: RPP Domain Contact Role Values
+Registry group: RESTful Provisioning Protocol (RPP)
+Registration procedure: Specification Required
+```
+
+Fields to be registered:
+
+- `value`: The machine-readable role label, for example "admin".
+- `description`: A human-readable description of the role and its intended use.
+- `reference`: A reference to the specification that defines the role.
+
+### Initial Registrations
+
+| Value | Description | Reference |
+|-------|-------------|-----------|
+| registrant | The contact that is the holder of the domain name. | [This-ID] |
+| admin | The administrative contact for the domain name. | [This-ID] |
+| billing | The billing contact for the domain name. | [This-ID] |
+| tech | The technical contact for the domain name. | [This-ID] |
+Table: Initial RPP Domain Contact Role Values Registrations
+{#tbl-domain-contact-role-registry}
+
 ## RPP Domain Name Status Values Registry
 
 This document establishes the "RESTful Provisioning Protocol (RPP) Domain Name Status Values Registry".
@@ -5534,6 +5546,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -02 - -03
 
+* Added support for thin registry and merged registrar data element of Domain Data Object into the contacts data element #218
 
 {toc="exclude"}
 {numbered="false"}
