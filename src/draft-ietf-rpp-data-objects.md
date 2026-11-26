@@ -5212,7 +5212,7 @@ Data Elements
 | regPeriod | Registration Periods | 0+ | read-only | Period Object | The registration periods allowed for domain names in the TLD. |
 | dnssecAlg | DNSSEC Algorithms | 0+ | read-only | Integer | The DNSSEC algorithm numbers allowed for domain names in the TLD. |
 | dnssecDsDigestType | DNSSEC DS Digest Types | 0+ | read-only | Integer | The DS digest type numbers allowed for DS records of domain names in the TLD. |
-| dnssecType | DNSSEC Interface Type | 0..1 | read-only | String | The DNSSEC interface supported: `dnskey`, `ds` or `both`. |
+| dnssecType | DNSSEC Interface Type | 0-1 | read-only | String | The DNSSEC interface supported: `dnskey`, `ds` or `both`. |
 
 Object: discoveryIdnLgr
 
