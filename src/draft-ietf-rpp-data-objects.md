@@ -2219,6 +2219,55 @@ The Service Notice Message Object is not linked to a specific object or process 
       * For standard extensions, the value MUST be the URL of the extension in the IANA registry.
       * For private extensions, the value MUST be the URL of the extension specification. The domain name used in the URL MUST resolve and the URL MUST be accessible to the client.
 
+### TLD Object
+
+* Name: Discovery TLD Object
+* Identifier: discoveryTld
+* Description: Describes a top-level domain (TLD) supported by the server, including the allowed registration periods and the supported DNSSEC parameters.
+* Data Elements:
+  * Name
+    * Identifier: name
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The TLD, for example "example".
+    * Constraints: (None)
+  * Registration Periods
+    * Identifier: regPeriod
+    * Cardinality: 0+
+    * Mutability: read-only
+    * Data Type: Period Object
+    * Description: The registration periods allowed for domain names in the TLD.
+    * Constraints: (None)
+  * DNSSEC Algorithms
+    * Identifier: dnssecAlg
+    * Cardinality: 0+
+    * Mutability: read-only
+    * Data Type: Integer
+    * Description: The DNSSEC algorithm numbers allowed for domain names in the TLD, as listed in the IANA "Domain Name System Security (DNSSEC) Algorithm Numbers" registry.
+    * Constraints: (None)
+  * DNSSEC DS Digest Types
+    * Identifier: dnssecDsDigestType
+    * Cardinality: 0+
+    * Mutability: read-only
+    * Data Type: Integer
+    * Description: The DS digest type numbers allowed for DS records of domain names in the TLD, as listed in the IANA "Delegation Signer (DS) Resource Record (RR) Type Digest Algorithms" registry.
+    * Constraints: The element is only applicable if the value of `dnssecType` is `ds` or `both`.
+  * DNSSEC Interface Type
+    * Identifier: dnssecType
+    * Cardinality: 0..1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The DNSSEC interface supported for the TLD.
+    * Constraints: The value MUST be one of `dnskey`, `ds` or `both`. The value `dnskey` indicates that DNSKEY records are supported, `ds` that DS records are supported, and `both` that both DS and DNSKEY records are supported.
+  * Nameserver Interface Type
+    * Identifier: nameserverType
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The Nameserer interface supported for the TLD.
+    * Constraints: The value MUST be one of `host`, `ns`. The value `host` indicates that Host Object references are supported, `ns` that NS records are supported.
+
 ### IDN LGR Object
 
 * Name: Discovery IDN LGR Object
@@ -3676,8 +3725,8 @@ The following data elements are defined for the Discovery Data Object.
   * Identifier: tlds
   * Cardinality: 1+
   * Mutability: read-only
-  * Data Type: String
-  * Description: The TLDs supported by the server, for example "example" or "org".
+  * Data Type: Discovery TLD Object
+  * Description: The TLDs supported by the server, with their registration periods and DNSSEC parameters.
   * Constraints: (None)
 
 * Extensions
@@ -5146,6 +5195,25 @@ Data Elements
 | version | Version | 1 | read-only | String | The version of the extension supported by the server. |
 | url | URL | 1 | read-only | URL | The location of the extension specification. |
 
+Object: discoveryTld
+
+Object Name: Discovery TLD Object
+
+Object Type: Component
+
+Description: Describes a TLD supported by the server, including the allowed registration periods and the supported DNSSEC parameters.
+
+Reference: [This-ID]
+
+Data Elements
+| Element Identifier | Element Name | Card. | Mutability | Data Type | Description |
+| ------------------ | ------------ | ----- | ---------- | --------- | ----------- |
+| name | Name | 1 | read-only | String | The TLD. |
+| regPeriod | Registration Periods | 0+ | read-only | Period Object | The registration periods allowed for domain names in the TLD. |
+| dnssecAlg | DNSSEC Algorithms | 0+ | read-only | Integer | The DNSSEC algorithm numbers allowed for domain names in the TLD. |
+| dnssecDsDigestType | DNSSEC DS Digest Types | 0+ | read-only | Integer | The DS digest type numbers allowed for DS records of domain names in the TLD. |
+| dnssecType | DNSSEC Interface Type | 0-1 | read-only | String | The DNSSEC interface supported: `dnskey`, `ds` or `both`. |
+
 Object: discoveryIdnLgr
 
 Object Name: Discovery IDN LGR Object
@@ -5195,7 +5263,7 @@ Data Elements
 | ---------- | ---- | ----- | ---------- | --------- | ----------- |
 | versions | Versions | 1+ | read-only | Discovery Version Object | The versions of RPP supported by the server. |
 | environment | Environment | 1 | read-only | Discovery Environment Object | Information about the RPP server. |
-| tlds | TLDs | 1+ | read-only | String | The TLDs supported by the server. |
+| tlds | TLDs | 1+ | read-only | Discovery TLD Object | The TLDs supported by the server. |
 | extensions | Extensions | 0+ | read-only | Extension Object | The extensions supported by the server. |
 | profiles | Profiles | 0+ | read-only | String | The profiles supported by the server. |
 | objects | Objects | 1+ | read-only | String | The resource collections supported by the server. |
@@ -5534,6 +5602,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -02 - -03
 
+* added Discovery TLD Object to describe TLDs supported by the server, including registration periods and DNSSEC parameters #219
 
 {toc="exclude"}
 {numbered="false"}
