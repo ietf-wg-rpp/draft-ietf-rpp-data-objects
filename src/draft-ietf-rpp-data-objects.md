@@ -3723,6 +3723,7 @@ The following data elements are defined for the Discovery Data Object.
     * Each value MUST be an absolute URL using the HTTPS scheme.
     * The document MUST be accessible to the client without authentication.
     * A server SHOULD provide a link for each of the `privacy-policy` and `terms-of-service` relation types, defined in [@!RFC6903].
+    * When using the EPP Compatibility Profile, an entry with the key `privacy-policy` MUST be provided, to provide a link to the server's privacy policy, which MUST correspond to the policy provided by the EPP `dcp` (data collection policy) element of the Greeting response.
 
 * IDN LGRs
   * Identifier: idnLgr
@@ -5534,6 +5535,7 @@ A> TODO: write security considerations, if any
 {numbered="false"}
 ## draft-ietf-rpp-data-objects -02 - -03
 
+* Added requirement for `privacy-policy` key when using the EPP Compatibility Profile #211
 
 {toc="exclude"}
 {numbered="false"}
