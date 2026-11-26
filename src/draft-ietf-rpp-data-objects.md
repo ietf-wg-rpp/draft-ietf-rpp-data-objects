@@ -2255,11 +2255,18 @@ The Service Notice Message Object is not linked to a specific object or process 
     * Constraints: The element is only applicable if the value of `dnssecType` is `ds` or `both`.
   * DNSSEC Interface Type
     * Identifier: dnssecType
-    * Cardinality: 0-1
+    * Cardinality: 0..1
     * Mutability: read-only
     * Data Type: String
     * Description: The DNSSEC interface supported for the TLD.
     * Constraints: The value MUST be one of `dnskey`, `ds` or `both`. The value `dnskey` indicates that DNSKEY records are supported, `ds` that DS records are supported, and `both` that both DS and DNSKEY records are supported.
+  * Nameserver Interface Type
+    * Identifier: nameserverType
+    * Cardinality: 1
+    * Mutability: read-only
+    * Data Type: String
+    * Description: The Nameserer interface supported for the TLD.
+    * Constraints: The value MUST be one of `host`, `ns`. The value `host` indicates that Host Object references are supported, `ns` that NS records are supported.
 
 ### IDN LGR Object
 
